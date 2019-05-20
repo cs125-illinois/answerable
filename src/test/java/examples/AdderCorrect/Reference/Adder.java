@@ -1,3 +1,7 @@
+package examples.AdderCorrect.Reference;
+
+import edu.illinois.cs.cs125.answerable.Solution;
+
 public final class Adder {
     /*
      * Probably the easiest possible example.
