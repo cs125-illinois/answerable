@@ -1,7 +1,9 @@
 package edu.illinois.cs.cs125.answerable
 
 import java.lang.IllegalStateException
+import java.lang.reflect.Field
 import java.lang.reflect.Method
+import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 import java.util.*
 
@@ -12,7 +14,7 @@ fun getSolutionClass(name: String): Class<*> = findClass(
 
 fun getAttemptClass(name: String): Class<*> = findClass(
     name,
-    "Couldn't find student attempt."
+    "Couldn't find student attempt class named $name."
 )
 
 private fun findClass(name: String, failMsg: String): Class<*> {
@@ -49,17 +51,17 @@ fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
             this.declaredMethods
                 .filter { it.name == matchName }
     if (methods.isEmpty()) {
-        throw SubmissionMismatchError("Expected a method named `$matchName'.")
+        throw SubmissionMismatchException("Expected a method named `$matchName'.")
     }
 
     methods = methods.filter { it.genericReturnType == matchRType }
     if (methods.isEmpty()) {
-        throw SubmissionMismatchError("Expected a method with return type `$matchRType'.")
+        throw SubmissionMismatchException("Expected a method with return type `$matchRType'.")
     }
 
     methods = methods.filter { it.genericParameterTypes?.contentEquals(matchPTypes) ?: false }
     if (methods.isEmpty()) {
-        throw SubmissionMismatchError(
+        throw SubmissionMismatchException(
             // TODO probably: improve this error message
             "Expected a method with parameter types `${Arrays.toString(matchPTypes)}'."
         )
@@ -67,3 +69,21 @@ fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
     // If the student code compiled, there can only be one method
     return methods[0]
 }
+
+fun Class<*>.getPublicFields(): List<Field> =
+    this.declaredFields.filter { Modifier.isPublic(it.modifiers) }
+
+fun Class<*>.getPublicMethods(isReference: Boolean): List<Method> {
+    val allPublicMethods = this.declaredMethods.filter { Modifier.isPublic(it.modifiers) }
+
+    if (isReference) {
+        // TODO: filter out all annotations that should be ignored.
+        return allPublicMethods.filter { method -> method.annotations.none { it.annotationClass == Next::class } }
+    }
+
+    return allPublicMethods
+}
+
+fun Method.isStaticVoid(): Boolean =
+        Modifier.isStatic(this.modifiers)
+                && this.genericReturnType.typeName == "void"

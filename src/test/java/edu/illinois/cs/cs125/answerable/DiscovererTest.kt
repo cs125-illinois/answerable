@@ -4,10 +4,13 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
 import java.lang.Exception
 import java.lang.IllegalStateException
+import java.lang.reflect.Field
 
 internal class DiscovererTest {
-    val correctAdderReference: String = "examples.AdderCorrect.Reference.Adder"
-    val correctAdderAttempt: String = "examples.AdderCorrect.Adder"
+    private val correctAdderReference: String = "examples.adder.correct.reference.Adder"
+    private val correctAdderAttempt: String = "examples.adder.correct.Adder"
+    private val correctPrinterReference: String = "examples.printer.correct.reference.Printer"
+    private val correctClassDesignReference: String = "examples.classdesign.correct.reference.ClassDesign"
 
     @Test
     fun testGetSolutionClassAdder() {
@@ -22,6 +25,9 @@ internal class DiscovererTest {
     fun testIsClassDesignReference() {
         val ref = getSolutionClass(correctAdderReference)
         assertFalse(ref.isClassDesignReference())
+
+        val ref2 = getSolutionClass(correctClassDesignReference)
+        assertTrue(ref2.isClassDesignReference())
     }
 
     @Test
@@ -56,6 +62,48 @@ internal class DiscovererTest {
             assertEquals("add", attemptMethod.name)
             assertEquals(Int::class.java, attemptMethod.genericReturnType)
             assertArrayEquals(arrayOf(Int::class.java, Int::class.java), attemptMethod.genericParameterTypes)
+        } catch (unused: Exception) {
+            assertTrue(false)
+        }
+    }
+
+    @Test
+    fun testIsStaticVoid() {
+        try {
+            val printerReferenceClass = getSolutionClass(correctPrinterReference)
+            val printerReferenceMethod = printerReferenceClass.getReferenceSolutionMethod()
+            assertTrue(printerReferenceMethod.isStaticVoid())
+        } catch (unused: Exception) {
+            assertTrue(false)
+        }
+    }
+
+    @Test
+    fun testGetPublicFields() {
+        try {
+            val classDesignReferenceClass = getSolutionClass(correctClassDesignReference)
+            assertEquals(
+                "[public static int examples.classdesign.correct.reference.ClassDesign.numGets]",
+                classDesignReferenceClass.getPublicFields().toString()
+            )
+        } catch (unused: Exception) {
+            assertTrue(false)
+        }
+    }
+
+    @Test
+    fun testGetPublicMethods() {
+        try {
+            val classDesignReferenceClass = getSolutionClass(correctClassDesignReference)
+            assertEquals(
+                "[public java.lang.Object examples.classdesign.correct.reference.ClassDesign.get(int)]",
+                classDesignReferenceClass.getPublicMethods(isReference = true).toString()
+            )
+
+            assertEquals(
+                "[public java.lang.Object examples.classdesign.correct.reference.ClassDesign.get(int), public static examples.classdesign.correct.reference.ClassDesign examples.classdesign.correct.reference.ClassDesign.next]",
+                classDesignReferenceClass.getPublicMethods(isReference = false).toString()
+            )
         } catch (unused: Exception) {
             assertTrue(false)
         }

@@ -1,3 +1,4 @@
 package edu.illinois.cs.cs125.answerable
 
-class SubmissionMismatchError(msg: String) : Error(msg)
+class SubmissionMismatchException(msg: String) : Exception(msg)
+class ClassDesignMismatchException(msg: String) : Exception(msg)

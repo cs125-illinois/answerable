@@ -62,7 +62,7 @@ public class LastTen {
      *//*
 
     @Next
-    public static LastTen(LastTen current, int iteration) {
+    public static LastTen next(LastTen current, int iteration) {
         if (iteration % 32) {
             return new LastTen();
         } else {

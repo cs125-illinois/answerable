@@ -1,4 +1,4 @@
-package examples.AdderCorrect.Reference;
+package examples.adder.correct.reference;
 
 import edu.illinois.cs.cs125.answerable.Solution;
 
