@@ -8,12 +8,14 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
     fun runSuite(
         name: Boolean = true,
         classStatus: Boolean = true,
+        typeParams: Boolean = true,
         superClasses: Boolean = true,
         fields: Boolean = true,
         methods: Boolean = true
     ) {
         if (name)         namesMatch()
         if (classStatus)  classStatusMatch()
+        if (typeParams)   typeParamsMatch()
         if (superClasses) superClassesMatch()
         if (fields)       publicFieldsMatch()
         if (methods)      publicMethodsMatch()
@@ -35,6 +37,27 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
             val actual = if (attempt.isInterface) "an interface" else "a class"
             throw ClassDesignMismatchException("Expected $expected but found $actual.")
         }
+    }
+
+    fun typeParamsMatch(): Boolean {
+        if (reference.typeParameters.map { it.name } == attempt.typeParameters.map { it.name }) {
+            return true
+        }
+
+        val expected = reference.typeParameters
+        val singleE = expected.size == 1
+        val actual = attempt.typeParameters
+        val singleA = actual.size == 1
+
+        val buff = "   "
+        val spaces =
+            if (singleE == singleA) ("$buff ")
+            else if (singleE && !singleA) buff
+            else "$buff  "
+        throw ClassDesignMismatchException(
+            "Expected type parameter${if (singleE) "" else "s"} : ${expected.joinToString(prefix = "<", postfix = ">")}\n" +
+            "Found type parameter${if (singleA) "" else "s"}$spaces: ${actual.joinToString(prefix = "<", postfix = ">")}"
+        )
     }
 
     fun superClassesMatch(): Boolean {
@@ -225,7 +248,7 @@ class MethodData(
                 sb.append(
                     typeparms.joinToString(
                         prefix = "<",
-                        separator = ",",
+                        separator = ", ",
                         postfix = "> ",
                         transform = { it.simpleName() })
                 )

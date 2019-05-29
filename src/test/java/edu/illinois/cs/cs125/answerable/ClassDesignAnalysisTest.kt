@@ -14,13 +14,18 @@ internal class ClassDesignAnalysisTest {
         "examples.classdesign.superclassmismatch.classes.reference.OnlyExt"
     private val superClassMismatchOnlyImplRef: String =
         "examples.classdesign.superclassmismatch.classes.reference.OnlyImpl"
-    private val SCMInterfaceRefOne: String = "examples.classdesign.superclassmismatch.interfaces.reference.One"
-    private val SCMInterfaceRefNone: String = "examples.classdesign.superclassmismatch.interfaces.reference.None"
-    private val SCMInterfaceRefMultiple: String =
+    private val sCMInterfaceRefOne: String = "examples.classdesign.superclassmismatch.interfaces.reference.One"
+    private val sCMInterfaceRefNone: String = "examples.classdesign.superclassmismatch.interfaces.reference.None"
+    private val sCMInterfaceRefMultiple: String =
         "examples.classdesign.superclassmismatch.interfaces.reference.Multiple"
-    private val SCMInterfaceAttOne: String = "examples.classdesign.superclassmismatch.interfaces.One"
-    private val SCMInterfaceAttNone: String = "examples.classdesign.superclassmismatch.interfaces.None"
-    private val SCMInterfaceAttMultiple: String = "examples.classdesign.superclassmismatch.interfaces.Multiple"
+    private val sCMInterfaceAttOne: String = "examples.classdesign.superclassmismatch.interfaces.One"
+    private val sCMInterfaceAttNone: String = "examples.classdesign.superclassmismatch.interfaces.None"
+    private val sCMInterfaceAttMultiple: String = "examples.classdesign.superclassmismatch.interfaces.Multiple"
+    private val tPRefET: String = "examples.classdesign.typeparams.reference.ET"
+    private val tPRefT: String = "examples.classdesign.typeparams.reference.T"
+    private val tPAttET: String = "examples.classdesign.typeparams.ET"
+    private val tpAttTE: String = "examples.classdesign.typeparams.TE"
+    private val tpAttT: String  = "examples.classdesign.typeparams.T"
 
     @Test
     fun testClassDesignCorrect1() {
@@ -47,6 +52,51 @@ internal class ClassDesignAnalysisTest {
         analyzer.runSuite()
         analyzer = analyzer(statusMismatchClass, statusMismatchClass)
         analyzer.runSuite()
+    }
+
+    @Test
+    fun testTypeParamMatch() {
+        val analyzerMatch1 = analyzer(tPRefET, tPAttET)
+        analyzerMatch1.typeParamsMatch()
+
+        val analyzerMatch2 = analyzer(tPRefT, tpAttT)
+        analyzerMatch2.typeParamsMatch()
+    }
+
+    @Test
+    fun testTypeParamsMismatchOrder() {
+        val analyzer = analyzer(tPRefET, tpAttTE)
+        analyzer.assertMismatchMsg(
+            """
+                Expected type parameters : <E, T>
+                Found type parameters    : <T, E>
+            """.trimIndent(),
+            name = false
+        )
+    }
+
+    @Test
+    fun testTypeParamsMismatchMissing() {
+        val analyzer = analyzer(tPRefET, tpAttT)
+        analyzer.assertMismatchMsg(
+            """
+                Expected type parameters : <E, T>
+                Found type parameter     : <T>
+            """.trimIndent(),
+            name = false
+        )
+    }
+
+    @Test
+    fun testTypeParamsMismatchExtra() {
+        val analyzer = analyzer (tPRefT, tpAttTE)
+        analyzer.assertMismatchMsg(
+            """
+                Expected type parameter : <T>
+                Found type parameters   : <T, E>
+            """.trimIndent(),
+            name = false
+        )
     }
 
     @Test
@@ -152,13 +202,13 @@ internal class ClassDesignAnalysisTest {
 
     @Test
     fun testSuperClassMatchInterfacesNoneNone() {
-        val analyzer = analyzer(SCMInterfaceRefNone, SCMInterfaceAttNone)
+        val analyzer = analyzer(sCMInterfaceRefNone, sCMInterfaceAttNone)
         analyzer.runSuite(name = false)
     }
 
     @Test
     fun testSuperClassMismatchInterfacesNoneOne() {
-        val analyzer = analyzer(SCMInterfaceRefNone, SCMInterfaceAttOne)
+        val analyzer = analyzer(sCMInterfaceRefNone, sCMInterfaceAttOne)
         analyzer.assertMismatchMsg(
             "Expected class to not implement any interfaces, but class implemented `java.util.List'.",
             name = false
@@ -167,7 +217,7 @@ internal class ClassDesignAnalysisTest {
 
     @Test
     fun testSuperClassMismatchInterfacesNoneMultiple() {
-        val analyzer = analyzer(SCMInterfaceRefNone, SCMInterfaceAttMultiple)
+        val analyzer = analyzer(sCMInterfaceRefNone, sCMInterfaceAttMultiple)
         analyzer.assertMismatchMsg(
             "Expected class to not implement any interfaces, " +
                     "but class implemented `java.util.Iterator', `java.util.function.Function', and `java.util.List'.",
@@ -177,7 +227,7 @@ internal class ClassDesignAnalysisTest {
 
     @Test
     fun testSuperClassMismatchInterfacesOneNone() {
-        val analyzer = analyzer(SCMInterfaceRefOne, SCMInterfaceAttNone)
+        val analyzer = analyzer(sCMInterfaceRefOne, sCMInterfaceAttNone)
         analyzer.assertMismatchMsg(
             "Expected class to implement `java.util.Set', but class did not implement any interfaces.",
             name = false
@@ -186,7 +236,7 @@ internal class ClassDesignAnalysisTest {
 
     @Test
     fun testSuperClassMismatchInterfacesOneOne() {
-        val analyzer = analyzer(SCMInterfaceRefOne, SCMInterfaceAttOne)
+        val analyzer = analyzer(sCMInterfaceRefOne, sCMInterfaceAttOne)
         analyzer.assertMismatchMsg(
             "Expected class to implement `java.util.Set', but class implemented `java.util.List'.",
             name = false
@@ -195,7 +245,7 @@ internal class ClassDesignAnalysisTest {
     
     @Test
     fun testSuperClassMismatchInterfacesOneMultiple() {
-        val analyzer = analyzer(SCMInterfaceRefOne, SCMInterfaceAttMultiple)
+        val analyzer = analyzer(sCMInterfaceRefOne, sCMInterfaceAttMultiple)
         analyzer.assertMismatchMsg(
             "Expected class to implement `java.util.Set', " +
                     "but class implemented `java.util.Iterator', `java.util.function.Function', and `java.util.List'.",
@@ -205,7 +255,7 @@ internal class ClassDesignAnalysisTest {
     
     @Test
     fun testSuperClassMismatchInterfacesMultipleNone() {
-        val analyzer = analyzer(SCMInterfaceRefMultiple, SCMInterfaceAttNone)
+        val analyzer = analyzer(sCMInterfaceRefMultiple, sCMInterfaceAttNone)
         analyzer.assertMismatchMsg(
             "Expected class to implement `java.lang.Iterable', `java.util.function.Function', and `java.util.List', " +
                     "but class did not implement any interfaces.",
@@ -215,7 +265,7 @@ internal class ClassDesignAnalysisTest {
 
     @Test
     fun testSuperClassMismatchInterfacesMultipleOne() {
-        val analyzer = analyzer(SCMInterfaceRefMultiple, SCMInterfaceAttOne)
+        val analyzer = analyzer(sCMInterfaceRefMultiple, sCMInterfaceAttOne)
         analyzer.assertMismatchMsg(
             "Expected class to implement `java.lang.Iterable', `java.util.function.Function', and `java.util.List', " +
                     "but class implemented `java.util.List'.",
@@ -225,7 +275,7 @@ internal class ClassDesignAnalysisTest {
 
     @Test
     fun testSuperClassMismatchInterfacesMultipleMultiple() {
-        val analyzer = analyzer(SCMInterfaceRefMultiple, SCMInterfaceAttMultiple)
+        val analyzer = analyzer(sCMInterfaceRefMultiple, sCMInterfaceAttMultiple)
         analyzer.assertMismatchMsg(
             "Expected class to implement `java.lang.Iterable', `java.util.function.Function', and `java.util.List', " +
                     "but class implemented `java.util.Iterator', `java.util.function.Function', and `java.util.List'.",
@@ -240,12 +290,13 @@ internal class ClassDesignAnalysisTest {
         expected: String,
         name: Boolean = true,
         classStatus: Boolean = true,
+        typeParams: Boolean = true,
         superClasses: Boolean = true,
         fields: Boolean = true,
         methods: Boolean = true
     ) {
         try {
-            runSuite(name, classStatus, superClasses, fields, methods)
+            runSuite(name, classStatus, typeParams, superClasses, fields, methods)
         } catch (e: ClassDesignMismatchException) {
             assertEquals(expected, e.msg)
         } catch (other: Exception) {
