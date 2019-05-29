@@ -6,7 +6,7 @@ import java.util.Arrays;
 */
 /*
  * A more complex problem that combines class design with a custom comparison function. The @Solution annotation on the
- * class indicates that class design should be checked: correct public functions and signatures, correct count of
+ * class indicates that class design should be checked: correct1 public functions and signatures, correct1 count of
  * public variables (none), inheritance, etc.
  *
  * An open question here is how we handle object reuse. This example tries out a few ideas. One is a argument to the
@@ -43,7 +43,7 @@ public class LastTen {
      *//*
 
     @Correct
-    public boolean correct(LastTen other) {
+    public boolean correct1(LastTen other) {
         int[] ourValues = values();
         int[] theirValues = other.values();
         Arrays.sort(ourValues);

@@ -7,10 +7,10 @@ import java.lang.IllegalStateException
 import java.lang.reflect.Field
 
 internal class DiscovererTest {
-    private val correctAdderReference: String = "examples.adder.correct.reference.Adder"
-    private val correctAdderAttempt: String = "examples.adder.correct.Adder"
-    private val correctPrinterReference: String = "examples.printer.correct.reference.Printer"
-    private val correctClassDesignReference: String = "examples.classdesign.correct.reference.ClassDesign"
+    private val correctAdderReference: String = "examples.adder.correct1.reference.Adder"
+    private val correctAdderAttempt: String = "examples.adder.correct1.Adder"
+    private val correctPrinterReference: String = "examples.printer.correct1.reference.Printer"
+    private val correctClassDesignReference: String = "examples.classdesign.correct1.reference.ClassDesign"
 
     @Test
     fun testGetSolutionClassAdder() {
@@ -83,7 +83,7 @@ internal class DiscovererTest {
         try {
             val classDesignReferenceClass = getSolutionClass(correctClassDesignReference)
             assertEquals(
-                "[public static int examples.classdesign.correct.reference.ClassDesign.numGets]",
+                "[public static int examples.classdesign.correct1.reference.ClassDesign.numGets]",
                 classDesignReferenceClass.getPublicFields().toString()
             )
         } catch (unused: Exception) {
@@ -96,12 +96,12 @@ internal class DiscovererTest {
         try {
             val classDesignReferenceClass = getSolutionClass(correctClassDesignReference)
             assertEquals(
-                "[public java.lang.Object examples.classdesign.correct.reference.ClassDesign.get(int)]",
+                "[public java.lang.Object examples.classdesign.correct1.reference.ClassDesign.get(int)]",
                 classDesignReferenceClass.getPublicMethods(isReference = true).toString()
             )
 
             assertEquals(
-                "[public java.lang.Object examples.classdesign.correct.reference.ClassDesign.get(int), public static examples.classdesign.correct.reference.ClassDesign examples.classdesign.correct.reference.ClassDesign.next]",
+                "[public java.lang.Object examples.classdesign.correct1.reference.ClassDesign.get(int), public static examples.classdesign.correct1.reference.ClassDesign examples.classdesign.correct1.reference.ClassDesign.next]",
                 classDesignReferenceClass.getPublicMethods(isReference = false).toString()
             )
         } catch (unused: Exception) {

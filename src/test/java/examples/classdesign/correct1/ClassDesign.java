@@ -1,4 +1,4 @@
-package examples.classdesign.correct;
+package examples.classdesign.correct1;
 
 import java.util.LinkedList;
 

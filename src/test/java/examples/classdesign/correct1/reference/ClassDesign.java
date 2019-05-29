@@ -1,4 +1,4 @@
-package examples.classdesign.correct.reference;
+package examples.classdesign.correct1.reference;
 
 import edu.illinois.cs.cs125.answerable.Next;
 import edu.illinois.cs.cs125.answerable.Solution;
