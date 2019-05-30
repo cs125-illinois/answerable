@@ -26,6 +26,8 @@ internal class ClassDesignAnalysisTest {
     private val tPAttET: String = "examples.classdesign.typeparams.ET"
     private val tpAttTE: String = "examples.classdesign.typeparams.TE"
     private val tpAttT: String  = "examples.classdesign.typeparams.T"
+    private val fieldMismatchSimpleRef: String = "examples.classdesign.publicapi.fields.reference.Simple"
+    private val fieldMismatchPrefix: String = "examples.classdesign.publicapi.fields"
 
     @Test
     fun testClassDesignCorrect1() {
@@ -63,6 +65,7 @@ internal class ClassDesignAnalysisTest {
         analyzerMatch2.typeParamsMatch()
     }
 
+    // Not checking names for these tests allows re-use
     @Test
     fun testTypeParamsMismatchOrder() {
         val analyzer = analyzer(tPRefET, tpAttTE)
@@ -101,7 +104,6 @@ internal class ClassDesignAnalysisTest {
 
     @Test
     fun testSuperClassMismatchExtNoExt() {
-        // Not checking name so should be safe to test against multiple classes here.
         val analyzer = analyzer(
             superClassMismatchOnlyExtRef,
             "examples.classdesign.superclassmismatch.classes.OnlyExtNone"
@@ -279,6 +281,99 @@ internal class ClassDesignAnalysisTest {
         analyzer.assertMismatchMsg(
             "Expected class to implement `java.lang.Iterable', `java.util.function.Function', and `java.util.List', " +
                     "but class implemented `java.util.Iterator', `java.util.function.Function', and `java.util.List'.",
+            name = false
+        )
+    }
+
+    @Test
+    fun testFieldMatchSimple() {
+        val analyzer = analyzer(fieldMismatchSimpleRef, "$fieldMismatchPrefix.Simple")
+        analyzer.runSuite()
+    }
+
+    @Test
+    fun testFieldMatchTypeParam() {
+        val analyzer = analyzer("$fieldMismatchPrefix.reference.TypeParam", "$fieldMismatchPrefix.TypeParam")
+        analyzer.runSuite()
+    }
+
+    @Test
+    fun testFieldMismatchMissingInt() {
+        val analyzer = analyzer(fieldMismatchSimpleRef, "$fieldMismatchPrefix.String")
+        analyzer.assertMismatchMsg(
+            """
+                |Expected another public field:
+                |  public static int a
+            """.trimMargin(),
+            name = false
+        )
+    }
+
+    @Test
+    fun testFieldMismatchMissingString() {
+        val analyzer = analyzer(fieldMismatchSimpleRef, "$fieldMismatchPrefix.StaticInt")
+        analyzer.assertMismatchMsg(
+            """
+                |Expected another public field:
+                |  public String s
+            """.trimMargin(),
+            name = false
+        )
+    }
+
+    @Test
+    fun testFieldMismatchBadNames() {
+        val analyzer = analyzer(fieldMismatchSimpleRef, "$fieldMismatchPrefix.BadNames")
+        analyzer.assertMismatchMsg(
+            """
+                |Expected your class to have public fields:
+                |  public String s
+                |  public static int a
+                |but found public fields:
+                |  public String myString
+                |  public static int myInt
+            """.trimMargin(),
+            name = false
+        )
+    }
+
+    @Test
+    fun testFieldMismatchOneTooMany() {
+        val analyzer = analyzer(fieldMismatchSimpleRef, "$fieldMismatchPrefix.OneTooMany")
+        analyzer.assertMismatchMsg(
+            """
+                |Found an unexpected public field:
+                |  public boolean extra
+            """.trimMargin(),
+            name = false
+        )
+    }
+
+    @Test
+    fun testFieldMismatchMultipleTooMany() {
+        val analyzer = analyzer(fieldMismatchSimpleRef, "$fieldMismatchPrefix.MultipleTooMany")
+        analyzer.assertMismatchMsg(
+            """
+                |Found unexpected public fields:
+                |  public boolean extra1
+                |  public byte extra2
+            """.trimMargin(),
+            name = false
+        )
+    }
+
+    @Test
+    fun testFieldMismatchWrongModifiers() {
+        val analyzer = analyzer(fieldMismatchSimpleRef, "$fieldMismatchPrefix.WrongModifiers")
+        analyzer.assertMismatchMsg(
+            """
+                |Expected your class to have public fields:
+                |  public String s
+                |  public static int a
+                |but found public fields:
+                |  public int a
+                |  public static String s
+            """.trimMargin(),
             name = false
         )
     }

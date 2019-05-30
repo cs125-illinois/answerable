@@ -180,29 +180,27 @@ private fun <T> mkPublicApiMismatchMsg(exp: List<T>, act: List<T>, apiTypeName: 
     when (Pair(exp.isEmpty(), act.isEmpty())) {
         Pair(true, false) -> {
             val single = act.size == 1
-            """
-                    Found ${if (single) "an" else ""} unexpected public $apiTypeName${if (single) "" else "s"}:
-                    ${act.joinToString(separator = "\n  ", prefix = "  ")}
-                """.trimIndent()
+                """
+                    |Found ${if (single) "an " else ""}unexpected public $apiTypeName${if (single) "" else "s"}:
+                    |${act.joinToString(separator = "\n  ", prefix = "  ")}
+                """.trimMargin()
         }
         Pair(false, true) -> {
             val single = exp.size == 1
-            """
-                    Expected ${if (single) "another" else "more"} public $apiTypeName${if (single) "" else "s"}:
-                    ${exp.joinToString(separator = "\n  ", prefix = "  ")}
-                """.trimIndent()
+                """
+                    |Expected ${if (single) "another" else "more"} public $apiTypeName${if (single) "" else "s"}:
+                    |${exp.joinToString(separator = "\n  ", prefix = "  ")}
+                """.trimMargin()
         }
         Pair(false, false) -> {
             // In this case the exact cause of the mismatch is provably undecidable
             // in the future we can try and provide better guesses here, but for now we'll dump everything
-            """
-                    Expected your class to have public $apiTypeName${
-            if (exp.size == 1) "" else "s"}:
-                    ${exp.joinToString(separator = "\n  ", prefix = "  ")}
-                    but found public $apiTypeName${
-            if (act.size == 1) "" else "s"}:
-                    ${act.joinToString(separator = "\n  ", prefix = "  ")}
-                """.trimIndent()
+                """
+                    |Expected your class to have public $apiTypeName${if (exp.size == 1) "" else "s"}:
+                    |${exp.joinToString(separator = "\n  ", prefix = "  ")}
+                    |but found public $apiTypeName${if (act.size == 1) "" else "s"}:
+                    |${act.joinToString(separator = "\n  ", prefix = "  ")}
+                """.trimMargin()
         }
         else -> throw IllegalStateException("Tried to generate API mismatch error, but no mismatch was found.\nPlease report a bug.")
     }
