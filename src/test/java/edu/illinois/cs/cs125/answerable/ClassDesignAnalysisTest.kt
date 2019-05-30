@@ -28,6 +28,11 @@ internal class ClassDesignAnalysisTest {
     private val tpAttT: String  = "examples.classdesign.typeparams.T"
     private val fieldMismatchSimpleRef: String = "examples.classdesign.publicapi.fields.reference.Simple"
     private val fieldMismatchPrefix: String = "examples.classdesign.publicapi.fields"
+    private val methodMismatchPrefix: String = "examples.classdesign.publicapi.methods"
+    private val methodMismatchSimpleRef: String = "$methodMismatchPrefix.reference.Simple"
+    private val methodMismatchTPRef: String = "$methodMismatchPrefix.reference.TypeParam"
+    private val methodMismatchConsRef: String = "$methodMismatchPrefix.reference.Constructor"
+    private val methodMismatchThrowsRef: String = "$methodMismatchPrefix.reference.Throws"
 
     @Test
     fun testClassDesignCorrect1() {
@@ -373,6 +378,100 @@ internal class ClassDesignAnalysisTest {
                 |but found public fields:
                 |  public int a
                 |  public static String s
+            """.trimMargin(),
+            name = false
+        )
+    }
+
+    @Test
+    fun testPublicMethodsMatchSimple() {
+        val analyzer = analyzer(methodMismatchSimpleRef, "$methodMismatchPrefix.Simple")
+        analyzer.runSuite()
+    }
+
+    @Test
+    fun testPublicMethodsMatchTypeParam() {
+        val analyzer = analyzer(methodMismatchTPRef, "$methodMismatchPrefix.TypeParam")
+        analyzer.runSuite()
+    }
+
+    @Test
+    fun testPublicMethodsMatchConstructor() {
+        val analyzer = analyzer(methodMismatchConsRef, "$methodMismatchPrefix.Constructor")
+        analyzer.runSuite()
+    }
+
+    @Test
+    fun testPublicMethodsMatchThrows() {
+        val analyzer = analyzer(methodMismatchThrowsRef, "$methodMismatchPrefix.Throws")
+        analyzer.runSuite()
+    }
+
+    // mkPublicApiMismatchMsg is fairly thoroughly tested by the Field tests, so here we want to focus on
+    // testing components of the Method matcher above testing the error messages exhaustively again.
+    // Thus constructor mismatches are probably going to appear in nearly every test.
+    @Test
+    fun testPublicMethodMismatchSimpleVTypeParam() {
+        val analyzer = analyzer(methodMismatchSimpleRef, methodMismatchTPRef)
+        analyzer.assertMismatchMsg(
+            """
+                |Expected your class to have public methods:
+                |  public Simple()
+                |  public String toString()
+                |  public boolean lt(int, int)
+                |  public static int zero()
+                |but found public methods:
+                |  public TypeParam()
+                |  public final <T> T foo(String, T)
+            """.trimMargin(),
+            name = false
+        )
+    }
+
+    @Test
+    fun testPublicMethodMismatchSimpleVCons() {
+        val analyzer = analyzer(methodMismatchConsRef, methodMismatchSimpleRef)
+        analyzer.assertMismatchMsg(
+            """
+                |Expected your class to have public method:
+                |  public Constructor(int, boolean)
+                |but found public methods:
+                |  public Simple()
+                |  public String toString()
+                |  public boolean lt(int, int)
+                |  public static int zero()
+            """.trimMargin(),
+            name = false
+        )
+    }
+
+    @Test
+    fun testPublicMethodMismatchMissingFinal() {
+        val analyzer = analyzer(methodMismatchTPRef, "$methodMismatchPrefix.MissingFinal")
+        analyzer.assertMismatchMsg(
+            """
+                |Expected your class to have public methods:
+                |  public TypeParam()
+                |  public final <T> T foo(String, T)
+                |but found public methods:
+                |  public <T> T foo(String, T)
+                |  public MissingFinal()
+            """.trimMargin(),
+            name = false
+        )
+    }
+
+    @Test
+    fun testPublicMethodMismatchMissingThrow() {
+        val analyzer = analyzer(methodMismatchThrowsRef, "$methodMismatchPrefix.MissingThrow")
+        analyzer.assertMismatchMsg(
+            """
+                |Expected your class to have public methods:
+                |  public Throws()
+                |  public void foo() throws IllegalStateException, StackOverflowError
+                |but found public methods:
+                |  public MissingThrow()
+                |  public void foo() throws IllegalStateException
             """.trimMargin(),
             name = false
         )

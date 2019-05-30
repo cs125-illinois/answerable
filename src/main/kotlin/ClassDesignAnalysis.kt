@@ -105,11 +105,11 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
 
     fun publicMethodsMatch(): Boolean {
         val refMethodData =
-            reference.getPublicMethods(true)
+            (reference.getPublicMethods(true) + reference.constructors)
                 .map { MethodData(it) }
                 .sortedBy { it.signature }
         val attMethodData =
-            attempt.getPublicMethods(false)
+            (attempt.getPublicMethods(false) + attempt.constructors)
                 .map { MethodData(it) }
                 .sortedBy { it.signature }
 
@@ -224,14 +224,24 @@ private fun <T> Array<out T>.joinToStringLast(
 }
 
 class MethodData(
-    val method: Method
+    val method: Executable
 ) {
     val name: String = method.name.split(".").last()
-    val typeParams: Array<out TypeVariable<Method>> = method.typeParameters
-    val returnType: Type = method.genericReturnType
+    val typeParams: Array<out TypeVariable<*>> = method.typeParameters
+    val returnType: Type = when (method) {
+        is Method -> method.genericReturnType
+        is Constructor<*> -> method.declaringClass
+        else -> throw IllegalStateException("This can't happen (non method/constructor in MethodData).")
+    }
     val paramTypes: Array<out Type> = method.genericParameterTypes
     val exceptionTypes: Array<out Type> = method.genericExceptionTypes
-    val signature: String = toGenericString(method.modifiers, method.isDefault)
+    val isDefault: Boolean = when (method) {
+        is Method -> method.isDefault
+        is Constructor<*> -> false
+        else -> false
+    }
+
+    val signature: String = toGenericString(method.modifiers, isDefault)
 
     // The below two methods are adapted out of openJDK's Executable.java file to Kotlin.
     // Note the change in creation of the name. We explicitly do *not* fully qualify it.
@@ -252,11 +262,13 @@ class MethodData(
                 )
             }
 
-            sb.append(returnType.simpleName()).append(" ")
+            when (method) {
+                is Method -> sb.append(returnType.simpleName()).append(" ")
+            }
             sb.append(name)
 
             sb.append('(')
-            val sj = StringJoiner(",")
+            val sj = StringJoiner(", ")
             val params = paramTypes
             for (j in params.indices) {
                 var param = params[j].simpleName()
@@ -272,7 +284,7 @@ class MethodData(
             if (exceptionTypes.isNotEmpty()) {
                 sb.append(
                     exceptionTypes.joinToString(
-                        separator = ",",
+                        separator = ", ",
                         prefix = " throws ",
                         transform = { it.simpleName() })
                 )
