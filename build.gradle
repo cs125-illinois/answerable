@@ -18,5 +18,6 @@ buildscript {
 dependencies {
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
     testImplementation "org.junit.jupiter:junit-jupiter:5.4.2"
-    compile 'io.github.cdimascio:java-dotenv:5.0.1' 
+    compile "org.junit.jupiter:junit-jupiter:5.4.2"
+    compile 'io.github.cdimascio:java-dotenv:5.0.1'
 }

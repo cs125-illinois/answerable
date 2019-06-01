@@ -78,11 +78,21 @@ fun Class<*>.getPublicMethods(isReference: Boolean): List<Method> {
 
     if (isReference) {
         // TODO: filter out all annotations that should be ignored.
-        return allPublicMethods.filter { method -> method.annotations.none { it.annotationClass == Next::class } }
+        return allPublicMethods.filter {
+                method -> method.annotations.none { it.annotationClass == Next::class || it.annotationClass == Generator::class }
+        }
     }
 
     return allPublicMethods
 }
+
+fun Class<*>.getGenerators(): List<Method> =
+        this.declaredMethods
+            .filter { method -> method.annotations.any { it.annotationClass == Generator::class } }
+            .map { it.isAccessible = true; it }
+
+fun Class<*>.getCustomVerifier(): Method? =
+    this.declaredMethods.lastOrNull { method -> method.annotations.any { it.annotationClass == Verify::class } }
 
 fun Method.isStaticVoid(): Boolean =
         Modifier.isStatic(this.modifiers)

@@ -262,8 +262,8 @@ class MethodData(
                 )
             }
 
-            when (method) {
-                is Method -> sb.append(returnType.simpleName()).append(" ")
+            if (method is Method) {
+                sb.append(returnType.simpleName()).append(" ")
             }
             sb.append(name)
 
