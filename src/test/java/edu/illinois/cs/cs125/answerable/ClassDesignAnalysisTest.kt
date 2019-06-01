@@ -21,6 +21,7 @@ internal class ClassDesignAnalysisTest {
     private val sCMInterfaceAttOne: String = "examples.classdesign.superclassmismatch.interfaces.One"
     private val sCMInterfaceAttNone: String = "examples.classdesign.superclassmismatch.interfaces.None"
     private val sCMInterfaceAttMultiple: String = "examples.classdesign.superclassmismatch.interfaces.Multiple"
+    private val modifierMismatchPrefix: String = "examples.classdesign.modifiers"
     private val tPRefET: String = "examples.classdesign.typeparams.reference.ET"
     private val tPRefT: String = "examples.classdesign.typeparams.reference.T"
     private val tPAttET: String = "examples.classdesign.typeparams.ET"
@@ -59,6 +60,26 @@ internal class ClassDesignAnalysisTest {
         analyzer.runSuite()
         analyzer = analyzer(statusMismatchClass, statusMismatchClass)
         analyzer.runSuite()
+    }
+
+    @Test
+    fun testModifierMatch() {
+        val analyzer = analyzer("$modifierMismatchPrefix.reference.Final", "$modifierMismatchPrefix.Final")
+
+        analyzer.runSuite()
+    }
+
+    @Test
+    fun testModifierMismatch() {
+        val analyzer = analyzer("$modifierMismatchPrefix.reference.Final", "$modifierMismatchPrefix.Abstract")
+
+        analyzer.assertMismatchMsg(
+            """
+                Expected class modifiers : public final
+                Found class modifiers    : public abstract
+            """.trimIndent(),
+            name = false
+        )
     }
 
     @Test
@@ -484,13 +505,14 @@ internal class ClassDesignAnalysisTest {
         expected: String,
         name: Boolean = true,
         classStatus: Boolean = true,
+        classModifiers: Boolean = true,
         typeParams: Boolean = true,
         superClasses: Boolean = true,
         fields: Boolean = true,
         methods: Boolean = true
     ) {
         try {
-            runSuite(name, classStatus, typeParams, superClasses, fields, methods)
+            runSuite(name, classStatus, classModifiers, typeParams, superClasses, fields, methods)
         } catch (e: ClassDesignMismatchException) {
             assertEquals(expected, e.msg)
         } catch (other: Exception) {

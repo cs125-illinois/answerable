@@ -8,17 +8,19 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
     fun runSuite(
         name: Boolean = true,
         classStatus: Boolean = true,
+        classModifiers: Boolean = true,
         typeParams: Boolean = true,
         superClasses: Boolean = true,
         fields: Boolean = true,
         methods: Boolean = true
     ) {
-        if (name)         namesMatch()
-        if (classStatus)  classStatusMatch()
-        if (typeParams)   typeParamsMatch()
-        if (superClasses) superClassesMatch()
-        if (fields)       publicFieldsMatch()
-        if (methods)      publicMethodsMatch()
+        if (name)           namesMatch()
+        if (classStatus)    classStatusMatch()
+        if (classModifiers) classModifiersMatch()
+        if (typeParams)     typeParamsMatch()
+        if (superClasses)   superClassesMatch()
+        if (fields)         publicFieldsMatch()
+        if (methods)        publicMethodsMatch()
     }
 
     fun namesMatch(): Boolean {
@@ -37,6 +39,20 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
             val actual = if (attempt.isInterface) "an interface" else "a class"
             throw ClassDesignMismatchException("Expected $expected but found $actual.")
         }
+    }
+
+    fun classModifiersMatch(): Boolean {
+        if (reference.modifiers == attempt.modifiers) {
+            return true
+        }
+
+        val expected = Modifier.toString(reference.modifiers)
+        val actual = Modifier.toString(attempt.modifiers)
+
+        throw ClassDesignMismatchException(
+            "Expected class modifiers : $expected\n" +
+            "Found class modifiers    : $actual"
+        )
     }
 
     fun typeParamsMatch(): Boolean {
