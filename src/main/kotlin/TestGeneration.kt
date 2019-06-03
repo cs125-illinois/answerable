@@ -10,10 +10,12 @@ import java.nio.charset.StandardCharsets
 import java.util.*
 
 internal class TestGenerator(
-    private val reference: Method,
-    private val submission: Method,
-    private val customVerifier: Method?
+    private val referenceClass: Class<*>,
+    private val submissionClass: Class<*>
 ) {
+    private val reference: Method = referenceClass.getReferenceSolutionMethod()
+    private val submission: Method = submissionClass.findSolutionAttemptMethod(reference)
+    private val customVerifier: Method? = referenceClass.getCustomVerifier()
 
     init {
         reference.isAccessible = true
@@ -235,7 +237,8 @@ internal class CustomGen(private val gen: Method) : Gen<Any?> {
 }
 
 internal class LazyGen<T>(private val genSupplier: () -> Gen<T>) : Gen<T> {
-    var gen: Gen<T>? = null
+    private var gen: Gen<T>? = null
+
     override fun generate(complexity: Int, random: Random): T {
         if (gen == null) {
             gen = genSupplier()

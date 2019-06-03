@@ -15,7 +15,7 @@ fun main(args: Array<String>) {
     }
 
     val refMethod = reference.getReferenceSolutionMethod()
-    val tg = TestGenerator(refMethod, submission.findSolutionAttemptMethod(refMethod), reference.getCustomVerifier())
+    val tg = TestGenerator(reference, submission)
 
     println(tg.runTests(Random.nextLong()).toJson())
 }
