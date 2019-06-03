@@ -3,7 +3,9 @@ package edu.illinois.cs.cs125.answerable
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import org.junit.jupiter.api.Assertions.*
-import org.opentest4j.AssertionFailedError
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
+import java.nio.charset.StandardCharsets
 import java.util.*
 
 internal class TestGenerator(
@@ -11,6 +13,13 @@ internal class TestGenerator(
     private val submission: Method,
     private val customVerifier: Method?
 ) {
+
+    init {
+        reference.isAccessible = true
+        submission.isAccessible = true
+        customVerifier?.isAccessible = true
+    }
+
     private val paramTypes: Array<out Class<*>> = reference.parameterTypes
     private val generators: Map<Class<*>, Gen<*>> = setUpGenerators()
 
@@ -45,17 +54,90 @@ internal class TestGenerator(
         val refReceiver: Any? = if (isStatic) null else null // TODO: We have to solve the receiver subclassing problem
         val subReceiver: Any? = if (isStatic) null else null // TODO: as above
 
-        var threw: Throwable? = null
+        return if (reference.isStaticVoid()) {
+            testPrintedOutput(iteration, refReceiver, subReceiver, args)
+        } else {
+            testStandard(iteration, refReceiver, subReceiver, args)
+        }
+    }
 
+    private fun testPrintedOutput(iteration: Int, refReceiver: Any?, subReceiver: Any?, args: Array<Any?>): TestStep {
+        var refThrew: Throwable? = null
+        var subThrew: Throwable? = null
+
+        var assertErr: Throwable? = null
         try {
-            if (customVerifier == null) {
-                val refOutput = reference(refReceiver, *args)
-                val subOutput = submission(subReceiver, *args)
+            var refOut: String? = null
+            var refErr: String? = null
+            var subOut: String? = null
+            var subErr: String? = null
 
-                assertEquals(refOutput, subOutput)
+            val oldOut = System.out
+            val oldErr = System.err
+            try {
+                val newOut = ByteArrayOutputStream()
+                System.setOut(PrintStream(newOut))
+
+                val newErr = ByteArrayOutputStream()
+                System.setErr(PrintStream(newErr))
+
+                reference(refReceiver, *args)
+
+                refOut = newOut.toString(StandardCharsets.UTF_8)
+                refErr = newErr.toString(StandardCharsets.UTF_8)
+
+                newOut.close()
+                newErr.close()
+            } catch (t: Throwable) {
+                refThrew = t
             }
-        } catch (t: AssertionFailedError) {
-            threw = t
+            try {
+                val newOut = ByteArrayOutputStream()
+                System.setOut(PrintStream(newOut))
+
+                val newErr = ByteArrayOutputStream()
+                System.setErr(PrintStream(newErr))
+
+                submission(refReceiver, *args)
+
+                subOut = newOut.toString(StandardCharsets.UTF_8)
+                subErr = newErr.toString(StandardCharsets.UTF_8)
+
+                newOut.close()
+                newErr.close()
+            } catch (t: Throwable) {
+                subThrew = t
+            }
+
+            System.setOut(oldOut)
+            System.setErr(oldErr)
+
+            if (customVerifier == null) {
+                assertEquals(refThrew, subThrew)
+                assertEquals(refOut, subOut)
+                assertEquals(refErr, subErr)
+            } else {
+                customVerifier.invoke(null,
+                    TestOutput(
+                        receiver = refReceiver,
+                        args = args,
+                        output = null,
+                        threw = refThrew,
+                        stdOut = refOut,
+                        stdErr = refErr
+                    ),
+                    TestOutput(
+                        receiver = subReceiver,
+                        args = args,
+                        output = null,
+                        threw = subThrew,
+                        stdOut = subOut,
+                        stdErr = subErr
+                    )
+                )
+            }
+        } catch (t: Throwable) {
+            assertErr = t
         }
 
         return TestStep(
@@ -63,8 +145,65 @@ internal class TestGenerator(
             refReceiver = refReceiver,
             subReceiver = subReceiver,
             inputs = args.toList(),
-            succeeded = threw == null,
-            threw = threw
+            succeeded = assertErr == null,
+            assertErr = assertErr
+        )
+    }
+    private fun testStandard(iteration: Int, refReceiver: Any?, subReceiver: Any?, args: Array<Any?>): TestStep {
+        var refThrew: Throwable? = null
+        var subThrew: Throwable? = null
+
+        var assertErr: Throwable? = null
+        try {
+            var refOutput: Any? = null
+            var subOutput: Any? = null
+            try {
+                refOutput = reference(refReceiver, *args)
+            } catch (t: Throwable) {
+                refThrew = t
+            }
+            try {
+                subOutput = submission(subReceiver, *args)
+            } catch (t: Throwable) {
+                subThrew = t
+            }
+
+            if (refThrew != null) {
+                if (customVerifier == null) {
+                    assertEquals(refThrew, subThrew)
+                    assertEquals(refOutput, subOutput)
+                } else {
+                    customVerifier.invoke(null,
+                        TestOutput(
+                            receiver = refReceiver,
+                            args = args,
+                            output = refOutput,
+                            threw = refThrew,
+                            stdOut = null,
+                            stdErr = null
+                        ),
+                        TestOutput(
+                            receiver = subReceiver,
+                            args = args,
+                            output = subOutput,
+                            threw = subThrew,
+                            stdOut = null,
+                            stdErr = null
+                        )
+                    )
+                }
+            }
+        } catch (t: Throwable) {
+            assertErr = t
+        }
+
+        return TestStep(
+            testNumber = iteration,
+            refReceiver = refReceiver,
+            subReceiver = subReceiver,
+            inputs = args.toList(),
+            succeeded = assertErr == null,
+            assertErr = assertErr
         )
     }
 
@@ -145,13 +284,57 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<*>> {
 
 }
 
+/**
+ * A wrapper class used to pass data to custom verification methods.
+ */
+data class TestOutput<T>(
+    /** The object that the method was called on. Null if the method is static. */
+    val receiver: T?,
+    /** The arguments the method was called with */
+    val args: Array<Any?>,
+    /** The return value of the method. If 'threw' is not null, 'output' is always null. */
+    val output: Any?,
+    /** The throwable (if any) thrown by the method. Null if nothing was thrown. */
+    val threw: Throwable?,
+    /** The log of stdOut during the method invocation. Only non-null if the method is static and void. */
+    val stdOut: String?,
+    /** The log of stdErr during the method invocation. Only non-null if the method is static and void. */
+    val stdErr: String?
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as TestOutput<*>
+
+        if (receiver != other.receiver) return false
+        if (!args.contentEquals(other.args)) return false
+        if (output != other.output) return false
+        if (threw != other.threw) return false
+        if (stdOut != other.stdOut) return false
+        if (stdErr != other.stdErr) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = receiver?.hashCode() ?: 0
+        result = 31 * result + args.contentHashCode()
+        result = 31 * result + (output?.hashCode() ?: 0)
+        result = 31 * result + (threw?.hashCode() ?: 0)
+        result = 31 * result + (stdOut?.hashCode() ?: 0)
+        result = 31 * result + (stdErr?.hashCode() ?: 0)
+        return result
+    }
+}
+
 data class TestStep(
     val testNumber: Int,
     val refReceiver: Any?,
     val subReceiver: Any?,
     val inputs: List<*>,
     val succeeded: Boolean,
-    val threw: Throwable?
+    val assertErr: Throwable?
 )
 
 
@@ -163,7 +346,7 @@ fun TestStep.toJson(): String =
         |  subReceiver: $subReceiver,
         |  inputs: $inputs,
         |  succeeded: $succeeded,
-        |  threw: $threw
+        |  assertErr: $assertErr
         |}
     """.trimMargin()
 

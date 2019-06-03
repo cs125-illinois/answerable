@@ -516,7 +516,7 @@ internal class ClassDesignAnalysisTest {
         } catch (e: ClassDesignMismatchException) {
             assertEquals(expected, e.msg)
         } catch (other: Exception) {
-            println("Suite threw the wrong type of exception:")
+            println("Suite assertErr the wrong type of exception:")
             throw other
         }
     }
