@@ -1,5 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
+import javassist.util.proxy.Proxy
+import javassist.util.proxy.ProxyFactory
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import org.junit.jupiter.api.Assertions.*
@@ -64,19 +66,28 @@ internal class TestGenerator(
 
         var refReceiver: Any? = null
         var subReceiver: Any? = null
+        var subProxy: Any? = null
 
         if (!isStatic) {
             // TODO: Test that this actually works for constructors that take parameters
-            // It works for default-constructable classes
+            // TODO: Should something be done about crashes in the constructor?
             val ctorArgs = ctorArgTypes!!.map { generators[it]?.generate(complexity, random) }.toTypedArray()
             refReceiver = usedCtor!!.newInstance(*ctorArgs)
-            subReceiver = submissionClass.getConstructor(*(usedCtor.parameterTypes)).newInstance(*ctorArgs)
+            subReceiver = submissionClass.getConstructor(*usedCtor.parameterTypes).newInstance(*ctorArgs)
+            val factory = ProxyFactory()
+            factory.superclass = referenceClass
+            factory.setFilter { it.name != "finalize" }
+            val proxyClass = factory.createClass()
+            subProxy = proxyClass.getConstructor(*usedCtor.parameterTypes).newInstance(*ctorArgs)
+            (subProxy as Proxy).setHandler { _, method, _, args ->
+                submissionClass.getMethod(method.name, *method.parameterTypes).invoke(subReceiver, *args)
+            }
         }
 
         return if (reference.isStaticVoid()) {
             testPrintedOutput(iteration, refReceiver, subReceiver, methodArgs)
         } else {
-            testStandard(iteration, refReceiver, subReceiver, methodArgs)
+            testStandard(iteration, refReceiver, subReceiver, subProxy, methodArgs)
         }
     }
 
@@ -172,7 +183,7 @@ internal class TestGenerator(
             assertErr = assertErr
         )
     }
-    private fun testStandard(iteration: Int, refReceiver: Any?, subReceiver: Any?, args: Array<Any?>): TestStep {
+    private fun testStandard(iteration: Int, refReceiver: Any?, subReceiver: Any?, subProxy: Any?, args: Array<Any?>): TestStep {
         var refThrew: Throwable? = null
         var subThrew: Throwable? = null
 
@@ -205,7 +216,7 @@ internal class TestGenerator(
                         stdErr = null
                     ),
                     TestOutput(
-                        receiver = subReceiver,
+                        receiver = subProxy,
                         args = args,
                         output = subOutput,
                         threw = subThrew,
