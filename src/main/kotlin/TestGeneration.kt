@@ -113,7 +113,7 @@ internal class TestGenerator(
             System.setErr(oldErr)
 
             if (customVerifier == null) {
-                assertEquals(refThrew, subThrew)
+                assertEquals(refThrew?.javaClass, subThrew?.javaClass)
                 assertEquals(refOut, subOut)
                 assertEquals(refErr, subErr)
             } else {
@@ -138,6 +138,10 @@ internal class TestGenerator(
             }
         } catch (t: Throwable) {
             assertErr = t
+        }
+
+        if (refThrew == null && subThrew != null) {
+            throw subThrew
         }
 
         return TestStep(
@@ -168,33 +172,35 @@ internal class TestGenerator(
                 subThrew = t
             }
 
-            if (refThrew != null) {
-                if (customVerifier == null) {
-                    assertEquals(refThrew, subThrew)
-                    assertEquals(refOutput, subOutput)
-                } else {
-                    customVerifier.invoke(null,
-                        TestOutput(
-                            receiver = refReceiver,
-                            args = args,
-                            output = refOutput,
-                            threw = refThrew,
-                            stdOut = null,
-                            stdErr = null
-                        ),
-                        TestOutput(
-                            receiver = subReceiver,
-                            args = args,
-                            output = subOutput,
-                            threw = subThrew,
-                            stdOut = null,
-                            stdErr = null
-                        )
+            if (customVerifier == null) {
+                assertEquals(refThrew?.javaClass, subThrew?.javaClass)
+                assertEquals(refOutput, subOutput)
+            } else {
+                customVerifier.invoke(null,
+                    TestOutput(
+                        receiver = refReceiver,
+                        args = args,
+                        output = refOutput,
+                        threw = refThrew,
+                        stdOut = null,
+                        stdErr = null
+                    ),
+                    TestOutput(
+                        receiver = subReceiver,
+                        args = args,
+                        output = subOutput,
+                        threw = subThrew,
+                        stdOut = null,
+                        stdErr = null
                     )
-                }
+                )
             }
         } catch (t: Throwable) {
             assertErr = t
+        }
+
+        if (refThrew == null && subThrew != null) {
+            throw subThrew
         }
 
         return TestStep(

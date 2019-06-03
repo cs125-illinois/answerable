@@ -44,8 +44,8 @@ fun Class<*>.getReferenceSolutionMethod(): Method {
 
 fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
     val matchName: String = matchTo.name
-    val matchRType: Type = matchTo.genericReturnType
-    val matchPTypes: Array<Type> = matchTo.genericParameterTypes
+    val matchRType: String = matchTo.genericReturnType.simpleName()
+    val matchPTypes: List<String> = matchTo.genericParameterTypes.map { it.simpleName() }
 
     var methods =
             this.declaredMethods
@@ -54,16 +54,16 @@ fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
         throw SubmissionMismatchException("Expected a method named `$matchName'.")
     }
 
-    methods = methods.filter { it.genericReturnType == matchRType }
+    methods = methods.filter { it.genericReturnType.simpleName() == matchRType }
     if (methods.isEmpty()) {
         throw SubmissionMismatchException("Expected a method with return type `$matchRType'.")
     }
 
-    methods = methods.filter { it.genericParameterTypes?.contentEquals(matchPTypes) ?: false }
+    methods = methods.filter { it.genericParameterTypes?.map { it.simpleName() }?.equals(matchPTypes) ?: false }
     if (methods.isEmpty()) {
         throw SubmissionMismatchException(
             // TODO probably: improve this error message
-            "Expected a method with parameter types `${Arrays.toString(matchPTypes)}'."
+            "Expected a method with parameter types `${matchPTypes.joinToString(prefix = "[", postfix = "]")}'."
         )
     }
     // If the student code compiled, there can only be one method

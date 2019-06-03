@@ -5,6 +5,6 @@ import org.junit.jupiter.api.Test
 internal class AdHoc {
     @Test
     fun test() {
-        main(arrayOf("Printer", "examples.printer.correct."))
+        main(arrayOf("Test", "examples.testing."))
     }
 }
