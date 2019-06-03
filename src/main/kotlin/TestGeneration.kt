@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.*
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.lang.IllegalStateException
+import java.lang.reflect.Constructor
 import java.nio.charset.StandardCharsets
 import java.util.*
 
@@ -23,7 +24,9 @@ internal class TestGenerator(
         customVerifier?.isAccessible = true
     }
 
-    private val paramTypes: Array<out Class<*>> = reference.parameterTypes
+    private val usedCtor: Constructor<*>? = referenceClass.constructors.getOrNull(0) // TODO: What if there are multiple constructors?
+    private val paramTypes: Array<Class<*>> = reference.parameterTypes
+    private val ctorArgTypes: Array<Class<*>>? = usedCtor?.parameterTypes
     private val generators: Map<Class<*>, Gen<*>> = setUpGenerators()
 
     private val isStatic = Modifier.isStatic(reference.modifiers)
@@ -31,7 +34,7 @@ internal class TestGenerator(
     private val random = Random(0)
 
     private fun setUpGenerators(): Map<Class<*>, Gen<*>> {
-        val types = paramTypes.distinct()
+        val types = paramTypes.plus(ctorArgTypes ?: arrayOf()).distinct()
         val userGens = reference.declaringClass.getGenerators().map {
             Pair(it.returnType, CustomGen(it))
         }
@@ -57,15 +60,23 @@ internal class TestGenerator(
     }
 
     private fun testWith(iteration: Int, complexity: Int): TestStep {
-        val args = paramTypes.map { generators[it]?.generate(complexity, random) }.toTypedArray()
+        val methodArgs = paramTypes.map { generators[it]?.generate(complexity, random) }.toTypedArray()
 
-        val refReceiver: Any? = if (isStatic) null else null // TODO: We have to solve the receiver subclassing problem
-        val subReceiver: Any? = if (isStatic) null else null // TODO: as above
+        var refReceiver: Any? = null
+        var subReceiver: Any? = null
+
+        if (!isStatic) {
+            // TODO: Test that this actually works for constructors that take parameters
+            // It works for default-constructable classes
+            val ctorArgs = ctorArgTypes!!.map { generators[it]?.generate(complexity, random) }.toTypedArray()
+            refReceiver = usedCtor!!.newInstance(*ctorArgs)
+            subReceiver = submissionClass.getConstructor(*(usedCtor.parameterTypes)).newInstance(*ctorArgs)
+        }
 
         return if (reference.isStaticVoid()) {
-            testPrintedOutput(iteration, refReceiver, subReceiver, args)
+            testPrintedOutput(iteration, refReceiver, subReceiver, methodArgs)
         } else {
-            testStandard(iteration, refReceiver, subReceiver, args)
+            testStandard(iteration, refReceiver, subReceiver, methodArgs)
         }
     }
 
