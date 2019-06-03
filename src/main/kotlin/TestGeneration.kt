@@ -5,6 +5,7 @@ import java.lang.reflect.Modifier
 import org.junit.jupiter.api.Assertions.*
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.lang.IllegalStateException
 import java.nio.charset.StandardCharsets
 import java.util.*
 
@@ -29,7 +30,9 @@ internal class TestGenerator(
 
     private fun setUpGenerators(): Map<Class<*>, Gen<*>> {
         val types = paramTypes.distinct()
-        val userGens = reference.declaringClass.getGenerators().map { Pair(it.returnType, CustomGen(it)) }
+        val userGens = reference.declaringClass.getGenerators().map {
+            Pair(it.returnType, CustomGen(it))
+        }
 
         val gens = listOf(
             Int::class.java to DefaultIntGen(),
@@ -44,7 +47,10 @@ internal class TestGenerator(
         )
 
         return mapOf(
-            *gens.filter { it.first.typeName in types.map { it.typeName } }.toTypedArray()
+            *types.filter { it.isArray }.map { type ->
+                Pair(type, LazyGen { DefaultArrayGen(generators[type.componentType] ?: throw IllegalStateException("An array with component type `${type.componentType}' was requested, but no generator for that type was found.")) })
+            }.toTypedArray(),
+            *gens.toTypedArray()
         )
     }
 
@@ -228,6 +234,17 @@ internal class CustomGen(private val gen: Method) : Gen<Any?> {
     override fun generate(complexity: Int, random: Random): Any? = gen(null, complexity, random)
 }
 
+internal class LazyGen<T>(private val genSupplier: () -> Gen<T>) : Gen<T> {
+    var gen: Gen<T>? = null
+    override fun generate(complexity: Int, random: Random): T {
+        if (gen == null) {
+            gen = genSupplier()
+        }
+
+        return gen!!.generate(complexity, random)
+    }
+}
+
 internal class DefaultIntGen : Gen<Int> {
     override fun generate(complexity: Int, random: Random): Int {
         return 0
@@ -344,13 +361,14 @@ data class TestStep(
 )
 
 
+@Suppress("IMPLICIT_CAST_TO_ANY")
 fun TestStep.toJson(): String =
     """
         |{
         |  testNumber: $testNumber,
         |  refReceiver: $refReceiver,
         |  subReceiver: $subReceiver,
-        |  inputs: $inputs,
+        |  inputs: ${inputs.joinToString(prefix = "[", postfix = "]") { when (it) { is Array<*> -> Arrays.toString(it); else -> it.toString()} }},
         |  succeeded: $succeeded,
         |  assertErr: $assertErr
         |}
