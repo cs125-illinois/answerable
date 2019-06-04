@@ -136,15 +136,15 @@ internal class TestGenerator(
                 assertEquals(refBehavior.stdOut, subBehavior.stdOut)
                 assertEquals(refBehavior.stdErr, subBehavior.stdErr)
             } else {
+                if (subProxy != null) {
+                    submissionClass.getPublicFields().forEach {
+                        referenceClass.getField(it.name).set(subProxy, it.get(subReceiver))
+                    }
+                }
                 customVerifier.invoke(null, refBehavior, subBehavior)
             }
         } catch (t: Throwable) {
             assertErr = t
-        }
-
-        // TODO: Should we allow a custom verifier to suppress this?
-        if (refBehavior.threw == null && subBehavior.threw != null) {
-            throw subBehavior.threw
         }
 
         return TestStep(
