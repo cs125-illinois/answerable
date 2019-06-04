@@ -61,9 +61,9 @@ internal class ClassDesignAnalysisTest {
                 "Found    : an interface")
 
         analyzer = analyzer(statusMismatchInterface, statusMismatchInterface)
-        analyzer.runSuite()
+        assertTrue(analyzer.runSuite().all { it.result is Matched })
         analyzer = analyzer(statusMismatchClass, statusMismatchClass)
-        analyzer.runSuite()
+        assertTrue(analyzer.runSuite().all { it.result is Matched })
     }
 
     @Test

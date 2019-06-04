@@ -3,6 +3,7 @@ package edu.illinois.cs.cs125.answerable
 import java.lang.IllegalStateException
 import java.lang.reflect.*
 import java.util.*
+import kotlin.math.exp
 
 class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: Class<*>) {
     fun runSuite(
@@ -136,6 +137,22 @@ class AnalysisOutput(val tag: AnalysisTag, val result: AnalysisResult<*>) {
 sealed class AnalysisResult<out T>
     data class Matched<T>(val found: T) : AnalysisResult<T>()
     data class Mismatched<T>(val expected: T, val found: T) : AnalysisResult<T>()
+
+fun <T> AnalysisResult<T>.toJson() = when (this) {
+    is Matched -> """
+        |{
+        |  matched: true,
+        |  found: "$found"
+        |}
+    """.trimMargin()
+    is Mismatched -> """
+        |{
+        |  matched: false,
+        |  expected: "$expected"
+        |  found: "$found"
+        |}
+    """.trimMargin()
+}
 
 class MethodData(
     val method: Executable

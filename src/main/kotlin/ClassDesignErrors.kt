@@ -180,4 +180,3 @@ private fun <T> mkPublicApiMismatchMsg(allExpected: List<T>, allActual: List<T>,
         else -> throw IllegalStateException("Tried to generate API mismatch error, but no mismatch was found.\nPlease report a bug.")
     }
 }
-
