@@ -13,83 +13,78 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
         superClasses: Boolean = true,
         fields: Boolean = true,
         methods: Boolean = true
-    ) {
-        if (name)           namesMatch()
-        if (classStatus)    classStatusMatch()
-        if (classModifiers) classModifiersMatch()
-        if (typeParams)     typeParamsMatch()
-        if (superClasses)   superClassesMatch()
-        if (fields)         publicFieldsMatch()
-        if (methods)        publicMethodsMatch()
+    ): List<AnalysisOutput> {
+
+        val output = mutableListOf<AnalysisOutput>()
+        if (name) output.add(namesMatch())
+        if (classStatus) output.add(classStatusMatch())
+        if (classModifiers) output.add(classModifiersMatch())
+        if (typeParams) output.add(typeParamsMatch())
+        if (superClasses) output.add(superClassesMatch())
+        if (fields) output.add(publicFieldsMatch())
+        if (methods) output.add(publicMethodsMatch())
+
+        return output
     }
 
-    fun namesMatch(): Boolean {
-        if (reference.simpleName == attempt.simpleName)
-            return true
-        else throw ClassDesignMismatchException(
-            "Expected a class named `${reference.simpleName}' but only found a class named `${attempt.simpleName}'."
-        )
-    }
-
-    fun classStatusMatch(): Boolean {
-        if (reference.isInterface == attempt.isInterface) {
-            return true
+    fun namesMatch() = AnalysisOutput(
+        AnalysisTag.NAME,
+        if (reference.simpleName == attempt.simpleName) {
+            Matched(reference.simpleName)
         } else {
-            val expected = if (reference.isInterface) "an interface" else "a class"
-            val actual = if (attempt.isInterface) "an interface" else "a class"
-            throw ClassDesignMismatchException("Expected $expected but found $actual.")
+            Mismatched(reference.simpleName, attempt.simpleName)
         }
-    }
+    )
 
-    fun classModifiersMatch(): Boolean {
+    fun classStatusMatch() = AnalysisOutput(
+        AnalysisTag.STATUS,
+        if (reference.isInterface == attempt.isInterface) {
+            Matched(if (reference.isInterface) "interface" else "class")
+        } else {
+            val expected = if (reference.isInterface) "interface" else "class"
+            val actual = if (attempt.isInterface) "interface" else "class"
+            Mismatched(expected, actual)
+        }
+    )
+
+    fun classModifiersMatch() = AnalysisOutput(
+        AnalysisTag.MODIFIERS,
         if (reference.modifiers == attempt.modifiers) {
-            return true
+            Matched(Modifier.toString(reference.modifiers))
+        } else {
+
+            val expected = Modifier.toString(reference.modifiers)
+            val actual = Modifier.toString(attempt.modifiers)
+
+            Mismatched(expected, actual)
         }
+    )
 
-        val expected = Modifier.toString(reference.modifiers)
-        val actual = Modifier.toString(attempt.modifiers)
-
-        throw ClassDesignMismatchException(
-            "Expected class modifiers : $expected\n" +
-            "Found class modifiers    : $actual"
-        )
-    }
-
-    fun typeParamsMatch(): Boolean {
-        if (reference.typeParameters.map { it.name } == attempt.typeParameters.map { it.name }) {
-            return true
+    fun typeParamsMatch() = AnalysisOutput(AnalysisTag.TYPE_PARAMS, run {
+        val refTypes = reference.typeParameters.map { it.name }
+        val attTypes = attempt.typeParameters.map { it.name }
+        return@run if (refTypes == attTypes) {
+            Matched(refTypes)
+        } else {
+            Mismatched(refTypes, attTypes)
         }
+    })
 
-        val expected = reference.typeParameters
-        val singleE = expected.size == 1
-        val actual = attempt.typeParameters
-        val singleA = actual.size == 1
-
-        val buff = "   "
-        val spaces =
-            if (singleE == singleA) ("$buff ")
-            else if (singleE && !singleA) buff
-            else "$buff  "
-        throw ClassDesignMismatchException(
-            "Expected type parameter${if (singleE) "" else "s"} : ${expected.joinToString(prefix = "<", postfix = ">")}\n" +
-            "Found type parameter${if (singleA) "" else "s"}$spaces: ${actual.joinToString(prefix = "<", postfix = ">")}"
-        )
-    }
-
-    fun superClassesMatch(): Boolean {
+    fun superClassesMatch() = AnalysisOutput(
+        AnalysisTag.SUPERCLASSES,
         if (reference.genericSuperclass == attempt.genericSuperclass
             && reference.genericInterfaces contentEquals attempt.genericInterfaces
-        )
-            return true
-        else throw ClassDesignMismatchException(
-            mkSuperclassMismatchErrorMsg(
-                reference.genericSuperclass, reference.genericInterfaces,
-                attempt.genericSuperclass, attempt.genericInterfaces
+        ) {
+            Matched(Pair(reference.genericSuperclass, reference.genericInterfaces))
+        } else {
+            Mismatched(
+                Pair(reference.genericSuperclass, reference.genericInterfaces),
+                Pair(attempt.genericSuperclass, attempt.genericInterfaces)
             )
-        )
-    }
+        }
+    )
 
-    fun publicFieldsMatch(): Boolean {
+    fun publicFieldsMatch() = AnalysisOutput(AnalysisTag.FIELDS, run {
         fun mkFieldString(field: Field): String {
             val sb = StringBuilder()
             printModifiersIfNonzero(sb, field.modifiers, false)
@@ -107,19 +102,14 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
                 .map(::mkFieldString)
                 .sorted()
 
-        val looseRefFields = refFields.filter { it !in attFields }
-        val looseAttFields = attFields.filter { it !in refFields }
-
-        if (looseRefFields.isEmpty() && looseAttFields.isEmpty()) {
-            return true
+        return@run if (refFields == attFields) {
+            Matched(refFields)
+        } else {
+            Mismatched(refFields, attFields)
         }
+    })
 
-        val msg: String = mkPublicApiMismatchMsg(looseRefFields, looseAttFields, "field")
-
-        throw ClassDesignMismatchException(msg)
-    }
-
-    fun publicMethodsMatch(): Boolean {
+    fun publicMethodsMatch() = AnalysisOutput(AnalysisTag.METHODS, run {
         val refMethodData =
             (reference.getPublicMethods(true) + reference.constructors)
                 .map { MethodData(it) }
@@ -129,115 +119,23 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
                 .map { MethodData(it) }
                 .sortedBy { it.signature }
 
-        // First remove all methods that do match.
-        val looseRefMethodData = refMethodData.filter { it !in attMethodData }
-        val looseAttMethodData = attMethodData.filter { it !in refMethodData }
         // if everything matched, then we're done.
-        if (looseRefMethodData.isEmpty() && looseAttMethodData.isEmpty()) {
-            return true
+        return@run if (refMethodData == attMethodData) {
+            Matched(refMethodData)
+        } else {
+            Mismatched(refMethodData, attMethodData)
         }
-
-        // Otherwise, we're going to throw an exception eventually:
-        val msg: String = mkPublicApiMismatchMsg(looseRefMethodData, looseAttMethodData, "method")
-
-        throw ClassDesignMismatchException(msg)
-    }
+    })
 }
 
-private fun mkSuperclassMismatchErrorMsg(
-    referenceSC: Type?, referenceI: Array<Type>, attemptSC: Type?, attemptI: Array<Type>
-): String {
-    val scMatch = referenceSC == attemptSC
-    val iMatch = referenceI contentEquals attemptI
-    val refExtendsSomething = referenceSC != Object::class.java && referenceSC != null
-    val attemptExtendsSomething = attemptSC != Object::class.java && attemptSC != null
-    val refImplementsInterfaces = referenceI.isNotEmpty()
-    val attemptImplementsInterfaces = attemptI.isNotEmpty()
-
-    val msg: StringBuilder = StringBuilder("Expected class ")
-    var also = false
-    if (!scMatch) {
-        if (refExtendsSomething) {
-            msg.append("to extend `${referenceSC!!.typeName}', ") // refExtendsSomething => referenceSC != null
-        } else {
-            msg.append("to not extend any classes, ")
-        }
-
-        if (attemptExtendsSomething) {
-            msg.append("but class extended `${attemptSC!!.typeName}'") // attemptExtendsSomething => attemptSC != null
-        } else {
-            msg.append("but class did not extend any classes")
-        }
-        also = true
-    }
-    if (!iMatch) {
-        if (also) msg.append(";\nAlso expected class ")
-
-        if (refImplementsInterfaces) {
-            msg.append("to implement ${referenceI.joinToStringLast(last = ", and ") { "`${it.typeName}'" }}, ")
-        } else {
-            msg.append("to not implement any interfaces, ")
-        }
-
-        if (attemptImplementsInterfaces) {
-            msg.append("but class implemented ${attemptI.joinToStringLast(last = ", and ") { "`${it.typeName}'" }}")
-        } else {
-            msg.append("but class did not implement any interfaces")
-        }
-    }
-    msg.append(".")
-
-    // If this function was called, then it must be the case that either !scMatch or !iMatch.
-    // Therefore the bad message "Expected class."  can never occur.
-    return msg.toString()
+enum class AnalysisTag { NAME, STATUS, MODIFIERS, TYPE_PARAMS, SUPERCLASSES, FIELDS, METHODS }
+class AnalysisOutput(val tag: AnalysisTag, val result: AnalysisResult<*>) {
+    override fun toString() = this.toErrorMsg() // see ClassDesignErrors.kt
 }
 
-private fun <T> mkPublicApiMismatchMsg(exp: List<T>, act: List<T>, apiTypeName: String) =
-    when (Pair(exp.isEmpty(), act.isEmpty())) {
-        Pair(true, false) -> {
-            val single = act.size == 1
-                """
-                    |Found ${if (single) "an " else ""}unexpected public $apiTypeName${if (single) "" else "s"}:
-                    |${act.joinToString(separator = "\n  ", prefix = "  ")}
-                """.trimMargin()
-        }
-        Pair(false, true) -> {
-            val single = exp.size == 1
-                """
-                    |Expected ${if (single) "another" else "more"} public $apiTypeName${if (single) "" else "s"}:
-                    |${exp.joinToString(separator = "\n  ", prefix = "  ")}
-                """.trimMargin()
-        }
-        Pair(false, false) -> {
-            // In this case the exact cause of the mismatch is provably undecidable
-            // in the future we can try and provide better guesses here, but for now we'll dump everything
-                """
-                    |Expected your class to have public $apiTypeName${if (exp.size == 1) "" else "s"}:
-                    |${exp.joinToString(separator = "\n  ", prefix = "  ")}
-                    |but found public $apiTypeName${if (act.size == 1) "" else "s"}:
-                    |${act.joinToString(separator = "\n  ", prefix = "  ")}
-                """.trimMargin()
-        }
-        else -> throw IllegalStateException("Tried to generate API mismatch error, but no mismatch was found.\nPlease report a bug.")
-    }
-
-private fun <T> Array<out T>.joinToStringLast(
-    separator: CharSequence = ", ",
-    prefix: CharSequence = "",
-    last: CharSequence = "",
-    postfix: CharSequence = "",
-    transform: ((T) -> CharSequence)? = null
-): String {
-    val safeTransform = transform ?: { it }
-
-    if (this.size <= 1) {
-        return this.joinToString(separator, prefix, postfix, transform = transform)
-    }
-
-    return (this.sliceArray(0 until this.size - 1)
-        .joinToString(separator, prefix, postfix = "", transform = transform)
-            + last + safeTransform(this.last()) + postfix)
-}
+sealed class AnalysisResult<out T>
+    data class Matched<T>(val found: T) : AnalysisResult<T>()
+    data class Mismatched<T>(val expected: T, val found: T) : AnalysisResult<T>()
 
 class MethodData(
     val method: Executable

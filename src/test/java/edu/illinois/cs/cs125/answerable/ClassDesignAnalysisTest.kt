@@ -26,7 +26,7 @@ internal class ClassDesignAnalysisTest {
     private val tPRefT: String = "examples.classdesign.typeparams.reference.T"
     private val tPAttET: String = "examples.classdesign.typeparams.ET"
     private val tpAttTE: String = "examples.classdesign.typeparams.TE"
-    private val tpAttT: String  = "examples.classdesign.typeparams.T"
+    private val tpAttT: String = "examples.classdesign.typeparams.T"
     private val fieldMismatchSimpleRef: String = "examples.classdesign.publicapi.fields.reference.Simple"
     private val fieldMismatchPrefix: String = "examples.classdesign.publicapi.fields"
     private val methodMismatchPrefix: String = "examples.classdesign.publicapi.methods"
@@ -38,23 +38,27 @@ internal class ClassDesignAnalysisTest {
     @Test
     fun testClassDesignCorrect1() {
         val analyzer = analyzer(classDesignCorrectReference1, classDesignCorrectAttempt1)
-        analyzer.runSuite()
+        assertTrue(analyzer.runSuite().all { it.result is Matched })
     }
 
     @Test
     fun testClassDesignCorrect2() {
         val analyzer = analyzer(classDesignCorrectReference2, classDesignCorrectAttempt2)
         analyzer.runSuite(methods = false)
-        assertTrue(analyzer.publicMethodsMatch()) // should ignore the @Next method.
+        assertTrue(analyzer.publicMethodsMatch().result is Matched) // should ignore the @Next method.
     }
 
     @Test
     fun testStatusMismatch() {
         var analyzer = analyzer(statusMismatchInterface, statusMismatchClass)
-        analyzer.assertMismatchMsg("Expected an interface but found a class.")
+        analyzer.assertMismatchMsg("Class status mismatch!\n" +
+                "Expected : an interface\n" +
+                "Found    : a class")
 
         analyzer = analyzer(statusMismatchClass, statusMismatchInterface)
-        analyzer.assertMismatchMsg("Expected a class but found an interface.")
+        analyzer.assertMismatchMsg("Class status mismatch!\n" +
+                "Expected : a class\n" +
+                "Found    : an interface")
 
         analyzer = analyzer(statusMismatchInterface, statusMismatchInterface)
         analyzer.runSuite()
@@ -66,7 +70,7 @@ internal class ClassDesignAnalysisTest {
     fun testModifierMatch() {
         val analyzer = analyzer("$modifierMismatchPrefix.reference.Final", "$modifierMismatchPrefix.Final")
 
-        analyzer.runSuite()
+        assertTrue(analyzer.runSuite().all { it.result is Matched })
     }
 
     @Test
@@ -75,8 +79,9 @@ internal class ClassDesignAnalysisTest {
 
         analyzer.assertMismatchMsg(
             """
-                Expected class modifiers : public final
-                Found class modifiers    : public abstract
+                Class modifiers mismatch!
+                Expected : public final
+                Found    : public abstract
             """.trimIndent(),
             name = false
         )
@@ -85,10 +90,10 @@ internal class ClassDesignAnalysisTest {
     @Test
     fun testTypeParamMatch() {
         val analyzerMatch1 = analyzer(tPRefET, tPAttET)
-        analyzerMatch1.typeParamsMatch()
+        assertTrue(analyzerMatch1.typeParamsMatch().result is Matched)
 
         val analyzerMatch2 = analyzer(tPRefT, tpAttT)
-        analyzerMatch2.typeParamsMatch()
+        assertTrue(analyzerMatch2.typeParamsMatch().result is Matched)
     }
 
     // Not checking names for these tests allows re-use
@@ -118,7 +123,7 @@ internal class ClassDesignAnalysisTest {
 
     @Test
     fun testTypeParamsMismatchExtra() {
-        val analyzer = analyzer (tPRefT, tpAttTE)
+        val analyzer = analyzer(tPRefT, tpAttTE)
         analyzer.assertMismatchMsg(
             """
                 Expected type parameter : <T>
@@ -231,7 +236,7 @@ internal class ClassDesignAnalysisTest {
     @Test
     fun testSuperClassMatchInterfacesNoneNone() {
         val analyzer = analyzer(sCMInterfaceRefNone, sCMInterfaceAttNone)
-        analyzer.runSuite(name = false)
+        assertTrue(analyzer.runSuite(name = false).all { it.result is Matched })
     }
 
     @Test
@@ -270,7 +275,7 @@ internal class ClassDesignAnalysisTest {
             name = false
         )
     }
-    
+
     @Test
     fun testSuperClassMismatchInterfacesOneMultiple() {
         val analyzer = analyzer(sCMInterfaceRefOne, sCMInterfaceAttMultiple)
@@ -280,7 +285,7 @@ internal class ClassDesignAnalysisTest {
             name = false
         )
     }
-    
+
     @Test
     fun testSuperClassMismatchInterfacesMultipleNone() {
         val analyzer = analyzer(sCMInterfaceRefMultiple, sCMInterfaceAttNone)
@@ -314,13 +319,13 @@ internal class ClassDesignAnalysisTest {
     @Test
     fun testFieldMatchSimple() {
         val analyzer = analyzer(fieldMismatchSimpleRef, "$fieldMismatchPrefix.Simple")
-        analyzer.runSuite()
+        assertTrue(analyzer.runSuite().all { it.result is Matched })
     }
 
     @Test
     fun testFieldMatchTypeParam() {
         val analyzer = analyzer("$fieldMismatchPrefix.reference.TypeParam", "$fieldMismatchPrefix.TypeParam")
-        analyzer.runSuite()
+        assertTrue(analyzer.runSuite().all { it.result is Matched })
     }
 
     @Test
@@ -407,25 +412,25 @@ internal class ClassDesignAnalysisTest {
     @Test
     fun testPublicMethodsMatchSimple() {
         val analyzer = analyzer(methodMismatchSimpleRef, "$methodMismatchPrefix.Simple")
-        analyzer.runSuite()
+        assertTrue(analyzer.runSuite().all { it.result is Matched })
     }
 
     @Test
     fun testPublicMethodsMatchTypeParam() {
         val analyzer = analyzer(methodMismatchTPRef, "$methodMismatchPrefix.TypeParam")
-        analyzer.runSuite()
+        assertTrue(analyzer.runSuite().all { it.result is Matched })
     }
 
     @Test
     fun testPublicMethodsMatchConstructor() {
         val analyzer = analyzer(methodMismatchConsRef, "$methodMismatchPrefix.Constructor")
-        analyzer.runSuite()
+        assertTrue(analyzer.runSuite().all { it.result is Matched })
     }
 
     @Test
     fun testPublicMethodsMatchThrows() {
         val analyzer = analyzer(methodMismatchThrowsRef, "$methodMismatchPrefix.Throws")
-        analyzer.runSuite()
+        assertTrue(analyzer.runSuite().all { it.result is Matched })
     }
 
     // mkPublicApiMismatchMsg is fairly thoroughly tested by the Field tests, so here we want to focus on
@@ -510,14 +515,10 @@ internal class ClassDesignAnalysisTest {
         superClasses: Boolean = true,
         fields: Boolean = true,
         methods: Boolean = true
-    ) {
-        try {
-            runSuite(name, classStatus, classModifiers, typeParams, superClasses, fields, methods)
-        } catch (e: ClassDesignMismatchException) {
-            assertEquals(expected, e.msg)
-        } catch (other: Exception) {
-            println("Suite assertErr the wrong type of exception:")
-            throw other
-        }
-    }
+    ) = assertEquals(
+        expected,
+        runSuite(name, classStatus, classModifiers, typeParams, superClasses, fields, methods)
+            .first { it.result is Mismatched }
+            .toErrorMsg()
+    )
 }
