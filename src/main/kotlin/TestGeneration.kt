@@ -84,162 +84,76 @@ internal class TestGenerator(
             }
         }
 
-        return if (reference.isStaticVoid()) {
-            testPrintedOutput(iteration, refReceiver, subReceiver, methodArgs)
-        } else {
-            testStandard(iteration, refReceiver, subReceiver, subProxy, methodArgs)
-        }
+        return test(iteration, refReceiver, subReceiver, subProxy, methodArgs, reference.isStaticVoid())
     }
 
-    private fun testPrintedOutput(iteration: Int, refReceiver: Any?, subReceiver: Any?, args: Array<Any?>): TestStep {
-        var refThrew: Throwable? = null
-        var subThrew: Throwable? = null
-
-        var assertErr: Throwable? = null
-        try {
-            var refOut: String? = null
-            var refErr: String? = null
-            var subOut: String? = null
-            var subErr: String? = null
-
+    fun test(iteration: Int, refReceiver: Any?, subReceiver: Any?, subProxy: Any?, args: Array<Any?>, capturePrint: Boolean): TestStep {
+        fun runOne(receiver: Any?, refCompatibleReceiver: Any?, method: Method): TestOutput<Any?> {
+            var threw: Throwable? = null
             val oldOut = System.out
             val oldErr = System.err
-            try {
-                val newOut = ByteArrayOutputStream()
+            val newOut = ByteArrayOutputStream()
+            val newErr = ByteArrayOutputStream()
+            var outText: String? = null
+            var errText: String? = null
+            var output: Any? = null
+            if (capturePrint) {
                 System.setOut(PrintStream(newOut))
-
-                val newErr = ByteArrayOutputStream()
                 System.setErr(PrintStream(newErr))
-
-                reference(refReceiver, *args)
-
-                refOut = newOut.toString(StandardCharsets.UTF_8)
-                refErr = newErr.toString(StandardCharsets.UTF_8)
-
-                newOut.close()
-                newErr.close()
-            } catch (t: Throwable) {
-                refThrew = t
             }
             try {
-                val newOut = ByteArrayOutputStream()
-                System.setOut(PrintStream(newOut))
-
-                val newErr = ByteArrayOutputStream()
-                System.setErr(PrintStream(newErr))
-
-                submission(refReceiver, *args)
-
-                subOut = newOut.toString(StandardCharsets.UTF_8)
-                subErr = newErr.toString(StandardCharsets.UTF_8)
-
-                newOut.close()
-                newErr.close()
-            } catch (t: Throwable) {
-                subThrew = t
+                output = method(receiver, *args)
+            } catch (e: Throwable) {
+                threw = e
+            } finally {
+                if (capturePrint) {
+                    System.setOut(oldOut)
+                    System.setErr(oldErr)
+                    outText = newOut.toString(StandardCharsets.UTF_8)
+                    errText = newErr.toString(StandardCharsets.UTF_8)
+                    newOut.close()
+                    newErr.close()
+                }
             }
-
-            System.setOut(oldOut)
-            System.setErr(oldErr)
-
-            if (customVerifier == null) {
-                assertEquals(refThrew?.javaClass, subThrew?.javaClass)
-                assertEquals(refOut, subOut)
-                assertEquals(refErr, subErr)
-            } else {
-                customVerifier.invoke(null,
-                    TestOutput(
-                        receiver = refReceiver,
-                        args = args,
-                        output = null,
-                        threw = refThrew,
-                        stdOut = refOut,
-                        stdErr = refErr
-                    ),
-                    TestOutput(
-                        receiver = subReceiver,
-                        args = args,
-                        output = null,
-                        threw = subThrew,
-                        stdOut = subOut,
-                        stdErr = subErr
-                    )
-                )
-            }
-        } catch (t: Throwable) {
-            assertErr = t
+            return TestOutput(
+                    receiver = refCompatibleReceiver,
+                    args = args,
+                    output = output,
+                    threw = threw,
+                    stdOut = outText,
+                    stdErr = errText
+            )
         }
 
-        if (refThrew == null && subThrew != null) {
-            throw subThrew
-        }
-
-        return TestStep(
-            testNumber = iteration,
-            refReceiver = refReceiver,
-            subReceiver = subReceiver,
-            inputs = args.toList(),
-            succeeded = assertErr == null,
-            assertErr = assertErr
-        )
-    }
-    private fun testStandard(iteration: Int, refReceiver: Any?, subReceiver: Any?, subProxy: Any?, args: Array<Any?>): TestStep {
-        var refThrew: Throwable? = null
-        var subThrew: Throwable? = null
+        val refBehavior = runOne(refReceiver, refReceiver, reference)
+        val subBehavior = runOne(subReceiver, subProxy, submission)
 
         var assertErr: Throwable? = null
         try {
-            var refOutput: Any? = null
-            var subOutput: Any? = null
-            try {
-                refOutput = reference(refReceiver, *args)
-            } catch (t: Throwable) {
-                refThrew = t
-            }
-            try {
-                subOutput = submission(subReceiver, *args)
-            } catch (t: Throwable) {
-                subThrew = t
-            }
-
             if (customVerifier == null) {
-                assertEquals(refThrew?.javaClass, subThrew?.javaClass)
-                assertEquals(refOutput, subOutput)
+                assertEquals(refBehavior.threw?.javaClass, subBehavior.threw?.javaClass)
+                assertEquals(refBehavior.output, subBehavior.output)
+                assertEquals(refBehavior.stdOut, subBehavior.stdOut)
+                assertEquals(refBehavior.stdErr, subBehavior.stdErr)
             } else {
-                customVerifier.invoke(null,
-                    TestOutput(
-                        receiver = refReceiver,
-                        args = args,
-                        output = refOutput,
-                        threw = refThrew,
-                        stdOut = null,
-                        stdErr = null
-                    ),
-                    TestOutput(
-                        receiver = subProxy,
-                        args = args,
-                        output = subOutput,
-                        threw = subThrew,
-                        stdOut = null,
-                        stdErr = null
-                    )
-                )
+                customVerifier.invoke(null, refBehavior, subBehavior)
             }
         } catch (t: Throwable) {
             assertErr = t
         }
 
-        if (refThrew == null && subThrew != null) {
-            throw subThrew
+        // TODO: Should we allow a custom verifier to suppress this?
+        if (refBehavior.threw == null && subBehavior.threw != null) {
+            throw subBehavior.threw
         }
 
         return TestStep(
-            testNumber = iteration,
-            refReceiver = refReceiver,
-            subReceiver = subReceiver,
-            inputs = args.toList(),
-            succeeded = assertErr == null,
-            assertErr = assertErr
+                testNumber = iteration,
+                refReceiver = refReceiver,
+                subReceiver = subReceiver,
+                inputs = args.toList(),
+                succeeded = assertErr == null,
+                assertErr = assertErr
         )
     }
 
