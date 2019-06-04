@@ -77,9 +77,9 @@ fun Class<*>.getPublicMethods(isReference: Boolean): List<Method> {
     val allPublicMethods = this.declaredMethods.filter { Modifier.isPublic(it.modifiers) }
 
     if (isReference) {
-        // TODO: filter out all annotations that should be ignored.
+        // TODO: See if there are any other annotations that should be ignored
         return allPublicMethods.filter {
-                method -> method.annotations.none { it.annotationClass == Next::class || it.annotationClass == Generator::class }
+                method -> method.annotations.none { it.annotationClass in setOf(Next::class, Generator::class, Verify::class) }
         }
     }
 
