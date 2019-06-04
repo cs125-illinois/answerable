@@ -73,19 +73,17 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
             else -> it.name
         }
         val newReturnType = if (it.name == generatorName || it.name == atNextName) ObjectType(targetClass.canonicalName) else it.returnType
-        val originalInstructions = InstructionList(it.code.code)
-        val newInstructions = InstructionList()
-        originalInstructions.forEach {
-            var instr = it.instruction
+        val instructions = InstructionList(it.code.code)
+        instructions.forEach {
+            val instr = it.instruction
             if (instr is NEW) {
                 val classConst = constantPool.getConstant(instr.index) as ConstantClass
                 if ((constantPool.getConstant(classConst.nameIndex) as ConstantUtf8?)?.bytes == referenceClass.canonicalName.replace('.', '/')) {
-                    instr = NEW(newClassIdx)
+                    instr.index = newClassIdx
                 }
             }
-            newInstructions.append(instr)
         }
-        classGen.addMethod(MethodGen(it.accessFlags, newReturnType, it.argumentTypes, null, newName, null, newInstructions, classGen.constantPool)
+        classGen.addMethod(MethodGen(it.accessFlags, newReturnType, it.argumentTypes, null, newName, null, instructions, classGen.constantPool)
                 .also { mg ->
                     mg.maxLocals = it.code.maxLocals
                     mg.maxStack = it.code.maxStack

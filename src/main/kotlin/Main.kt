@@ -11,7 +11,7 @@ fun main(args: Array<String>) {
     val submission = getAttemptClass("$prefix$name")
 
     if (reference.isClassDesignReference()) {
-        ClassDesignAnalysis(reference, submission).runSuite()
+        println(ClassDesignAnalysis(reference, submission).runSuite())
     }
 
     val tg = TestGenerator(reference, submission)
