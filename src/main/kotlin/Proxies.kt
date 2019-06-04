@@ -4,9 +4,10 @@ import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
 import org.apache.bcel.Repository
 import org.apache.bcel.classfile.ConstantCP
-import org.apache.bcel.classfile.ConstantClass
-import org.apache.bcel.classfile.ConstantUtf8
 import org.apache.bcel.generic.ClassGen
+import org.apache.bcel.generic.InstructionList
+import org.apache.bcel.generic.MethodGen
+import org.apache.bcel.generic.ObjectType
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
 
@@ -44,10 +45,23 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
     return subProxy
 }
 
-fun mkGeneratorMirrorClass(existingClass: Class<*>, targetClass: Class<*>): Class<*> {
-    val classGen = ClassGen(Repository.lookupClass(existingClass))
+internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
+    val generatorName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Generator::class.java) && it.returnType == referenceClass }?.name
+    val atNextName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Next::class.java) && it.returnType == referenceClass }?.name
+    val classGen = ClassGen(Repository.lookupClass(referenceClass))
     classGen.methods.forEach {
+        // Remove all non-static methods so the type of `this` isn't mismatched
         if (!it.isStatic) classGen.removeMethod(it)
+
+        // Change the return type of @Generator or @Next method
+        if (it.name == generatorName || it.name == atNextName) {
+            classGen.removeMethod(it)
+            classGen.addMethod(MethodGen(it.accessFlags, ObjectType(targetClass.canonicalName), it.argumentTypes, null, it.name, null, InstructionList(it.code.code), classGen.constantPool)
+                    .also { mg ->
+                        mg.maxLocals = it.code.maxLocals
+                        mg.maxStack = it.code.maxStack
+                    }.method)
+        }
     }
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
@@ -57,7 +71,7 @@ fun mkGeneratorMirrorClass(existingClass: Class<*>, targetClass: Class<*>): Clas
         if (constant is ConstantCP) {
             if (constant.classIndex == 0) continue
             val className = constant.getClass(constantPool)
-            if (className == existingClass.canonicalName) {
+            if (className == referenceClass.canonicalName) {
                 constant.classIndex = newClassIdx
             }
         }
@@ -69,5 +83,6 @@ fun mkGeneratorMirrorClass(existingClass: Class<*>, targetClass: Class<*>): Clas
             return clazz
         }
     }
-    return loader.loadBytes(existingClass.canonicalName, classGen.javaClass.bytes)
+    classGen.javaClass.dump("Fiddled.class")
+    return loader.loadBytes(referenceClass.canonicalName, classGen.javaClass.bytes)
 }
