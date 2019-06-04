@@ -96,9 +96,12 @@ internal class TestGenerator(
         ReceiverGenStrategy.NONE -> null
         ReceiverGenStrategy.GENERATOR -> {
             // TODO: Replace with generators[...]...
-            (mirrorReferenceToStudentClass.methods.first { it.returnType == submissionClass && it.isAnnotationPresent(Generator::class.java) })(null, complexity, random)
+            mirrorReferenceToStudentClass.getMethod("answerable\$generate", Int::class.java, Random::class.java)(null, complexity, random)
         }
-        ReceiverGenStrategy.NEXT -> null // TODO
+        ReceiverGenStrategy.NEXT -> {
+            // TODO: Make sure this actually works
+            mirrorReferenceToStudentClass.getMethod("answerable\$next", submissionClass, Int::class.java, Random::class.java)(null, prevSubReceiver, iteration, random)
+        }
     }
 
     fun test(iteration: Int, refReceiver: Any?, subReceiver: Any?, subProxy: Any?, args: Array<Any?>, capturePrint: Boolean): TestStep {

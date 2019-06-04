@@ -21,4 +21,12 @@ internal class ProxyingTest {
         Assertions.assertNull(results[0].assertErr)
     }
 
+    @Test
+    fun testGeneratedWidget() {
+        val tg = TestGenerator(examples.proxy.reference.GeneratedWidget::class.java, examples.proxy.GeneratedWidget::class.java)
+        val results = tg.runTests(0x0403)
+        Assertions.assertTrue(results[0].succeeded)
+        Assertions.assertNull(results[0].assertErr)
+    }
+
 }

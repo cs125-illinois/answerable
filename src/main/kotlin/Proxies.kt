@@ -4,10 +4,9 @@ import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
 import org.apache.bcel.Repository
 import org.apache.bcel.classfile.ConstantCP
-import org.apache.bcel.generic.ClassGen
-import org.apache.bcel.generic.InstructionList
-import org.apache.bcel.generic.MethodGen
-import org.apache.bcel.generic.ObjectType
+import org.apache.bcel.classfile.ConstantClass
+import org.apache.bcel.classfile.ConstantUtf8
+import org.apache.bcel.generic.*
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
 
@@ -48,21 +47,9 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
     val generatorName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Generator::class.java) && it.returnType == referenceClass }?.name
     val atNextName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Next::class.java) && it.returnType == referenceClass }?.name
-    val classGen = ClassGen(Repository.lookupClass(referenceClass))
-    classGen.methods.forEach {
-        // Remove all non-static methods so the type of `this` isn't mismatched
-        if (!it.isStatic) classGen.removeMethod(it)
+    val atVerifyName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
-        // Change the return type of @Generator or @Next method
-        if (it.name == generatorName || it.name == atNextName) {
-            classGen.removeMethod(it)
-            classGen.addMethod(MethodGen(it.accessFlags, ObjectType(targetClass.canonicalName), it.argumentTypes, null, it.name, null, InstructionList(it.code.code), classGen.constantPool)
-                    .also { mg ->
-                        mg.maxLocals = it.code.maxLocals
-                        mg.maxStack = it.code.maxStack
-                    }.method)
-        }
-    }
+    val classGen = ClassGen(Repository.lookupClass(referenceClass))
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
     val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
@@ -75,6 +62,34 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
                 constant.classIndex = newClassIdx
             }
         }
+    }
+    classGen.methods.forEach {
+        classGen.removeMethod(it)
+        if (!it.isStatic || it.name == atVerifyName) return@forEach
+
+        val newName = when (it.name) {
+            generatorName -> "answerable\$generate"
+            atNextName -> "answerable\$next"
+            else -> it.name
+        }
+        val newReturnType = if (it.name == generatorName || it.name == atNextName) ObjectType(targetClass.canonicalName) else it.returnType
+        val originalInstructions = InstructionList(it.code.code)
+        val newInstructions = InstructionList()
+        originalInstructions.forEach {
+            var instr = it.instruction
+            if (instr is NEW) {
+                val classConst = constantPool.getConstant(instr.index) as ConstantClass
+                if ((constantPool.getConstant(classConst.nameIndex) as ConstantUtf8?)?.bytes == referenceClass.canonicalName.replace('.', '/')) {
+                    instr = NEW(newClassIdx)
+                }
+            }
+            newInstructions.append(instr)
+        }
+        classGen.addMethod(MethodGen(it.accessFlags, newReturnType, it.argumentTypes, null, newName, null, newInstructions, classGen.constantPool)
+                .also { mg ->
+                    mg.maxLocals = it.code.maxLocals
+                    mg.maxStack = it.code.maxStack
+                }.method)
     }
     val loader = object : ClassLoader() {
         fun loadBytes(name: String, bytes: ByteArray): Class<*> {
