@@ -11,3 +11,4 @@
 .idea/.name
 .idea/modules/test-output/
 .idea/libraries/
+*.iml

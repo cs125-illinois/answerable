@@ -14,7 +14,6 @@ fun main(args: Array<String>) {
         ClassDesignAnalysis(reference, submission).runSuite()
     }
 
-    val refMethod = reference.getReferenceSolutionMethod()
     val tg = TestGenerator(reference, submission)
 
     println(tg.runTests(Random.nextLong()).toJson())

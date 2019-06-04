@@ -1,11 +1,14 @@
 package edu.illinois.cs.cs125.answerable
 
+import javassist.util.proxy.Proxy
+import javassist.util.proxy.ProxyFactory
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import org.junit.jupiter.api.Assertions.*
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.lang.IllegalStateException
+import java.lang.reflect.Constructor
 import java.nio.charset.StandardCharsets
 import java.util.*
 
@@ -23,7 +26,9 @@ internal class TestGenerator(
         customVerifier?.isAccessible = true
     }
 
-    private val paramTypes: Array<out Class<*>> = reference.parameterTypes
+    private val usedCtor: Constructor<*>? = referenceClass.constructors.getOrNull(0) // TODO: What if there are multiple constructors?
+    private val paramTypes: Array<Class<*>> = reference.parameterTypes
+    private val ctorArgTypes: Array<Class<*>>? = usedCtor?.parameterTypes
     private val generators: Map<Class<*>, Gen<*>> = setUpGenerators()
 
     private val isStatic = Modifier.isStatic(reference.modifiers)
@@ -31,7 +36,7 @@ internal class TestGenerator(
     private val random = Random(0)
 
     private fun setUpGenerators(): Map<Class<*>, Gen<*>> {
-        val types = paramTypes.distinct()
+        val types = paramTypes.plus(ctorArgTypes ?: arrayOf()).distinct()
         val userGens = reference.declaringClass.getGenerators().map {
             Pair(it.returnType, CustomGen(it))
         }
@@ -57,15 +62,32 @@ internal class TestGenerator(
     }
 
     private fun testWith(iteration: Int, complexity: Int): TestStep {
-        val args = paramTypes.map { generators[it]?.generate(complexity, random) }.toTypedArray()
+        val methodArgs = paramTypes.map { generators[it]?.generate(complexity, random) }.toTypedArray()
 
-        val refReceiver: Any? = if (isStatic) null else null // TODO: We have to solve the receiver subclassing problem
-        val subReceiver: Any? = if (isStatic) null else null // TODO: as above
+        var refReceiver: Any? = null
+        var subReceiver: Any? = null
+        var subProxy: Any? = null
+
+        if (!isStatic) {
+            // TODO: Test that this actually works for constructors that take parameters
+            // TODO: Should something be done about crashes in the constructor?
+            val ctorArgs = ctorArgTypes!!.map { generators[it]?.generate(complexity, random) }.toTypedArray()
+            refReceiver = usedCtor!!.newInstance(*ctorArgs)
+            subReceiver = submissionClass.getConstructor(*usedCtor.parameterTypes).newInstance(*ctorArgs)
+            val factory = ProxyFactory()
+            factory.superclass = referenceClass
+            factory.setFilter { it.name != "finalize" }
+            val proxyClass = factory.createClass()
+            subProxy = proxyClass.getConstructor(*usedCtor.parameterTypes).newInstance(*ctorArgs)
+            (subProxy as Proxy).setHandler { _, method, _, args ->
+                submissionClass.getMethod(method.name, *method.parameterTypes).invoke(subReceiver, *args)
+            }
+        }
 
         return if (reference.isStaticVoid()) {
-            testPrintedOutput(iteration, refReceiver, subReceiver, args)
+            testPrintedOutput(iteration, refReceiver, subReceiver, methodArgs)
         } else {
-            testStandard(iteration, refReceiver, subReceiver, args)
+            testStandard(iteration, refReceiver, subReceiver, subProxy, methodArgs)
         }
     }
 
@@ -161,7 +183,7 @@ internal class TestGenerator(
             assertErr = assertErr
         )
     }
-    private fun testStandard(iteration: Int, refReceiver: Any?, subReceiver: Any?, args: Array<Any?>): TestStep {
+    private fun testStandard(iteration: Int, refReceiver: Any?, subReceiver: Any?, subProxy: Any?, args: Array<Any?>): TestStep {
         var refThrew: Throwable? = null
         var subThrew: Throwable? = null
 
@@ -194,7 +216,7 @@ internal class TestGenerator(
                         stdErr = null
                     ),
                     TestOutput(
-                        receiver = subReceiver,
+                        receiver = subProxy,
                         args = args,
                         output = subOutput,
                         threw = subThrew,

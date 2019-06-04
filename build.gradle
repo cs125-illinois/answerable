@@ -17,6 +17,7 @@ buildscript {
 }
 dependencies {
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
+    implementation group: 'org.javassist', name: 'javassist', version: '3.25.0-GA'
     testImplementation "org.junit.jupiter:junit-jupiter:5.4.2"
     compile "org.junit.jupiter:junit-jupiter:5.4.2"
     compile 'io.github.cdimascio:java-dotenv:5.0.1'
