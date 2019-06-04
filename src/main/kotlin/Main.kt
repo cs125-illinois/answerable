@@ -10,9 +10,7 @@ fun main(args: Array<String>) {
     val reference = getSolutionClass("${prefix}reference.$name")
     val submission = getAttemptClass("$prefix$name")
 
-    if (reference.isClassDesignReference()) {
-        ClassDesignAnalysis(reference, submission).runSuite()
-    }
+    ClassDesignAnalysis(reference, submission).runSuite()
 
     val tg = TestGenerator(reference, submission)
 

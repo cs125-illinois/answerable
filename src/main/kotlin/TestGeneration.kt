@@ -1,7 +1,5 @@
 package edu.illinois.cs.cs125.answerable
 
-import javassist.util.proxy.Proxy
-import javassist.util.proxy.ProxyFactory
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import org.junit.jupiter.api.Assertions.*
@@ -78,16 +76,22 @@ internal class TestGenerator(
         var subProxy: Any? = null
 
         if (!isStatic) {
-            // TODO: Test that this actually works for constructors that take parameters
-            // TODO: Should something be done about crashes in the constructor?
-            val ctorArgs = ctorArgTypes!!.map { generators[it]?.generate(complexity, random) }.toTypedArray()
-            refReceiver = usedCtor!!.newInstance(*ctorArgs)
-            subReceiver = submissionClass.getConstructor(*usedCtor.parameterTypes).newInstance(*ctorArgs)
+            refReceiver = mkRefReceiver(iteration, complexity, prevRefReceiver)
+            subReceiver = mkSubReceiver(iteration, complexity, prevSubReceiver)
 
             subProxy = mkProxy(referenceClass, submissionClass, subReceiver)
         }
 
         return test(iteration, refReceiver, subReceiver, subProxy, methodArgs, reference.isStaticVoid())
+    }
+
+    fun mkRefReceiver(iteration: Int, complexity: Int, prevRefReceiver: Any?): Any? = when (receiverGenStrategy) {
+        ReceiverGenStrategy.NONE -> null
+        ReceiverGenStrategy.GENERATOR -> generators[referenceClass]?.generate(complexity, random)
+        ReceiverGenStrategy.NEXT -> nextReceiver?.invoke(null, prevRefReceiver, iteration, random)
+    }
+    fun mkSubReceiver(iteration: Int, complexity: Int, prevSubReceiver: Any?): Any? = when (receiverGenStrategy) {
+        TODO("???") -> null
     }
 
     fun test(iteration: Int, refReceiver: Any?, subReceiver: Any?, subProxy: Any?, args: Array<Any?>, capturePrint: Boolean): TestStep {
@@ -156,6 +160,8 @@ internal class TestGenerator(
                 subReceiver = subReceiver,
                 inputs = args.toList(),
                 succeeded = assertErr == null,
+                refThrew = refBehavior.threw,
+                subThrew = subBehavior.threw,
                 assertErr = assertErr
         )
     }
@@ -311,6 +317,8 @@ data class TestStep(
     val subReceiver: Any?,
     val inputs: List<*>,
     val succeeded: Boolean,
+    val refThrew: Throwable?,
+    val subThrew: Throwable?,
     val assertErr: Throwable?
 )
 
