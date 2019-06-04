@@ -88,14 +88,14 @@ fun Class<*>.getPublicMethods(isReference: Boolean): List<Method> {
 
 fun Class<*>.getGenerators(): List<Method> =
         this.declaredMethods
-            .filter { method -> method.annotations.any { it.annotationClass == Generator::class } }
+            .filter { method -> method.isAnnotationPresent(Generator::class.java) }
             .map { it.isAccessible = true; it }
 
 fun Class<*>.getAtNext(): Method? =
-        this.declaredMethods.lastOrNull { method -> method.annotations.any { it.annotationClass == Next::class } }
+        this.declaredMethods.lastOrNull { method -> method.isAnnotationPresent(Next::class.java) }
 
 fun Class<*>.getCustomVerifier(): Method? =
-    this.declaredMethods.lastOrNull { method -> method.annotations.any { it.annotationClass == Verify::class } }
+    this.declaredMethods.lastOrNull { method -> method.isAnnotationPresent(Verify::class.java) }
 
 fun Method.isStaticVoid(): Boolean =
         Modifier.isStatic(this.modifiers)

@@ -4,6 +4,8 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/answerable.iml" filepath="$PROJECT_DIR$/answerable.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/answerable.main.iml" filepath="$PROJECT_DIR$/.idea/modules/answerable.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/answerable.main.iml" filepath="$PROJECT_DIR$/.idea/modules/answerable.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/answerable.test.iml" filepath="$PROJECT_DIR$/.idea/modules/answerable.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/answerable.test.iml" filepath="$PROJECT_DIR$/.idea/modules/answerable.test.iml" />
     </modules>
   </component>

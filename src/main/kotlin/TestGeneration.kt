@@ -19,11 +19,13 @@ internal class TestGenerator(
     private val reference: Method = referenceClass.getReferenceSolutionMethod()
     private val submission: Method = submissionClass.findSolutionAttemptMethod(reference)
     private val customVerifier: Method? = referenceClass.getCustomVerifier()
+    private val nextReceiver: Method? = referenceClass.getAtNext()
 
     init {
         reference.isAccessible = true
         submission.isAccessible = true
         customVerifier?.isAccessible = true
+        nextReceiver?.isAccessible = true
     }
 
     private val usedCtor: Constructor<*>? = referenceClass.constructors.getOrNull(0) // TODO: What if there are multiple constructors?
@@ -32,11 +34,18 @@ internal class TestGenerator(
     private val generators: Map<Class<*>, Gen<*>> = setUpGenerators()
 
     private val isStatic = Modifier.isStatic(reference.modifiers)
+    private enum class ReceiverGenStrategy { GENERATOR, NEXT, NONE }
+    private val receiverGenStrategy: ReceiverGenStrategy = when {
+        nextReceiver != null                   -> ReceiverGenStrategy.NEXT
+        referenceClass in generators.keys      -> ReceiverGenStrategy.GENERATOR
+        Modifier.isStatic(reference.modifiers) -> ReceiverGenStrategy.NONE
+        else -> throw AnswerableMisuseException("The reference solution must provide either an @Generator or an @Next method if @Solution is not static.")
+    }
 
     private val random = Random(0)
 
     private fun setUpGenerators(): Map<Class<*>, Gen<*>> {
-        val types = paramTypes.plus(ctorArgTypes ?: arrayOf()).distinct()
+        val types = (paramTypes + (ctorArgTypes ?: arrayOf())).distinct()
         val userGens = reference.declaringClass.getGenerators().map {
             Pair(it.returnType, CustomGen(it))
         }
@@ -61,7 +70,7 @@ internal class TestGenerator(
         )
     }
 
-    private fun testWith(iteration: Int, complexity: Int): TestStep {
+    private fun testWith(iteration: Int, complexity: Int, prevRefReceiver: Any?, prevSubReceiver: Any?): TestStep {
         val methodArgs = paramTypes.map { generators[it]?.generate(complexity, random) }.toTypedArray()
 
         var refReceiver: Any? = null
@@ -74,14 +83,8 @@ internal class TestGenerator(
             val ctorArgs = ctorArgTypes!!.map { generators[it]?.generate(complexity, random) }.toTypedArray()
             refReceiver = usedCtor!!.newInstance(*ctorArgs)
             subReceiver = submissionClass.getConstructor(*usedCtor.parameterTypes).newInstance(*ctorArgs)
-            val factory = ProxyFactory()
-            factory.superclass = referenceClass
-            factory.setFilter { it.name != "finalize" }
-            val proxyClass = factory.createClass()
-            subProxy = proxyClass.getConstructor(*usedCtor.parameterTypes).newInstance(*ctorArgs)
-            (subProxy as Proxy).setHandler { _, method, _, args ->
-                submissionClass.getMethod(method.name, *method.parameterTypes).invoke(subReceiver, *args)
-            }
+
+            subProxy = mkProxy(referenceClass, submissionClass, subReceiver)
         }
 
         return test(iteration, refReceiver, subReceiver, subProxy, methodArgs, reference.isStaticVoid())
@@ -159,7 +162,19 @@ internal class TestGenerator(
 
     fun runTests(seed: Long): List<TestStep> {
         random.setSeed(seed)
-        return (1..1000).map { iter -> testWith(iter, iter / 20) }
+
+        val testStepList: MutableList<TestStep> = mutableListOf()
+        var refReceiver: Any? = null
+        var subReceiver: Any? = null
+        for (i in 1 .. 1000) {
+            val result = testWith(i, i / 20, refReceiver, subReceiver)
+            refReceiver = result.refReceiver
+            subReceiver = result.subReceiver
+
+            testStepList.add(result)
+        }
+
+        return testStepList
     }
 }
 
