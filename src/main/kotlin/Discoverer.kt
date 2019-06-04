@@ -91,6 +91,9 @@ fun Class<*>.getGenerators(): List<Method> =
             .filter { method -> method.annotations.any { it.annotationClass == Generator::class } }
             .map { it.isAccessible = true; it }
 
+fun Class<*>.getAtNext(): Method? =
+        this.declaredMethods.lastOrNull { method -> method.annotations.any { it.annotationClass == Next::class } }
+
 fun Class<*>.getCustomVerifier(): Method? =
     this.declaredMethods.lastOrNull { method -> method.annotations.any { it.annotationClass == Verify::class } }
 
