@@ -5,6 +5,6 @@ import org.junit.jupiter.api.Test
 internal class AdHoc {
     @Test
     fun test() {
-        main(arrayOf("Test", "examples.testing."))
+        mkGeneratorMirrorClass(examples.proxy.reference.Widget::class.java, examples.proxy.Widget::class.java)
     }
 }

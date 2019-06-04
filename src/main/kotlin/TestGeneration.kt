@@ -1,7 +1,5 @@
 package edu.illinois.cs.cs125.answerable
 
-import javassist.util.proxy.Proxy
-import javassist.util.proxy.ProxyFactory
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import org.junit.jupiter.api.Assertions.*
@@ -13,8 +11,8 @@ import java.nio.charset.StandardCharsets
 import java.util.*
 
 internal class TestGenerator(
-    private val referenceClass: Class<*>,
-    private val submissionClass: Class<*>
+        private val referenceClass: Class<*>,
+        private val submissionClass: Class<*>
 ) {
     private val reference: Method = referenceClass.getReferenceSolutionMethod()
     private val submission: Method = submissionClass.findSolutionAttemptMethod(reference)
@@ -32,6 +30,8 @@ internal class TestGenerator(
     private val paramTypes: Array<Class<*>> = reference.parameterTypes
     private val ctorArgTypes: Array<Class<*>>? = usedCtor?.parameterTypes
     private val generators: Map<Class<*>, Gen<*>> = setUpGenerators()
+
+    private val mirrorReferenceToStudentClass = mkGeneratorMirrorClass(referenceClass, submissionClass)
 
     private val isStatic = Modifier.isStatic(reference.modifiers)
     private enum class ReceiverGenStrategy { GENERATOR, NEXT, NONE }
@@ -51,22 +51,22 @@ internal class TestGenerator(
         }
 
         val gens = listOf(
-            Int::class.java to DefaultIntGen(),
-            Double::class.java to DefaultDoubleGen(),
-            Float::class.java to DefaultFloatGen(),
-            Byte::class.java to DefaultByteGen(),
-            Short::class.java to DefaultShortGen(),
-            Long::class.java to DefaultLongGen(),
-            Char::class.java to DefaultCharGen(),
-            Boolean::class.java to DefaultBooleanGen(),
-            *userGens.toTypedArray()
+                Int::class.java to DefaultIntGen(),
+                Double::class.java to DefaultDoubleGen(),
+                Float::class.java to DefaultFloatGen(),
+                Byte::class.java to DefaultByteGen(),
+                Short::class.java to DefaultShortGen(),
+                Long::class.java to DefaultLongGen(),
+                Char::class.java to DefaultCharGen(),
+                Boolean::class.java to DefaultBooleanGen(),
+                *userGens.toTypedArray()
         )
 
         return mapOf(
-            *types.filter { it.isArray }.map { type ->
-                Pair(type, LazyGen { DefaultArrayGen(generators[type.componentType] ?: throw IllegalStateException("An array with component type `${type.componentType}' was requested, but no generator for that type was found.")) })
-            }.toTypedArray(),
-            *gens.toTypedArray()
+                *types.filter { it.isArray }.map { type ->
+                    Pair(type, LazyGen { DefaultArrayGen(generators[type.componentType] ?: throw IllegalStateException("An array with component type `${type.componentType}' was requested, but no generator for that type was found.")) })
+                }.toTypedArray(),
+                *gens.toTypedArray()
         )
     }
 
@@ -78,16 +78,27 @@ internal class TestGenerator(
         var subProxy: Any? = null
 
         if (!isStatic) {
-            // TODO: Test that this actually works for constructors that take parameters
-            // TODO: Should something be done about crashes in the constructor?
-            val ctorArgs = ctorArgTypes!!.map { generators[it]?.generate(complexity, random) }.toTypedArray()
-            refReceiver = usedCtor!!.newInstance(*ctorArgs)
-            subReceiver = submissionClass.getConstructor(*usedCtor.parameterTypes).newInstance(*ctorArgs)
+            refReceiver = mkRefReceiver(iteration, complexity, prevRefReceiver)
+            subReceiver = mkSubReceiver(iteration, complexity, prevSubReceiver)
 
             subProxy = mkProxy(referenceClass, submissionClass, subReceiver)
         }
 
         return test(iteration, refReceiver, subReceiver, subProxy, methodArgs, reference.isStaticVoid())
+    }
+
+    fun mkRefReceiver(iteration: Int, complexity: Int, prevRefReceiver: Any?): Any? = when (receiverGenStrategy) {
+        ReceiverGenStrategy.NONE -> null
+        ReceiverGenStrategy.GENERATOR -> generators[referenceClass]?.generate(complexity, random)
+        ReceiverGenStrategy.NEXT -> nextReceiver?.invoke(null, prevRefReceiver, iteration, random)
+    }
+    fun mkSubReceiver(iteration: Int, complexity: Int, prevSubReceiver: Any?): Any? = when (receiverGenStrategy) {
+        ReceiverGenStrategy.NONE -> null
+        ReceiverGenStrategy.GENERATOR -> {
+            // TODO: Replace with generators[...]...
+            (mirrorReferenceToStudentClass.methods.first { it.returnType == submissionClass && it.isAnnotationPresent(Generator::class.java) })(null, complexity, random)
+        }
+        ReceiverGenStrategy.NEXT -> null // TODO
     }
 
     fun test(iteration: Int, refReceiver: Any?, subReceiver: Any?, subProxy: Any?, args: Array<Any?>, capturePrint: Boolean): TestStep {
@@ -156,6 +167,8 @@ internal class TestGenerator(
                 subReceiver = subReceiver,
                 inputs = args.toList(),
                 succeeded = assertErr == null,
+                refThrew = refBehavior.threw,
+                subThrew = subBehavior.threw,
                 assertErr = assertErr
         )
     }
@@ -250,11 +263,11 @@ internal class DefaultBooleanGen : Gen<Boolean> {
 internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<*>> {
     override fun generate(complexity: Int, random: Random): Array<*> {
         fun genArray(complexity: Int, length: Int): Array<*> =
-            if (length <= 0) {
-                arrayOf<Any?>()
-            } else {
-                arrayOf(tGen.generate(random.nextInt(complexity), random), *genArray(complexity, length - 1))
-            }
+                if (length <= 0) {
+                    arrayOf<Any?>()
+                } else {
+                    arrayOf(tGen.generate(random.nextInt(complexity), random), *genArray(complexity, length - 1))
+                }
 
         return genArray(complexity, complexity)
     }
@@ -265,18 +278,18 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<*>> {
  * A wrapper class used to pass data to custom verification methods.
  */
 data class TestOutput<T>(
-    /** The object that the method was called on. Null if the method is static. */
-    val receiver: T?,
-    /** The arguments the method was called with */
-    val args: Array<Any?>,
-    /** The return value of the method. If 'threw' is not null, 'output' is always null. */
-    val output: Any?,
-    /** The throwable (if any) thrown by the method. Null if nothing was thrown. */
-    val threw: Throwable?,
-    /** The log of stdOut during the method invocation. Only non-null if the method is static and void. */
-    val stdOut: String?,
-    /** The log of stdErr during the method invocation. Only non-null if the method is static and void. */
-    val stdErr: String?
+        /** The object that the method was called on. Null if the method is static. */
+        val receiver: T?,
+        /** The arguments the method was called with */
+        val args: Array<Any?>,
+        /** The return value of the method. If 'threw' is not null, 'output' is always null. */
+        val output: Any?,
+        /** The throwable (if any) thrown by the method. Null if nothing was thrown. */
+        val threw: Throwable?,
+        /** The log of stdOut during the method invocation. Only non-null if the method is static and void. */
+        val stdOut: String?,
+        /** The log of stdErr during the method invocation. Only non-null if the method is static and void. */
+        val stdErr: String?
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -306,18 +319,20 @@ data class TestOutput<T>(
 }
 
 data class TestStep(
-    val testNumber: Int,
-    val refReceiver: Any?,
-    val subReceiver: Any?,
-    val inputs: List<*>,
-    val succeeded: Boolean,
-    val assertErr: Throwable?
+        val testNumber: Int,
+        val refReceiver: Any?,
+        val subReceiver: Any?,
+        val inputs: List<*>,
+        val succeeded: Boolean,
+        val refThrew: Throwable?,
+        val subThrew: Throwable?,
+        val assertErr: Throwable?
 )
 
 
 @Suppress("IMPLICIT_CAST_TO_ANY")
 fun TestStep.toJson(): String =
-    """
+        """
         |{
         |  testNumber: $testNumber,
         |  refReceiver: $refReceiver,

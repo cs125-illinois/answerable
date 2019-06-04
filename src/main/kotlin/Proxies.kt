@@ -2,6 +2,11 @@ package edu.illinois.cs.cs125.answerable
 
 import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
+import org.apache.bcel.Repository
+import org.apache.bcel.classfile.ConstantCP
+import org.apache.bcel.classfile.ConstantClass
+import org.apache.bcel.classfile.ConstantUtf8
+import org.apache.bcel.generic.ClassGen
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
 
@@ -37,4 +42,32 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
     }
 
     return subProxy
+}
+
+fun mkGeneratorMirrorClass(existingClass: Class<*>, targetClass: Class<*>): Class<*> {
+    val classGen = ClassGen(Repository.lookupClass(existingClass))
+    classGen.methods.forEach {
+        if (!it.isStatic) classGen.removeMethod(it)
+    }
+    val constantPoolGen = classGen.constantPool
+    val constantPool = constantPoolGen.constantPool
+    val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
+    for (i in 1 until constantPoolGen.size) {
+        val constant = constantPoolGen.getConstant(i)
+        if (constant is ConstantCP) {
+            if (constant.classIndex == 0) continue
+            val className = constant.getClass(constantPool)
+            if (className == existingClass.canonicalName) {
+                constant.classIndex = newClassIdx
+            }
+        }
+    }
+    val loader = object : ClassLoader() {
+        fun loadBytes(name: String, bytes: ByteArray): Class<*> {
+            val clazz = defineClass(name, bytes, 0, bytes.size)
+            resolveClass(clazz)
+            return clazz
+        }
+    }
+    return loader.loadBytes(existingClass.canonicalName, classGen.javaClass.bytes)
 }
