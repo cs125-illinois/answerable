@@ -1,9 +1,12 @@
 package examples.proxy.reference;
 
+import edu.illinois.cs.cs125.answerable.Generator;
 import edu.illinois.cs.cs125.answerable.Solution;
 import edu.illinois.cs.cs125.answerable.TestOutput;
 import edu.illinois.cs.cs125.answerable.Verify;
 import org.junit.jupiter.api.Assertions;
+
+import java.util.Random;
 
 @Solution
 public class Widget {
@@ -26,6 +29,11 @@ public class Widget {
     @Verify
     public static void verify(TestOutput<Widget> ours, TestOutput<Widget> theirs) {
         Assertions.assertArrayEquals(ours.getReceiver().getSpringPositions(), theirs.getReceiver().getSpringPositions());
+    }
+
+    @Generator
+    public static Widget generator(int complexity, Random random) {
+        return new Widget();
     }
 
 }
