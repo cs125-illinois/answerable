@@ -10,7 +10,6 @@ import org.apache.bcel.classfile.StackMap
 import org.apache.bcel.generic.*
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
-import java.util.*
 
 val objenesis = ObjenesisStd()
 
@@ -46,12 +45,21 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
     return subProxy
 }
 
+val num = 0
+
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
+    fun fixType(type: Type): Type {
+        if (type.signature == "L${referenceClass.canonicalName.replace('.','/')};") {
+            return ObjectType(targetClass.canonicalName)
+        }
+        return type
+    }
     val generatorName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Generator::class.java) && it.returnType == referenceClass }?.name
     val atNextName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Next::class.java) && it.returnType == referenceClass }?.name
     val atVerifyName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
     val classGen = ClassGen(Repository.lookupClass(referenceClass))
+
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
     val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
@@ -74,7 +82,7 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
             atNextName -> "answerable\$next"
             else -> it.name
         }
-        val newReturnType = if (it.name == generatorName || it.name == atNextName) ObjectType(targetClass.canonicalName) else it.returnType
+        val newReturnType = fixType(it.returnType)
         val instructions = InstructionList(it.code.code)
         instructions.forEach { instructionHandle ->
             val instr = instructionHandle.instruction
@@ -86,13 +94,8 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
             }
         }
 
-        fun fixParamType(paramType: Type): Type {
-            if (paramType.signature == "L${referenceClass.canonicalName.replace('.','/')};") {
-                return ObjectType(targetClass.canonicalName)
-            }
-            return paramType
-        }
-        val argumentTypes = it.argumentTypes.map(::fixParamType).toTypedArray()
+
+        val argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
 
         classGen.addMethod(MethodGen(it.accessFlags, newReturnType, argumentTypes, null, newName, null, instructions, classGen.constantPool)
                 .also { mg ->
