@@ -73,13 +73,14 @@ fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
 fun Class<*>.getPublicFields(): List<Field> =
     this.declaredFields.filter { Modifier.isPublic(it.modifiers) }
 
+val ignoredAnnotations = setOf(Next::class, Generator::class, Verify::class, Helper::class, Ignore::class)
+
 fun Class<*>.getPublicMethods(isReference: Boolean): List<Method> {
     val allPublicMethods = this.declaredMethods.filter { Modifier.isPublic(it.modifiers) }
 
     if (isReference) {
-        // TODO: See if there are any other annotations that should be ignored
         return allPublicMethods.filter {
-                method -> method.annotations.none { it.annotationClass in setOf(Next::class, Generator::class, Verify::class) }
+                method -> method.annotations.none { it.annotationClass in ignoredAnnotations }
         }
     }
 
@@ -95,8 +96,6 @@ fun Class<*>.getAtNext(): Method? =
         this.declaredMethods.lastOrNull { method -> method.isAnnotationPresent(Next::class.java) }
 
 fun Class<*>.getCustomVerifier(): Method? =
-    this.declaredMethods.lastOrNull { method -> method.isAnnotationPresent(Verify::class.java) }
+        this.declaredMethods.lastOrNull { method -> method.isAnnotationPresent(Verify::class.java) }
 
-fun Method.isStaticVoid(): Boolean =
-        Modifier.isStatic(this.modifiers)
-                && this.genericReturnType.typeName == "void"
+fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
