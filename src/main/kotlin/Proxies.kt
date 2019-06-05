@@ -86,18 +86,16 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
         val newMethod = MethodGen(it, classGen.className, constantPoolGen)
         newMethod.argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
         newMethod.returnType = fixType(it.returnType)
-        newMethod.instructionList.forEach { instructionHandle ->
-            val instr = instructionHandle.instruction
-            if (instr is NEW) {
-                val classConst = constantPool.getConstant(instr.index) as ConstantClass
-                if ((constantPool.getConstant(classConst.nameIndex) as ConstantUtf8?)?.bytes == referenceClass.canonicalName.replace('.', '/')) {
-                    instr.index = newClassIdx
-                }
+        newMethod.instructionList.map { handle -> handle.instruction }.filterIsInstance(CPInstruction::class.java).forEach { instr ->
+            val classConst = constantPool.getConstant(instr.index) as? ConstantClass
+            if (classConst != null && (constantPool.getConstant(classConst.nameIndex) as ConstantUtf8?)?.bytes == referenceClass.canonicalName.replace('.', '/')) {
+                instr.index = newClassIdx
             }
         }
 
         classGen.addMethod(newMethod.method)
     }
 
+    classGen.javaClass.dump("Fiddled.class")
     return loader.loadBytes(referenceClass.canonicalName, classGen.javaClass.bytes)
 }

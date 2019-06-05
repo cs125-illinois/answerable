@@ -31,8 +31,13 @@ public class Widget {
         Assertions.assertArrayEquals(ours.getReceiver().getSpringPositions(), theirs.getReceiver().getSpringPositions());
     }
 
+    private static void helper() {
+        System.out.println("helper");
+    }
+
     @Generator
     public static Widget generator(int complexity, Random random) {
+        helper();
         return new Widget();
     }
 
