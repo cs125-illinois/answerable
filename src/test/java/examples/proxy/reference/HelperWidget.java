@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Assertions;
 import java.util.Random;
 
 @Solution
-public class Widget {
+public class HelperWidget {
 
     private int springs;
 
@@ -27,13 +27,18 @@ public class Widget {
     }
 
     @Verify
-    public static void verify(TestOutput<Widget> ours, TestOutput<Widget> theirs) {
+    public static void verify(TestOutput<HelperWidget> ours, TestOutput<HelperWidget> theirs) {
         Assertions.assertArrayEquals(ours.getReceiver().getSpringPositions(), theirs.getReceiver().getSpringPositions());
     }
 
+    private static void helper() {
+        System.out.println("helper");
+    }
+
     @Generator
-    public static Widget generator(int complexity, Random random) {
-        return new Widget();
+    public static HelperWidget generator(int complexity, Random random) {
+        helper();
+        return new HelperWidget();
     }
 
 }
