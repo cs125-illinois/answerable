@@ -75,9 +75,6 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
     val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
-    val newClassArrayIdx = Array(255) {
-        if (it == 0) 0 else constantPoolGen.addArrayClass(ArrayType(targetClass.canonicalName, it))
-    }
 
     for (i in 1 until constantPoolGen.size) {
         val constant = constantPoolGen.getConstant(i)
@@ -111,7 +108,7 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
             newClassIdx
         } else if (className.bytes.trimStart('[') == refLName) {
             val arrDims = className.bytes.length - className.bytes.trimStart('[').length
-            newClassArrayIdx[arrDims]
+            constantPoolGen.addArrayClass(ArrayType(targetClass.canonicalName, arrDims))
         } else {
             currentIndex
         }
@@ -124,7 +121,7 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
         val newMethod = MethodGen(it, classGen.className, constantPoolGen)
         newMethod.argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
         newMethod.returnType = fixType(it.returnType)
-        newMethod.instructionList.map { handle -> handle.instruction }.filterIsInstance(CPInstruction::class.java).forEach eachInstr@{ instr ->
+        newMethod.instructionList.map { handle -> handle.instruction }.filterIsInstance(CPInstruction::class.java).forEach { instr ->
             classIndexReplacement(instr.index)?.let { newIdx -> instr.index = newIdx }
         }
 
