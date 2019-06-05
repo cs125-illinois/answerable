@@ -46,8 +46,10 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
     val subProxy = instantiator.newInstance()
 
     (subProxy as Proxy).setHandler { self, method, _, args ->
+        childClass.getPublicFields().forEach { it.set(forward, self.javaClass.getField(it.name).get(self)) }
+        val result = childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
         childClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(forward)) }
-        childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
+        result
     }
 
     return subProxy

@@ -15,7 +15,6 @@ public class ComplexGeneratorWidget {
         springs = new String[setSprings];
     }
 
-    @Solution
     public void createSprings(String prefix) {
         for (int i = 0; i < springs.length; i++) {
             springs[i] = prefix + i;
@@ -35,6 +34,7 @@ public class ComplexGeneratorWidget {
         return original;
     }
 
+    @Solution
     public String getSpring(int index) {
         return springs[index];
     }
