@@ -40,7 +40,7 @@ internal class DiscovererTest {
     }
 
     @Test
-    fun testIsStaticVoid() {
+    fun testIsPrinter() {
         val printerReferenceClass = getSolutionClass(correctPrinterReference)
         val printerReferenceMethod = printerReferenceClass.getReferenceSolutionMethod()
         assertTrue(printerReferenceMethod.isPrinter())

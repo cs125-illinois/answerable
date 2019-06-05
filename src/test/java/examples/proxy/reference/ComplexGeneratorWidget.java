@@ -3,6 +3,8 @@ package examples.proxy.reference;
 import edu.illinois.cs.cs125.answerable.*;
 import org.junit.jupiter.api.Assertions;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class ComplexGeneratorWidget {
@@ -66,15 +68,15 @@ public class ComplexGeneratorWidget {
         ComplexGeneratorWidget widget;
         if (complexity == 0) {
             return new ComplexGeneratorWidget(0);
-        } else if (complexity % 3 == 0) {
+        } else if (complexity % 4 == 0) {
             widget = new ComplexGeneratorWidget(random.nextInt(complexity));
             widget.createSprings("Spring ");
-        } else if (complexity % 3 == 1) {
+        } else if (complexity % 4 == 1) {
             widget = new ComplexGeneratorWidget(random.nextInt(complexity) + 1);
             widget.createSprings("#");
             widget.replaceSpring(0, "Gone");
             return widget;
-        } else {
+        } else if (complexity % 4 == 2) {
             widget = new ComplexGeneratorWidget(17);
             widget.createSprings("Spring #");
             for (int i = 0; i < 17; i++) {
@@ -86,6 +88,12 @@ public class ComplexGeneratorWidget {
                     }
                 }
             }
+        } else {
+            List<ComplexGeneratorWidget> options = new ArrayList<>();
+            options.add(generate(complexity - 1, random));
+            options.add(generate(complexity - 2, random));
+            options.add(generate(complexity - 3, random));
+            widget = options.get(random.nextInt(3));
         }
         return widget;
     }
