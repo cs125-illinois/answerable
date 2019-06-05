@@ -19,7 +19,7 @@ fun main(args: Array<String>) {
             println(tg.runTests(Random.nextLong()).toJson())
         }
 
-    val timeout = reference.getAnnotation(Timeout::class.java).timeout
+    val timeout = reference.getAnnotation(Timeout::class.java)?.timeout ?: 0
 
     if (timeout == 0L) {
         answerable()
