@@ -15,7 +15,7 @@ public class Widget {
 
     @Solution
     public void positionSprings(int numSprings) {
-        springs = numSprings;
+        springs = Math.abs(numSprings);
     }
 
     public String[] getSpringPositions() {
