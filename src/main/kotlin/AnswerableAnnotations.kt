@@ -2,7 +2,9 @@ package edu.illinois.cs.cs125.answerable
 
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class Solution
+annotation class Solution(
+        val timeout: Int = 0
+)
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
