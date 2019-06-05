@@ -6,12 +6,21 @@ import org.apache.bcel.Repository
 import org.apache.bcel.classfile.ConstantCP
 import org.apache.bcel.classfile.ConstantClass
 import org.apache.bcel.classfile.ConstantUtf8
-import org.apache.bcel.classfile.StackMap
 import org.apache.bcel.generic.*
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
 
-val objenesis = ObjenesisStd()
+private val objenesis = ObjenesisStd()
+
+private class BytesClassLoader : ClassLoader() {
+    fun loadBytes(name: String, bytes: ByteArray): Class<*> {
+        val clazz = defineClass(name, bytes, 0, bytes.size)
+        resolveClass(clazz)
+        return clazz
+    }
+}
+
+private val loader = BytesClassLoader()
 
 /*
  * For performance reasons, we want to re-use instantiators as much as possible.
@@ -21,7 +30,7 @@ val objenesis = ObjenesisStd()
  * We map from 'superClass' instead of directly from 'proxyClass' as we won't have access to
  * the same reference to 'proxyClass' on future calls.
  */
-val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
+private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
 
 fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
     // if we don't have an instantiator for this proxy class, make a new one
@@ -52,8 +61,6 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
         }
         return type
     }
-    val generatorName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Generator::class.java) && it.returnType == referenceClass }?.name
-    val atNextName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Next::class.java) && it.returnType == referenceClass }?.name
     val atVerifyName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
     val classGen = ClassGen(Repository.lookupClass(referenceClass))
@@ -71,18 +78,15 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
             }
         }
     }
+
     classGen.methods.forEach {
         classGen.removeMethod(it)
         if (!it.isStatic || it.name == atVerifyName) return@forEach
 
-        val newName = when (it.name) {
-            generatorName -> "answerable\$generate"
-            atNextName -> "answerable\$next"
-            else -> it.name
-        }
-        val newReturnType = fixType(it.returnType)
-        val instructions = InstructionList(it.code.code)
-        instructions.forEach { instructionHandle ->
+        val newMethod = MethodGen(it, classGen.className, constantPoolGen)
+        newMethod.argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
+        newMethod.returnType = fixType(it.returnType)
+        newMethod.instructionList.forEach { instructionHandle ->
             val instr = instructionHandle.instruction
             if (instr is NEW) {
                 val classConst = constantPool.getConstant(instr.index) as ConstantClass
@@ -92,32 +96,7 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
             }
         }
 
-
-        val argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
-
-        /*
-         * NOTE/TODO
-         * I think it would be safer here to *start* by using the other MethodGen constructor so that we copy over all the information
-         * on the existing method by default, and then we just edit the pieces we care about afterwards.
-         * In particular, this would have solved the StackMap problem and may solve other problems later as well.
-         * It will probably also preserve the annotations on the methods - it may be a good idea to rely on those rather than on renaming,
-         * as I think our existing bytecode will cause issues if the callstack of @Generator or @Next involves
-         * invoking one of those methods down the line. In particular, an @Next method will plausibly want to call the @Generator method.
-         */
-        classGen.addMethod(MethodGen(it.accessFlags, newReturnType, argumentTypes, null, newName, null, instructions, classGen.constantPool)
-                .also { mg ->
-                    mg.maxLocals = it.code.maxLocals
-                    mg.maxStack = it.code.maxStack
-                    it.code.attributes.filter { attribute -> attribute is StackMap }.map { sm -> mg.addCodeAttribute(sm) }
-                }.method)
-    }
-
-    val loader = object : ClassLoader() {
-        fun loadBytes(name: String, bytes: ByteArray): Class<*> {
-            val clazz = defineClass(name, bytes, 0, bytes.size)
-            resolveClass(clazz)
-            return clazz
-        }
+        classGen.addMethod(newMethod.method)
     }
 
     return loader.loadBytes(referenceClass.canonicalName, classGen.javaClass.bytes)

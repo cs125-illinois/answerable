@@ -94,11 +94,11 @@ internal class TestGenerator(
         ReceiverGenStrategy.NONE -> null
         ReceiverGenStrategy.GENERATOR -> {
             // TODO: Replace with generators[...]...
-            mirrorReferenceToStudentClass.getMethod("answerable\$generate", Int::class.java, Random::class.java)(null, complexity, random)
+            mirrorReferenceToStudentClass.methods.first { it.isAnnotationPresent(Generator::class.java) && it.returnType == submissionClass }(null, complexity, random)
         }
         ReceiverGenStrategy.NEXT -> {
             // TODO: Make sure this actually works
-            mirrorReferenceToStudentClass.getMethod("answerable\$next", submissionClass, Int::class.java, Random::class.java)(null, prevSubReceiver, iteration, random)
+            mirrorReferenceToStudentClass.methods.first { it.isAnnotationPresent(Next::class.java) && it.returnType == submissionClass }(null, prevSubReceiver, iteration, random)
         }
     }
 
