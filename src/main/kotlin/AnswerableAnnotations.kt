@@ -1,9 +1,13 @@
 package edu.illinois.cs.cs125.answerable
 
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+@Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class Solution(
-        val timeout: Int = 0
+annotation class Solution
+
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Timeout(
+    val timeout: Int = 0
 )
 
 @Target(AnnotationTarget.FUNCTION)
@@ -17,3 +21,7 @@ annotation class Generator
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Verify
+
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.FIELD)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Helper

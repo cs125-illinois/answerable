@@ -9,6 +9,12 @@ import java.lang.IllegalStateException
 import java.lang.reflect.InvocationTargetException
 import java.nio.charset.StandardCharsets
 import java.util.*
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import kotlin.random.asJavaRandom
+import kotlin.random.asKotlinRandom
 
 internal class TestGenerator(
         private val referenceClass: Class<*>,
@@ -100,13 +106,14 @@ internal class TestGenerator(
             mirrorReferenceToStudentClass.methods.first { it.isAnnotationPresent(Generator::class.java) && it.returnType == submissionClass }(null, complexity, subReceiverRandom)
         }
         ReceiverGenStrategy.NEXT -> {
-            // TODO: Make sure this actually works
             mirrorReferenceToStudentClass.methods.first { it.isAnnotationPresent(Next::class.java) && it.returnType == submissionClass }(null, prevSubReceiver, iteration, subReceiverRandom)
         }
     }
 
     fun test(iteration: Int, refReceiver: Any?, subReceiver: Any?, subProxy: Any?, args: Array<Any?>, capturePrint: Boolean): TestStep {
         fun runOne(receiver: Any?, refCompatibleReceiver: Any?, method: Method): TestOutput<Any?> {
+            var behavior: Behavior
+
             var threw: Throwable? = null
             val oldOut = System.out
             val oldErr = System.err
@@ -121,8 +128,11 @@ internal class TestGenerator(
             }
             try {
                 output = method(receiver, *args)
+
+                behavior = Behavior.RETURNED
             } catch (e: Throwable) {
                 threw = e
+                behavior = Behavior.THREW
             } finally {
                 if (capturePrint) {
                     System.setOut(oldOut)
@@ -131,15 +141,18 @@ internal class TestGenerator(
                     errText = newErr.toString(StandardCharsets.UTF_8)
                     newOut.close()
                     newErr.close()
+
+                    behavior = Behavior.PRINTED
                 }
             }
             return TestOutput(
-                    receiver = refCompatibleReceiver,
-                    args = args,
-                    output = output,
-                    threw = threw,
-                    stdOut = outText,
-                    stdErr = errText
+                typeOfBehavior = behavior,
+                receiver = refCompatibleReceiver,
+                args = args,
+                output = output,
+                threw = threw,
+                stdOut = outText,
+                stdErr = errText
             )
         }
 
@@ -282,6 +295,7 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<*>> {
  * A wrapper class used to pass data to custom verification methods.
  */
 data class TestOutput<T>(
+        val typeOfBehavior: Behavior,
         /** The object that the method was called on. Null if the method is static. */
         val receiver: T?,
         /** The arguments the method was called with */
@@ -321,6 +335,7 @@ data class TestOutput<T>(
         return result
     }
 }
+enum class Behavior { RETURNED, PRINTED, THREW, TIMED_OUT }
 
 data class TestStep(
         val testNumber: Int,
