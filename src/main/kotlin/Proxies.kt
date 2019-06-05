@@ -2,6 +2,7 @@ package edu.illinois.cs.cs125.answerable
 
 import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
+import org.apache.bcel.Const
 import org.apache.bcel.Repository
 import org.apache.bcel.classfile.*
 import org.apache.bcel.generic.*
@@ -75,6 +76,7 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
     val newClassArrayIdx = Array(255) {
         if (it == 0) 0 else constantPoolGen.addArrayClass(ArrayType(targetClass.canonicalName, it))
     }
+
     for (i in 1 until constantPoolGen.size) {
         val constant = constantPoolGen.getConstant(i)
         if (constant is ConstantCP) {
@@ -98,6 +100,19 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
         }
     }
 
+    fun classIndexReplacement(currentIndex: Int): Int? {
+        val classConst = constantPool.getConstant(currentIndex) as? ConstantClass ?: return null
+        val className = constantPool.getConstant(classConst.nameIndex) as? ConstantUtf8 ?: return null
+        if (className.bytes == referenceClass.canonicalName.replace('.', '/')) {
+            return newClassIdx
+        } else if (className.bytes.trimStart('[') == refLName) {
+            val arrDims = className.bytes.length - className.bytes.trimStart('[').length
+            return newClassArrayIdx[arrDims]
+        } else {
+            return currentIndex
+        }
+    }
+
     classGen.methods.forEach {
         classGen.removeMethod(it)
         if (!it.isStatic || it.name == atVerifyName) return@forEach
@@ -106,13 +121,14 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
         newMethod.argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
         newMethod.returnType = fixType(it.returnType)
         newMethod.instructionList.map { handle -> handle.instruction }.filterIsInstance(CPInstruction::class.java).forEach eachInstr@{ instr ->
-            val classConst = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
-            val className = constantPool.getConstant(classConst.nameIndex) as? ConstantUtf8 ?: return@eachInstr
-            if (className.bytes == referenceClass.canonicalName.replace('.', '/')) {
-                instr.index = newClassIdx
-            } else if (className.bytes.trimStart('[') == refLName) {
-                val arrDims = className.bytes.length - className.bytes.trimStart('[').length
-                instr.index = newClassArrayIdx[arrDims]
+            classIndexReplacement(instr.index)?.let { newIdx -> instr.index = newIdx }
+        }
+
+        newMethod.codeAttributes.filterIsInstance(StackMap::class.java).firstOrNull()?.let { stackMap ->
+            stackMap.stackMap.forEach { stackEntry ->
+                stackEntry.typesOfLocals.plus(stackEntry.typesOfStackItems).filter { local -> local.type == Const.ITEM_Object }.forEach { local ->
+                    classIndexReplacement(local.index)?.let { newIdx -> local.index = newIdx }
+                }
             }
         }
 
