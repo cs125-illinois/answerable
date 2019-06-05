@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Assertions;
 
 import java.util.Random;
 
-@Solution
 public class GeneratedWidget {
 
     private int numSprings;

@@ -21,8 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * class-level @Solution annotation. This says to reuse examples.lastten.correct.LastTen objects 32 times during testing before recreating one.
  * Of course for examples.lastten.correct.LastTen this has to be larger than 10!
  */
-
-@Solution
 public class LastTen {
     private int[] values = new int[10];
     private int currentIndex = 0;

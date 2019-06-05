@@ -1,14 +1,10 @@
 package examples.proxy.reference;
 
-import edu.illinois.cs.cs125.answerable.Generator;
-import edu.illinois.cs.cs125.answerable.Solution;
-import edu.illinois.cs.cs125.answerable.TestOutput;
-import edu.illinois.cs.cs125.answerable.Verify;
+import edu.illinois.cs.cs125.answerable.*;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.Random;
 
-@Solution
 public class HelperWidget {
 
     private int springs;
@@ -31,14 +27,15 @@ public class HelperWidget {
         Assertions.assertArrayEquals(ours.getReceiver().getSpringPositions(), theirs.getReceiver().getSpringPositions());
     }
 
-    private static void helper() {
-        System.out.println("helper");
+    @Helper
+    private static HelperWidget helper(String toPrint) {
+        System.out.println(toPrint);
+        return new HelperWidget();
     }
 
     @Generator
     public static HelperWidget generator(int complexity, Random random) {
-        helper();
-        return new HelperWidget();
+        return helper("helper");
     }
 
 }

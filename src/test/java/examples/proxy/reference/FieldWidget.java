@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Assertions;
 
 import java.util.Random;
 
-@Solution
 public class FieldWidget {
 
     public int springs;

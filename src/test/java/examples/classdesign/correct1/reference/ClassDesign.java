@@ -5,7 +5,6 @@ import edu.illinois.cs.cs125.answerable.Solution;
 
 import java.util.LinkedList;
 
-@Solution
 public class ClassDesign extends LinkedList {
     public static int numGets = 0;
 
