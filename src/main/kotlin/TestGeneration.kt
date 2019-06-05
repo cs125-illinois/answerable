@@ -41,6 +41,9 @@ internal class TestGenerator(
     }
 
     private val random = Random(0)
+    // TODO: Is there a cleaner way of handling the Random desync problem?
+    private val refReceiverRandom = Random(0)
+    private val subReceiverRandom = Random(0)
 
     private fun setUpGenerators(): Map<Class<*>, Gen<*>> {
         val types = paramTypes.distinct()
@@ -87,18 +90,18 @@ internal class TestGenerator(
 
     fun mkRefReceiver(iteration: Int, complexity: Int, prevRefReceiver: Any?): Any? = when (receiverGenStrategy) {
         ReceiverGenStrategy.NONE -> null
-        ReceiverGenStrategy.GENERATOR -> generators[referenceClass]?.generate(complexity, random)
-        ReceiverGenStrategy.NEXT -> nextReceiver?.invoke(null, prevRefReceiver, iteration, random)
+        ReceiverGenStrategy.GENERATOR -> generators[referenceClass]?.generate(complexity, refReceiverRandom)
+        ReceiverGenStrategy.NEXT -> nextReceiver?.invoke(null, prevRefReceiver, iteration, refReceiverRandom)
     }
     fun mkSubReceiver(iteration: Int, complexity: Int, prevSubReceiver: Any?): Any? = when (receiverGenStrategy) {
         ReceiverGenStrategy.NONE -> null
         ReceiverGenStrategy.GENERATOR -> {
             // TODO: Replace with generators[...]...
-            mirrorReferenceToStudentClass.methods.first { it.isAnnotationPresent(Generator::class.java) && it.returnType == submissionClass }(null, complexity, random)
+            mirrorReferenceToStudentClass.methods.first { it.isAnnotationPresent(Generator::class.java) && it.returnType == submissionClass }(null, complexity, subReceiverRandom)
         }
         ReceiverGenStrategy.NEXT -> {
             // TODO: Make sure this actually works
-            mirrorReferenceToStudentClass.methods.first { it.isAnnotationPresent(Next::class.java) && it.returnType == submissionClass }(null, prevSubReceiver, iteration, random)
+            mirrorReferenceToStudentClass.methods.first { it.isAnnotationPresent(Next::class.java) && it.returnType == submissionClass }(null, prevSubReceiver, iteration, subReceiverRandom)
         }
     }
 
@@ -175,7 +178,7 @@ internal class TestGenerator(
     }
 
     fun runTests(seed: Long): List<TestStep> {
-        random.setSeed(seed)
+        setOf(random, refReceiverRandom, subReceiverRandom).forEach { it.setSeed(seed) }
 
         val testStepList: MutableList<TestStep> = mutableListOf()
         var refReceiver: Any? = null
