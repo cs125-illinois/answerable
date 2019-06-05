@@ -88,7 +88,7 @@ internal class TestGenerator(
             refReceiver = mkRefReceiver(iteration, complexity, prevRefReceiver)
             subReceiver = mkSubReceiver(iteration, complexity, prevSubReceiver)
 
-            subProxy = mkProxy(referenceClass, submissionClass, subReceiver)
+            subProxy = mkProxy(referenceClass, submissionClass, subReceiver!!)
         }
 
         return test(iteration, refReceiver, subReceiver, subProxy, methodArgs, reference.isStaticVoid())

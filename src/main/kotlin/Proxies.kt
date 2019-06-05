@@ -32,7 +32,7 @@ private val loader = BytesClassLoader()
  */
 private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
 
-fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
+fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
     // if we don't have an instantiator for this proxy class, make a new one
     val instantiator = proxyInstantiators[superClass] ?: run {
         val factory = ProxyFactory()
@@ -41,13 +41,12 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
         factory.setFilter { it.name != "finalize" }
         val proxyClass = factory.createClass()
 
-        val newInstantiator = objenesis.getInstantiatorOf(proxyClass)
-        proxyInstantiators[superClass] = newInstantiator
-        newInstantiator
+        objenesis.getInstantiatorOf(proxyClass).also { proxyInstantiators[superClass] = it }
     }
     val subProxy = instantiator.newInstance()
 
-    (subProxy as Proxy).setHandler { _, method, _, args ->
+    (subProxy as Proxy).setHandler { self, method, _, args ->
+        childClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(forward)) }
         childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
     }
 
@@ -58,10 +57,10 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
     val refLName = "L${referenceClass.canonicalName.replace('.','/')};"
     fun fixType(type: Type): Type {
         if (type.signature.trimStart('[') == refLName) {
-            if (type is ArrayType) {
-                return ArrayType(targetClass.canonicalName, type.dimensions)
+            return if (type is ArrayType) {
+                ArrayType(targetClass.canonicalName, type.dimensions)
             } else {
-                return ObjectType(targetClass.canonicalName)
+                ObjectType(targetClass.canonicalName)
             }
         }
         return type
