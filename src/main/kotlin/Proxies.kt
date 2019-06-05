@@ -45,8 +45,6 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
     return subProxy
 }
 
-val num = 0
-
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
     fun fixType(type: Type): Type {
         if (type.signature == "L${referenceClass.canonicalName.replace('.','/')};") {
@@ -97,6 +95,15 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
 
         val argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
 
+        /*
+         * NOTE/TODO
+         * I think it would be safer here to *start* by using the other MethodGen constructor so that we copy over all the information
+         * on the existing method by default, and then we just edit the pieces we care about afterwards.
+         * In particular, this would have solved the StackMap problem and may solve other problems later as well.
+         * It will probably also preserve the annotations on the methods - it may be a good idea to rely on those rather than on renaming,
+         * as I think our existing bytecode will cause issues if the callstack of @Generator or @Next involves
+         * invoking one of those methods down the line. In particular, an @Next method will plausibly want to call the @Generator method.
+         */
         classGen.addMethod(MethodGen(it.accessFlags, newReturnType, argumentTypes, null, newName, null, instructions, classGen.constantPool)
                 .also { mg ->
                     mg.maxLocals = it.code.maxLocals
