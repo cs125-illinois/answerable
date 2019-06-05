@@ -107,13 +107,13 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
     fun classIndexReplacement(currentIndex: Int): Int? {
         val classConst = constantPool.getConstant(currentIndex) as? ConstantClass ?: return null
         val className = constantPool.getConstant(classConst.nameIndex) as? ConstantUtf8 ?: return null
-        if (className.bytes == referenceClass.canonicalName.replace('.', '/')) {
-            return newClassIdx
+        return if (className.bytes == referenceClass.canonicalName.replace('.', '/')) {
+            newClassIdx
         } else if (className.bytes.trimStart('[') == refLName) {
             val arrDims = className.bytes.length - className.bytes.trimStart('[').length
-            return newClassArrayIdx[arrDims]
+            newClassArrayIdx[arrDims]
         } else {
-            return currentIndex
+            currentIndex
         }
     }
 
@@ -135,10 +135,12 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
                 }
             }
         }
+        newMethod.localVariables.forEach { localVariableGen ->
+            localVariableGen.type = fixType(localVariableGen.type)
+        }
 
         classGen.addMethod(newMethod.method)
     }
 
-    classGen.javaClass.dump("Fiddled.class")
     return loader.loadBytes(referenceClass.canonicalName, classGen.javaClass.bytes)
 }
