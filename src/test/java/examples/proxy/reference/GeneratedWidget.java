@@ -28,12 +28,10 @@ public class GeneratedWidget {
 
     @Generator
     public static GeneratedWidget generate(int complexity, Random random) {
-        // Use an array to test bytecode transformation of ANEWARRAY and MULTIANEWARRAY
-        GeneratedWidget[][] multiDimWidgets = new GeneratedWidget[1][];
-        GeneratedWidget[] widgets = new GeneratedWidget[1];
-        widgets[0] = new GeneratedWidget(random.nextInt(complexity + 1));
-        multiDimWidgets[0] = widgets;
-        return multiDimWidgets[0][0];
+        // Use an array to test bytecode transformation of MULTIANEWARRAY
+        GeneratedWidget[][] widgets = new GeneratedWidget[1][1];
+        widgets[0][0] = new GeneratedWidget(random.nextInt(complexity + 1));
+        return widgets[0][0];
     }
 
     @Verify
