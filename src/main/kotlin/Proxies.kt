@@ -55,9 +55,14 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
 }
 
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
+    val refLName = "L${referenceClass.canonicalName.replace('.','/')};"
     fun fixType(type: Type): Type {
-        if (type.signature == "L${referenceClass.canonicalName.replace('.','/')};") {
-            return ObjectType(targetClass.canonicalName)
+        if (type.signature.trimStart('[') == refLName) {
+            if (type is ArrayType) {
+                return ArrayType(targetClass.canonicalName, type.dimensions)
+            } else {
+                return ObjectType(targetClass.canonicalName)
+            }
         }
         return type
     }
@@ -68,6 +73,9 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
     val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
+    val newClassArrayIdx = Array(255) {
+        if (it == 0) 0 else constantPoolGen.addArrayClass(ArrayType(targetClass.canonicalName, it))
+    }
     for (i in 1 until constantPoolGen.size) {
         val constant = constantPoolGen.getConstant(i)
         if (constant is ConstantCP) {
@@ -86,10 +94,14 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
         val newMethod = MethodGen(it, classGen.className, constantPoolGen)
         newMethod.argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
         newMethod.returnType = fixType(it.returnType)
-        newMethod.instructionList.map { handle -> handle.instruction }.filterIsInstance(CPInstruction::class.java).forEach { instr ->
-            val classConst = constantPool.getConstant(instr.index) as? ConstantClass
-            if (classConst != null && (constantPool.getConstant(classConst.nameIndex) as ConstantUtf8?)?.bytes == referenceClass.canonicalName.replace('.', '/')) {
+        newMethod.instructionList.map { handle -> handle.instruction }.filterIsInstance(CPInstruction::class.java).forEach eachInstr@{ instr ->
+            val classConst = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
+            val className = constantPool.getConstant(classConst.nameIndex) as? ConstantUtf8 ?: return@eachInstr
+            if (className.bytes == referenceClass.canonicalName.replace('.', '/')) {
                 instr.index = newClassIdx
+            } else if (className.bytes.trimStart('[') == refLName) {
+                val arrDims = className.bytes.length - className.bytes.trimStart('[').length
+                instr.index = newClassArrayIdx[arrDims]
             }
         }
 
