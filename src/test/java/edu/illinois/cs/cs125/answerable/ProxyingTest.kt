@@ -36,4 +36,10 @@ internal class ProxyingTest {
         assertAllSucceeded(tg.runTests(0x0403))
     }
 
+    @Test
+    fun testComplexGeneratorWidget() {
+        val tg = TestGenerator(examples.proxy.reference.ComplexGeneratorWidget::class.java, examples.proxy.ComplexGeneratorWidget::class.java)
+        assertAllSucceeded(tg.runTests(0x0403))
+    }
+
 }

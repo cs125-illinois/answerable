@@ -9,6 +9,9 @@ public class HelperWidget {
 
     private int springs;
 
+    @Helper
+    private static int numGenerated = 0;
+
     @Solution
     public void positionSprings(int numSprings) {
         springs = Math.abs(numSprings);
@@ -28,14 +31,15 @@ public class HelperWidget {
     }
 
     @Helper
-    private static HelperWidget helper(String toPrint) {
+    private static HelperWidget[] helper(String toPrint) {
         System.out.println(toPrint);
-        return new HelperWidget();
+        return new HelperWidget[] { new HelperWidget() };
     }
 
     @Generator
     public static HelperWidget generator(int complexity, Random random) {
-        return helper("helper");
+        numGenerated++;
+        return helper(Integer.toString(numGenerated))[0];
     }
 
 }

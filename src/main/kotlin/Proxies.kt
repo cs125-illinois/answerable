@@ -2,13 +2,13 @@ package edu.illinois.cs.cs125.answerable
 
 import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
+import org.apache.bcel.Const
 import org.apache.bcel.Repository
-import org.apache.bcel.classfile.ConstantCP
-import org.apache.bcel.classfile.ConstantClass
-import org.apache.bcel.classfile.ConstantUtf8
+import org.apache.bcel.classfile.*
 import org.apache.bcel.generic.*
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
+import java.lang.reflect.Modifier
 
 private val objenesis = ObjenesisStd()
 
@@ -32,7 +32,7 @@ private val loader = BytesClassLoader()
  */
 private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
 
-fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
+fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
     // if we don't have an instantiator for this proxy class, make a new one
     val instantiator = proxyInstantiators[superClass] ?: run {
         val factory = ProxyFactory()
@@ -41,14 +41,15 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
         factory.setFilter { it.name != "finalize" }
         val proxyClass = factory.createClass()
 
-        val newInstantiator = objenesis.getInstantiatorOf(proxyClass)
-        proxyInstantiators[superClass] = newInstantiator
-        newInstantiator
+        objenesis.getInstantiatorOf(proxyClass).also { proxyInstantiators[superClass] = it }
     }
     val subProxy = instantiator.newInstance()
 
-    (subProxy as Proxy).setHandler { _, method, _, args ->
-        childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
+    (subProxy as Proxy).setHandler { self, method, _, args ->
+        childClass.getPublicFields().forEach { it.set(forward, self.javaClass.getField(it.name).get(self)) }
+        val result = childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
+        childClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(forward)) }
+        result
     }
 
     return subProxy
@@ -56,12 +57,13 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any?): Any {
 
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
     val refLName = "L${referenceClass.canonicalName.replace('.','/')};"
+    val subLName = "L${targetClass.canonicalName.replace('.','/')};"
     fun fixType(type: Type): Type {
         if (type.signature.trimStart('[') == refLName) {
-            if (type is ArrayType) {
-                return ArrayType(targetClass.canonicalName, type.dimensions)
+            return if (type is ArrayType) {
+                ArrayType(targetClass.canonicalName, type.dimensions)
             } else {
-                return ObjectType(targetClass.canonicalName)
+                ObjectType(targetClass.canonicalName)
             }
         }
         return type
@@ -76,14 +78,42 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
     val newClassArrayIdx = Array(255) {
         if (it == 0) 0 else constantPoolGen.addArrayClass(ArrayType(targetClass.canonicalName, it))
     }
+
     for (i in 1 until constantPoolGen.size) {
         val constant = constantPoolGen.getConstant(i)
         if (constant is ConstantCP) {
             if (constant.classIndex == 0) continue
             val className = constant.getClass(constantPool)
             if (className == referenceClass.canonicalName) {
-                constant.classIndex = newClassIdx
+                var shouldReplace = false
+                val memberName = (constantPool.getConstant(constant.nameAndTypeIndex) as ConstantNameAndType).getName(constantPool)
+                if (constant is ConstantMethodref) {
+                    shouldReplace = !(referenceClass.declaredMethods.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.let { method ->
+                        setOf(Helper::class.java, Generator::class.java, Next::class.java).any { annotation -> method.isAnnotationPresent(annotation) }
+                    } ?: false)
+                } else if (constant is ConstantFieldref) {
+                    shouldReplace = !(referenceClass.declaredFields.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.isAnnotationPresent(Helper::class.java) ?: false)
+                }
+                if (shouldReplace) constant.classIndex = newClassIdx
             }
+        } else if (constant is ConstantNameAndType) {
+            val typeSignature = constant.getSignature(constantPool)
+            if (typeSignature.contains(refLName)) {
+                constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(typeSignature.replace(refLName, subLName)))
+            }
+        }
+    }
+
+    fun classIndexReplacement(currentIndex: Int): Int? {
+        val classConst = constantPool.getConstant(currentIndex) as? ConstantClass ?: return null
+        val className = constantPool.getConstant(classConst.nameIndex) as? ConstantUtf8 ?: return null
+        return if (className.bytes == referenceClass.canonicalName.replace('.', '/')) {
+            newClassIdx
+        } else if (className.bytes.trimStart('[') == refLName) {
+            val arrDims = className.bytes.length - className.bytes.trimStart('[').length
+            newClassArrayIdx[arrDims]
+        } else {
+            currentIndex
         }
     }
 
@@ -95,19 +125,22 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
         newMethod.argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
         newMethod.returnType = fixType(it.returnType)
         newMethod.instructionList.map { handle -> handle.instruction }.filterIsInstance(CPInstruction::class.java).forEach eachInstr@{ instr ->
-            val classConst = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
-            val className = constantPool.getConstant(classConst.nameIndex) as? ConstantUtf8 ?: return@eachInstr
-            if (className.bytes == referenceClass.canonicalName.replace('.', '/')) {
-                instr.index = newClassIdx
-            } else if (className.bytes.trimStart('[') == refLName) {
-                val arrDims = className.bytes.length - className.bytes.trimStart('[').length
-                instr.index = newClassArrayIdx[arrDims]
+            classIndexReplacement(instr.index)?.let { newIdx -> instr.index = newIdx }
+        }
+
+        newMethod.codeAttributes.filterIsInstance(StackMap::class.java).firstOrNull()?.let { stackMap ->
+            stackMap.stackMap.forEach { stackEntry ->
+                stackEntry.typesOfLocals.plus(stackEntry.typesOfStackItems).filter { local -> local.type == Const.ITEM_Object }.forEach { local ->
+                    classIndexReplacement(local.index)?.let { newIdx -> local.index = newIdx }
+                }
             }
+        }
+        newMethod.localVariables.forEach { localVariableGen ->
+            localVariableGen.type = fixType(localVariableGen.type)
         }
 
         classGen.addMethod(newMethod.method)
     }
 
-    classGen.javaClass.dump("Fiddled.class")
     return loader.loadBytes(referenceClass.canonicalName, classGen.javaClass.bytes)
 }
