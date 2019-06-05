@@ -7,7 +7,7 @@ annotation class Solution
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Timeout(
-    val timeout: Int = 0
+    val timeout: Long = 0
 )
 
 @Target(AnnotationTarget.FUNCTION)

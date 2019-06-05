@@ -1,7 +1,7 @@
 package examples.testgeneration.timeout;
 
 public class TimeOut {
-    public void doNothing() {
+    public static void doNothing() {
         while(true) { }
     }
 }
