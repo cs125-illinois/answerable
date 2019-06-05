@@ -129,10 +129,24 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
     })
 }
 
-enum class AnalysisTag { NAME, STATUS, MODIFIERS, TYPE_PARAMS, SUPERCLASSES, FIELDS, METHODS }
+enum class AnalysisTag {
+    NAME, STATUS, MODIFIERS, TYPE_PARAMS, SUPERCLASSES, FIELDS, METHODS;
+
+    override fun toString(): String = name.toLowerCase().replace('_', ' ')
+}
 class AnalysisOutput(val tag: AnalysisTag, val result: AnalysisResult<*>) {
     override fun toString() = this.toErrorMsg() // see ClassDesignErrors.kt
 }
+
+fun AnalysisOutput.toJson() = """
+    |{
+    |  tag: "$tag",
+    |  matched: ${if (result is Matched) "true" else "false"},
+    |  result: ${result.toJson()}
+    |}
+""".trimMargin()
+
+fun List<AnalysisOutput>.toJson() = this.joinToString(prefix = "[", postfix = "]") { it.toJson() }
 
 sealed class AnalysisResult<out T>
     data class Matched<T>(val found: T) : AnalysisResult<T>()
@@ -142,16 +156,32 @@ fun <T> AnalysisResult<T>.toJson() = when (this) {
     is Matched -> """
         |{
         |  matched: true,
-        |  found: "$found"
-        |}
+        |  found: ${found.showExpectedOrFound()}
+        | }
     """.trimMargin()
     is Mismatched -> """
         |{
         |  matched: false,
-        |  expected: "$expected"
-        |  found: "$found"
+        |  expected: ${expected.showExpectedOrFound()}
+        |  found: ${found.showExpectedOrFound()}
         |}
     """.trimMargin()
+}
+
+private fun <T> T.showExpectedOrFound() = when (this) {
+    is String -> "\"$this\""
+    is List<*> -> this.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
+    is Pair<*, *> -> {
+        this as Pair<*, Array<*>>
+
+        """
+                    |{
+                    |  superclass: "${this.first}"
+                    |  interfaces: ${this.second.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }}
+                    |}
+                """.trimMargin()
+    }
+    else -> throw IllegalStateException("An analysis result contained an impossible type. Please report a bug.")
 }
 
 class MethodData(
@@ -265,3 +295,8 @@ private fun printModifiersIfNonzero(sb: StringBuilder, mask: Int, isDefault: Boo
 fun Field.simpleName(): String = this.name.split(".").last()
 
 fun Type.simpleName() = this.typeName.split(".").last()
+
+fun fixArrayToString(thing: Any?): String = when (thing) {
+    is Array<*> -> Arrays.toString(thing)
+    else -> thing.toString()
+}

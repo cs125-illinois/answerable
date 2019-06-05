@@ -348,8 +348,8 @@ enum class Behavior { RETURNED, THREW }
 
 fun <T> TestOutput<T>.toJson(): String {
     val specific = when (this.typeOfBehavior) {
-        Behavior.RETURNED -> "  returned: $output"
-        Behavior.THREW    -> "  threw: $threw"
+        Behavior.RETURNED -> "  returned: \"$output\""
+        Behavior.THREW    -> "  threw: \"$threw\""
     }
 
     val stdOutputs = when (this.stdOut) {
@@ -363,8 +363,8 @@ fun <T> TestOutput<T>.toJson(): String {
 
     return """
         |{
-        |  resultType: $typeOfBehavior,
-        |  receiver: $receiver,
+        |  resultType: "$typeOfBehavior",
+        |  receiver: "$receiver",
         |  args: ${args.joinToString(prefix = "[", postfix = "]") { when (it) { is Array<*> -> Arrays.toString(it); else -> it.toString() } }},
         |$specific$stdOutputs
         |}
