@@ -6,9 +6,11 @@ import org.apache.bcel.Repository
 import org.apache.bcel.classfile.ConstantCP
 import org.apache.bcel.classfile.ConstantClass
 import org.apache.bcel.classfile.ConstantUtf8
+import org.apache.bcel.classfile.StackMap
 import org.apache.bcel.generic.*
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
+import java.util.*
 
 val objenesis = ObjenesisStd()
 
@@ -74,8 +76,8 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
         }
         val newReturnType = if (it.name == generatorName || it.name == atNextName) ObjectType(targetClass.canonicalName) else it.returnType
         val instructions = InstructionList(it.code.code)
-        instructions.forEach {
-            val instr = it.instruction
+        instructions.forEach { instructionHandle ->
+            val instr = instructionHandle.instruction
             if (instr is NEW) {
                 val classConst = constantPool.getConstant(instr.index) as ConstantClass
                 if ((constantPool.getConstant(classConst.nameIndex) as ConstantUtf8?)?.bytes == referenceClass.canonicalName.replace('.', '/')) {
@@ -83,12 +85,23 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
                 }
             }
         }
-        classGen.addMethod(MethodGen(it.accessFlags, newReturnType, it.argumentTypes, null, newName, null, instructions, classGen.constantPool)
+
+        fun fixParamType(paramType: Type): Type {
+            if (paramType.signature == "L${referenceClass.canonicalName.replace('.','/')};") {
+                return ObjectType(targetClass.canonicalName)
+            }
+            return paramType
+        }
+        val argumentTypes = it.argumentTypes.map(::fixParamType).toTypedArray()
+
+        classGen.addMethod(MethodGen(it.accessFlags, newReturnType, argumentTypes, null, newName, null, instructions, classGen.constantPool)
                 .also { mg ->
                     mg.maxLocals = it.code.maxLocals
                     mg.maxStack = it.code.maxStack
+                    it.code.attributes.filter { attribute -> attribute is StackMap }.map { sm -> mg.addCodeAttribute(sm) }
                 }.method)
     }
+
     val loader = object : ClassLoader() {
         fun loadBytes(name: String, bytes: ByteArray): Class<*> {
             val clazz = defineClass(name, bytes, 0, bytes.size)
@@ -96,6 +109,6 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
             return clazz
         }
     }
-    classGen.javaClass.dump("Fiddled.class")
+
     return loader.loadBytes(referenceClass.canonicalName, classGen.javaClass.bytes)
 }

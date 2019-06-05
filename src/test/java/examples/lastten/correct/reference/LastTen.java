@@ -5,8 +5,12 @@ import edu.illinois.cs.cs125.answerable.Solution;
 import edu.illinois.cs.cs125.answerable.TestOutput;
 import edu.illinois.cs.cs125.answerable.Verify;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Random;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 
 /* A more complex problem that combines class design with a custom comparison function. The @Solution annotation on the
@@ -45,12 +49,12 @@ public class LastTen {
 
 
     @Verify
-    public static boolean verify(TestOutput<LastTen> ours, TestOutput<LastTen> theirs) {
+    public static void verify(TestOutput<LastTen> ours, TestOutput<LastTen> theirs) {
         int[] ourValues = ours.getReceiver().values();
         int[] theirValues = theirs.getReceiver().values();
         Arrays.sort(ourValues);
         Arrays.sort(theirValues);
-        return Arrays.equals(ourValues, theirValues);
+        assertArrayEquals(ourValues, theirValues);
     }
 
     /* Here's another idea for how to control object reuse. @Next marks a function that gets called each time during
@@ -64,7 +68,7 @@ public class LastTen {
 
     @Next
     public static LastTen next(LastTen current, int iteration, Random random) {
-        if (iteration % 32 == 0) {
+        if (iteration % 32 == 0 || current == null) {
             return new LastTen();
         } else {
             return current;

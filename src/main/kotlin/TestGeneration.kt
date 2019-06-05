@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Assertions.*
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.lang.IllegalStateException
-import java.lang.reflect.Constructor
+import java.lang.reflect.InvocationTargetException
 import java.nio.charset.StandardCharsets
 import java.util.*
 
@@ -26,9 +26,7 @@ internal class TestGenerator(
         nextReceiver?.isAccessible = true
     }
 
-    private val usedCtor: Constructor<*>? = referenceClass.constructors.getOrNull(0) // TODO: What if there are multiple constructors?
     private val paramTypes: Array<Class<*>> = reference.parameterTypes
-    private val ctorArgTypes: Array<Class<*>>? = usedCtor?.parameterTypes
     private val generators: Map<Class<*>, Gen<*>> = setUpGenerators()
 
     private val mirrorReferenceToStudentClass = mkGeneratorMirrorClass(referenceClass, submissionClass)
@@ -45,7 +43,7 @@ internal class TestGenerator(
     private val random = Random(0)
 
     private fun setUpGenerators(): Map<Class<*>, Gen<*>> {
-        val types = (paramTypes + (ctorArgTypes ?: arrayOf())).distinct()
+        val types = paramTypes.distinct()
         val userGens = reference.declaringClass.getGenerators().map {
             Pair(it.returnType, CustomGen(it))
         }
@@ -160,8 +158,8 @@ internal class TestGenerator(
                 }
                 customVerifier.invoke(null, refBehavior, subBehavior)
             }
-        } catch (t: Throwable) {
-            assertErr = t
+        } catch (ite: InvocationTargetException) {
+            assertErr = ite.cause
         }
 
         return TestStep(
@@ -217,7 +215,7 @@ internal class LazyGen<T>(private val genSupplier: () -> Gen<T>) : Gen<T> {
 
 internal class DefaultIntGen : Gen<Int> {
     override fun generate(complexity: Int, random: Random): Int {
-        return 0
+        return random.nextInt(complexity * 10 + 1) - (complexity * 5)
     }
 }
 
@@ -342,6 +340,8 @@ fun TestStep.toJson(): String =
         |  subReceiver: $subReceiver,
         |  inputs: ${inputs.joinToString(prefix = "[", postfix = "]") { when (it) { is Array<*> -> Arrays.toString(it); else -> it.toString()} }},
         |  succeeded: $succeeded,
+        |  refThrew: $refThrew,
+        |  subThrew: $subThrew,
         |  assertErr: $assertErr
         |}
     """.trimMargin()

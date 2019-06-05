@@ -5,7 +5,7 @@ public class LastTen {
     private int currentIndex = 0;
 
     public void add(int value) {
-        values[currentIndex] = value;
+        values[currentIndex] = value + 1;
         currentIndex = (currentIndex + 1) % 10;
     }
 
