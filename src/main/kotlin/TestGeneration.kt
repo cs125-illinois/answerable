@@ -9,12 +9,6 @@ import java.lang.IllegalStateException
 import java.lang.reflect.InvocationTargetException
 import java.nio.charset.StandardCharsets
 import java.util.*
-import java.util.concurrent.Callable
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import kotlin.random.asJavaRandom
-import kotlin.random.asKotlinRandom
 
 internal class TestGenerator(
         private val referenceClass: Class<*>,
@@ -32,10 +26,10 @@ internal class TestGenerator(
         nextReceiver?.isAccessible = true
     }
 
+    private val mirrorReferenceToStudentClass = mkGeneratorMirrorClass(referenceClass, submissionClass)
+
     private val paramTypes: Array<Class<*>> = reference.parameterTypes
     private val generators: Map<Class<*>, Gen<*>> = setUpGenerators()
-
-    private val mirrorReferenceToStudentClass = mkGeneratorMirrorClass(referenceClass, submissionClass)
 
     private val isStatic = Modifier.isStatic(reference.modifiers)
     private enum class ReceiverGenStrategy { GENERATOR, NEXT, NONE }
@@ -46,16 +40,22 @@ internal class TestGenerator(
         else -> throw AnswerableMisuseException("The reference solution must provide either an @Generator or an @Next method if @Solution is not static.")
     }
 
-    private val random = Random(0)
     // TODO: Is there a cleaner way of handling the Random desync problem?
     private val refReceiverRandom = Random(0)
     private val subReceiverRandom = Random(0)
 
     private fun setUpGenerators(): Map<Class<*>, Gen<*>> {
         val types = paramTypes.distinct()
-        val userGens = reference.declaringClass.getGenerators().map {
+
+        val submissionClassGen: CustomGen? =
+                mirrorReferenceToStudentClass
+                    .methods
+                    .firstOrNull { it.isAnnotationPresent(Generator::class.java) && it.returnType == submissionClass }
+                    ?.let { CustomGen(it) }
+
+        val userGens = referenceClass.getGenerators().map {
             Pair(it.returnType, CustomGen(it))
-        }
+        } + if (submissionClassGen == null) listOf() else listOf(Pair(submissionClass, submissionClassGen))
 
         val gens = listOf(
                 Int::class.java to DefaultIntGen(),
@@ -78,7 +78,10 @@ internal class TestGenerator(
     }
 
     private fun testWith(iteration: Int, complexity: Int, prevRefReceiver: Any?, prevSubReceiver: Any?): TestStep {
-        val methodArgs = paramTypes.map { generators[it]?.generate(complexity, random) }.toTypedArray()
+        val refMethodArgs = paramTypes.map { generators[it]?.generate(complexity, refReceiverRandom) }.toTypedArray()
+        val subMethodArgs = paramTypes
+            .map { if (it == referenceClass) submissionClass else it }
+            .map { generators[it]?.generate(complexity, subReceiverRandom) }.toTypedArray()
 
         var refReceiver: Any? = null
         var subReceiver: Any? = null
@@ -88,10 +91,10 @@ internal class TestGenerator(
             refReceiver = mkRefReceiver(iteration, complexity, prevRefReceiver)
             subReceiver = mkSubReceiver(iteration, complexity, prevSubReceiver)
 
-            subProxy = mkProxy(referenceClass, submissionClass, subReceiver)
+            subProxy = mkProxy(referenceClass, submissionClass, subReceiver!!)
         }
 
-        return test(iteration, refReceiver, subReceiver, subProxy, methodArgs, reference.isStaticVoid())
+        return test(iteration, refReceiver, subReceiver, subProxy, refMethodArgs, subMethodArgs, reference.isPrinter())
     }
 
     fun mkRefReceiver(iteration: Int, complexity: Int, prevRefReceiver: Any?): Any? = when (receiverGenStrategy) {
@@ -102,16 +105,23 @@ internal class TestGenerator(
     fun mkSubReceiver(iteration: Int, complexity: Int, prevSubReceiver: Any?): Any? = when (receiverGenStrategy) {
         ReceiverGenStrategy.NONE -> null
         ReceiverGenStrategy.GENERATOR -> {
-            // TODO: Replace with generators[...]...
-            mirrorReferenceToStudentClass.methods.first { it.isAnnotationPresent(Generator::class.java) && it.returnType == submissionClass }(null, complexity, subReceiverRandom)
+            generators[submissionClass]?.generate(complexity, subReceiverRandom)
         }
         ReceiverGenStrategy.NEXT -> {
             mirrorReferenceToStudentClass.methods.first { it.isAnnotationPresent(Next::class.java) && it.returnType == submissionClass }(null, prevSubReceiver, iteration, subReceiverRandom)
         }
     }
 
-    fun test(iteration: Int, refReceiver: Any?, subReceiver: Any?, subProxy: Any?, args: Array<Any?>, capturePrint: Boolean): TestStep {
-        fun runOne(receiver: Any?, refCompatibleReceiver: Any?, method: Method): TestOutput<Any?> {
+    fun test(
+        iteration: Int,
+        refReceiver: Any?,
+        subReceiver: Any?,
+        subProxy: Any?,
+        refArgs: Array<Any?>,
+        subArgs: Array<Any?>,
+        capturePrint: Boolean
+    ): TestStep {
+        fun runOne(receiver: Any?, refCompatibleReceiver: Any?, method: Method, args: Array<Any?>): TestOutput<Any?> {
             var behavior: Behavior
 
             var threw: Throwable? = null
@@ -141,8 +151,6 @@ internal class TestGenerator(
                     errText = newErr.toString(StandardCharsets.UTF_8)
                     newOut.close()
                     newErr.close()
-
-                    behavior = Behavior.PRINTED
                 }
             }
             return TestOutput(
@@ -156,8 +164,8 @@ internal class TestGenerator(
             )
         }
 
-        val refBehavior = runOne(refReceiver, refReceiver, reference)
-        val subBehavior = runOne(subReceiver, subProxy, submission)
+        val refBehavior = runOne(refReceiver, refReceiver, reference, refArgs)
+        val subBehavior = runOne(subReceiver, subProxy, submission, subArgs)
 
         var assertErr: Throwable? = null
         try {
@@ -182,16 +190,15 @@ internal class TestGenerator(
                 testNumber = iteration,
                 refReceiver = refReceiver,
                 subReceiver = subReceiver,
-                inputs = args.toList(),
                 succeeded = assertErr == null,
-                refThrew = refBehavior.threw,
-                subThrew = subBehavior.threw,
+                refOutput = refBehavior,
+                subOutput = subBehavior,
                 assertErr = assertErr
         )
     }
 
     fun runTests(seed: Long): List<TestStep> {
-        setOf(random, refReceiverRandom, subReceiverRandom).forEach { it.setSeed(seed) }
+        setOf(refReceiverRandom, subReceiverRandom).forEach { it.setSeed(seed) }
 
         val testStepList: MutableList<TestStep> = mutableListOf()
         var refReceiver: Any? = null
@@ -210,6 +217,8 @@ internal class TestGenerator(
 
 // So named as to avoid conflict with the @Generator annotation, as that class name is part of the public API and this one is not.
 internal interface Gen<out T> {
+    operator fun invoke(complexity: Int, random: Random) = generate(complexity, random)
+
     fun generate(complexity: Int, random: Random): T
 }
 
@@ -225,7 +234,7 @@ internal class LazyGen<T>(private val genSupplier: () -> Gen<T>) : Gen<T> {
             gen = genSupplier()
         }
 
-        return gen!!.generate(complexity, random)
+        return gen!!(complexity, random)
     }
 }
 
@@ -283,7 +292,7 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<*>> {
                 if (length <= 0) {
                     arrayOf<Any?>()
                 } else {
-                    arrayOf(tGen.generate(random.nextInt(complexity), random), *genArray(complexity, length - 1))
+                    arrayOf(tGen(random.nextInt(complexity), random), *genArray(complexity, length - 1))
                 }
 
         return genArray(complexity, complexity)
@@ -335,16 +344,40 @@ data class TestOutput<T>(
         return result
     }
 }
-enum class Behavior { RETURNED, PRINTED, THREW, TIMED_OUT }
+enum class Behavior { RETURNED, THREW }
+
+fun <T> TestOutput<T>.toJson(): String {
+    val specific = when (this.typeOfBehavior) {
+        Behavior.RETURNED -> "  returned: $output"
+        Behavior.THREW    -> "  threw: $threw"
+    }
+
+    val stdOutputs = when (this.stdOut) {
+        null -> ""
+        else -> """
+            |,
+            |  stdOut: "$stdOut"
+            |  stdErr: "$stdErr"
+        """.trimMargin()
+    }
+
+    return """
+        |{
+        |  resultType: $typeOfBehavior,
+        |  receiver: $receiver,
+        |  args: ${args.joinToString(prefix = "[", postfix = "]") { when (it) { is Array<*> -> Arrays.toString(it); else -> it.toString() } }},
+        |$specific$stdOutputs
+        |}
+    """.trimMargin()
+}
 
 data class TestStep(
         val testNumber: Int,
         val refReceiver: Any?,
         val subReceiver: Any?,
-        val inputs: List<*>,
         val succeeded: Boolean,
-        val refThrew: Throwable?,
-        val subThrew: Throwable?,
+        val refOutput: TestOutput<Any?>,
+        val subOutput: TestOutput<Any?>,
         val assertErr: Throwable?
 )
 
@@ -356,10 +389,9 @@ fun TestStep.toJson(): String =
         |  testNumber: $testNumber,
         |  refReceiver: $refReceiver,
         |  subReceiver: $subReceiver,
-        |  inputs: ${inputs.joinToString(prefix = "[", postfix = "]") { when (it) { is Array<*> -> Arrays.toString(it); else -> it.toString()} }},
         |  succeeded: $succeeded,
-        |  refThrew: $refThrew,
-        |  subThrew: $subThrew,
+        |  refOutput: ${refOutput.toJson()},
+        |  subOutput: ${subOutput.toJson()},
         |  assertErr: $assertErr
         |}
     """.trimMargin()

@@ -5,12 +5,10 @@ import edu.illinois.cs.cs125.answerable.Solution;
 import edu.illinois.cs.cs125.answerable.TestOutput;
 import edu.illinois.cs.cs125.answerable.Verify;
 
-import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 
 /* A more complex problem that combines class design with a custom comparison function. The @Solution annotation on the
