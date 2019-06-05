@@ -3,12 +3,11 @@ package edu.illinois.cs.cs125.answerable
 import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
 import org.apache.bcel.Repository
-import org.apache.bcel.classfile.ConstantCP
-import org.apache.bcel.classfile.ConstantClass
-import org.apache.bcel.classfile.ConstantUtf8
+import org.apache.bcel.classfile.*
 import org.apache.bcel.generic.*
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
+import java.lang.reflect.Modifier
 
 private val objenesis = ObjenesisStd()
 
@@ -55,6 +54,7 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
 
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
     val refLName = "L${referenceClass.canonicalName.replace('.','/')};"
+    val subLName = "L${targetClass.canonicalName.replace('.','/')};"
     fun fixType(type: Type): Type {
         if (type.signature.trimStart('[') == refLName) {
             return if (type is ArrayType) {
@@ -81,7 +81,19 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
             if (constant.classIndex == 0) continue
             val className = constant.getClass(constantPool)
             if (className == referenceClass.canonicalName) {
-                constant.classIndex = newClassIdx
+                var shouldReplace = false
+                val memberName = (constantPool.getConstant(constant.nameAndTypeIndex) as ConstantNameAndType).getName(constantPool)
+                if (constant is ConstantMethodref) {
+                    shouldReplace = !(referenceClass.declaredMethods.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.isAnnotationPresent(Helper::class.java) ?: false)
+                } else if (constant is ConstantFieldref) {
+                    shouldReplace = !(referenceClass.declaredFields.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.isAnnotationPresent(Helper::class.java) ?: false)
+                }
+                if (shouldReplace) constant.classIndex = newClassIdx
+            }
+        } else if (constant is ConstantNameAndType) {
+            val typeSignature = constant.getSignature(constantPool)
+            if (typeSignature.contains(refLName)) {
+                constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(typeSignature.replace(refLName, subLName)))
             }
         }
     }
