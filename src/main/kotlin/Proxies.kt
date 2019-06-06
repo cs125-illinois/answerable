@@ -9,6 +9,7 @@ import org.apache.bcel.generic.*
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
 import java.lang.reflect.Modifier
+import java.util.*
 
 private val objenesis = ObjenesisStd()
 
@@ -55,9 +56,15 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
     return subProxy
 }
 
+private fun Class<*>.slashName() = canonicalName.replace('.', '/')
+
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
-    val refLName = "L${referenceClass.canonicalName.replace('.','/')};"
-    val subLName = "L${targetClass.canonicalName.replace('.','/')};"
+    return mirrorClass(referenceClass, targetClass, "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""))
+}
+
+private fun mirrorClass(referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String): Class<*> {
+    val refLName = "L${referenceClass.slashName()};"
+    val subLName = "L${targetClass.slashName()};"
     fun fixType(type: Type): Type {
         if (type.signature.trimStart('[') == refLName) {
             return if (type is ArrayType) {
@@ -75,6 +82,8 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
     val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
+    val mirrorClassIdx = constantPoolGen.addClass(mirrorName.replace('.', '/'))
+    classGen.classNameIndex = mirrorClassIdx
 
     for (i in 1 until constantPoolGen.size) {
         val constant = constantPoolGen.getConstant(i)
@@ -91,12 +100,17 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
                 } else if (constant is ConstantFieldref) {
                     shouldReplace = !(referenceClass.declaredFields.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.isAnnotationPresent(Helper::class.java) ?: false)
                 }
-                if (shouldReplace) constant.classIndex = newClassIdx
+                constant.classIndex = if (shouldReplace) newClassIdx else mirrorClassIdx
             }
         } else if (constant is ConstantNameAndType) {
             val typeSignature = constant.getSignature(constantPool)
             if (typeSignature.contains(refLName)) {
                 constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(typeSignature.replace(refLName, subLName)))
+            }
+        } else if (constant is ConstantClass) {
+            val name = constant.getBytes(constantPool)
+            if (name.startsWith("${referenceClass.slashName()}\$")) {
+                constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(name.replace(referenceClass.slashName(), targetClass.slashName())))
             }
         }
     }
@@ -139,5 +153,6 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
         classGen.addMethod(newMethod.method)
     }
 
-    return loader.loadBytes(referenceClass.canonicalName, classGen.javaClass.bytes)
+    classGen.javaClass.dump("Fiddled.class")
+    return loader.loadBytes(mirrorName, classGen.javaClass.bytes)
 }
