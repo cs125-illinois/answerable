@@ -87,6 +87,7 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
     val atVerifyName = baseClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
     val classGen = ClassGen(Repository.lookupClass(baseClass))
+    Repository.clearCache()
 
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool

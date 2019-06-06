@@ -48,4 +48,11 @@ internal class ProxyingTest {
         assertAllSucceeded(tg.runTests(0x0403))
     }
 
+    @Test
+    fun testMultipleMirrors() {
+        val first = mkGeneratorMirrorClass(examples.proxy.reference.InnerClassGeneratorWidget::class.java, examples.proxy.GeneratedWidget::class.java)
+        val second = mkGeneratorMirrorClass(examples.proxy.reference.InnerClassGeneratorWidget::class.java, examples.proxy.GeneratedWidget::class.java)
+        Assertions.assertNotEquals(first, second)
+    }
+
 }
