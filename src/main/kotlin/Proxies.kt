@@ -59,12 +59,13 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
 private fun Class<*>.slashName() = canonicalName.replace('.', '/')
 
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
-    return mirrorClass(referenceClass, targetClass, "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""))
+    return mkMirrorClass(referenceClass, referenceClass, targetClass, "answerablemirror." + UUID.randomUUID().toString().replace("-", ""))
 }
 
-private fun mirrorClass(referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String): Class<*> {
+private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String): Class<*> {
     val refLName = "L${referenceClass.slashName()};"
     val subLName = "L${targetClass.slashName()};"
+    val mirrorSlashName = mirrorName.replace('.', '/')
     fun fixType(type: Type): Type {
         if (type.signature.trimStart('[') == refLName) {
             return if (type is ArrayType) {
@@ -75,14 +76,14 @@ private fun mirrorClass(referenceClass: Class<*>, targetClass: Class<*>, mirrorN
         }
         return type
     }
-    val atVerifyName = referenceClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
+    val atVerifyName = baseClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
-    val classGen = ClassGen(Repository.lookupClass(referenceClass))
+    val classGen = ClassGen(Repository.lookupClass(baseClass))
 
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
     val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
-    val mirrorClassIdx = constantPoolGen.addClass(mirrorName.replace('.', '/'))
+    val mirrorClassIdx = constantPoolGen.addClass(mirrorSlashName)
     classGen.classNameIndex = mirrorClassIdx
 
     for (i in 1 until constantPoolGen.size) {
@@ -109,8 +110,8 @@ private fun mirrorClass(referenceClass: Class<*>, targetClass: Class<*>, mirrorN
             }
         } else if (constant is ConstantClass) {
             val name = constant.getBytes(constantPool)
-            if (name.startsWith("${referenceClass.slashName()}\$")) {
-                constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(name.replace(referenceClass.slashName(), targetClass.slashName())))
+            if (name.startsWith("${baseClass.slashName()}\$")) {
+                constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(name.replace(baseClass.slashName(), mirrorSlashName)))
             }
         }
     }
@@ -151,6 +152,13 @@ private fun mirrorClass(referenceClass: Class<*>, targetClass: Class<*>, mirrorN
         }
 
         classGen.addMethod(newMethod.method)
+    }
+
+    classGen.attributes.filterIsInstance(InnerClasses::class.java).firstOrNull()?.innerClasses?.forEach { innerClass ->
+        val outerName = (constantPool.getConstant(innerClass.outerClassIndex) as? ConstantClass)?.getBytes(constantPool)
+        if (outerName == baseClass.slashName()) {
+            innerClass.outerClassIndex = mirrorClassIdx
+        }
     }
 
     classGen.javaClass.dump("Fiddled.class")
