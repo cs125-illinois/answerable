@@ -6,14 +6,9 @@ package edu.illinois.cs.cs125.answerable
 /**
  * Annotation to mark a method as the reference solution for Answerable.
  *
- * If multiple methods have this annotation, an AnswerableMisuseException will be triggered.
- * If you want to provide multiple reference methods in a single class (which may be useful, if
- * for example, you have an entire class of problems on a BinaryTree<T> class), then you should
- * provide an @Solution annotation on the method under test <i>for the current test run</i> and @Ignore the rest.
- *
- * If the method under test prints to System.out or System.err, specify the parameter '{@Code prints}' as true.
- * Answerable's default verifier will assert that the printed strings to both are equal, and the {@Code stdOut} and
- * {@Code stdErr} fields of the {@Code TestOutput} objects passed to {@Code @Verify} will be non-null.
+ * If the method under test prints to System.out or System.err, specify the parameter <tt>prints</tt> as true.
+ * Answerable's default verifier will assert that the printed strings to both are equal, and the <tt>stdOut</tt> and
+ * <tt>stdErr</tt> fields of the <tt>TestOutput</tt> objects passed to {@Code @Verify} will be non-null.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
@@ -58,7 +53,7 @@ annotation class Next
  * The method must be static and take 2 parameters;
  * (1) an <tt>int</tt> representing the maximum complexity level of the output that should be produced, and
  * (2) a <tt>java.util.Random</tt> instance to be used if randomness is required.
- * The visibility and name do not matter. The method will be ingored in class design analysis, even if it is public.
+ * The visibility and name do not matter. The method will be ignored in class design analysis, even if it is public.
  * If the method has the wrong signature, an AnswerableMisuseException will be thrown.
  *
  * Answerable will automatically detect the return type and override any existing generators for that type.
@@ -87,15 +82,13 @@ annotation class Generator
  * If the method has the wrong signature, an AnswerableMisuseException will be thrown.
  * The <tt>TestOutput</tt> type should be parameterized with the type of the reference class, but this is optional.
  *
- * Answerable will automatically manage the transformation required to allow instances of the submitted class to be
- * treated as instances of the reference class. Due to this behavior, methods marked with {@Code @Verify} <b>must</b>
- * only use the <tt>public</tt> features of the reference class, specifically those which the class design analysis
- * pass will see.
- *
  * The <tt>receiver</tt> field in the <tt>TestOutput</tt> of the submitted method contains an instance of the submitted class
  * which can be used as though it were an instance of the reference class. Due to this behavior, <b>only</b> the <tt>public</tt>
  * members of the reference class should be accessed from this instance, specifically those which the class design
  * analysis pass will see.
+ *
+ * If verification fails, an {@Code @Verify} method should throw an exception, which will be caught by Answerable and recorded
+ * in the testing output. JUnit assertions are satisfactory, but they are not the only option.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
