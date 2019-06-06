@@ -187,3 +187,24 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
     // classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
     return loader.loadBytes(mirrorName, classGen.javaClass.bytes).also { mirrorsMade[mirrorName] = it }
 }
+
+internal fun verifyMemberAccess(referenceClass: Class<*>) {
+    verifyMemberAccess(referenceClass, referenceClass, mutableSetOf())
+}
+
+private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>, checked: MutableSet<Class<*>>) {
+    if (checked.contains(currentClass)) return
+    checked.add(currentClass)
+
+    val toCheck = Repository.lookupClass(currentClass)
+    val methodsToCheck = if (currentClass == referenceClass) {
+        toCheck.methods.filter { it.annotationEntries.any {
+            ae -> ae.annotationType in setOf(Generator::class.java.name, Next::class.java.name, Helper::class.java.name).map { t -> "L${t.replace('.', '/')};" }
+        } }.toTypedArray()
+    } else {
+        toCheck.methods
+    }
+
+    val constantPool = toCheck.constantPool
+    // TODO: verify
+}
