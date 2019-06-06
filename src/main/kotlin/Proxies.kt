@@ -56,25 +56,33 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
     return subProxy
 }
 
-private fun Class<*>.slashName() = canonicalName.replace('.', '/')
+private fun Class<*>.slashName() = name.replace('.', '/')
 
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
-    return mkMirrorClass(referenceClass, referenceClass, targetClass, "answerablemirror." + UUID.randomUUID().toString().replace("-", ""))
+    return mkMirrorClass(referenceClass, referenceClass, targetClass, "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf())
 }
 
-private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String): Class<*> {
+private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String, mirrorsMade: MutableMap<String, Class<*>>): Class<*> {
+    mirrorsMade[mirrorName]?.let { return it }
+
     val refLName = "L${referenceClass.slashName()};"
     val subLName = "L${targetClass.slashName()};"
     val mirrorSlashName = mirrorName.replace('.', '/')
+    val refLBase = "L${referenceClass.slashName()}$"
+    val mirrorLBase = "L${mirrorSlashName.split("$", limit = 2)[0]}$"
     fun fixType(type: Type): Type {
-        if (type.signature.trimStart('[') == refLName) {
-            return if (type is ArrayType) {
-                ArrayType(targetClass.canonicalName, type.dimensions)
-            } else {
-                ObjectType(targetClass.canonicalName)
-            }
+        val newName = if (type.signature.trimStart('[') == refLName) {
+            targetClass.canonicalName
+        } else if (type.signature.trimStart('[').startsWith(refLBase)) {
+            type.signature.trimStart('[').trimEnd(';').replace(refLBase, mirrorLBase).trimStart('L')
+        } else {
+            return type
         }
-        return type
+        return if (type is ArrayType) {
+            ArrayType(newName, type.dimensions)
+        } else {
+            ObjectType(newName)
+        }
     }
     val atVerifyName = baseClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
@@ -84,7 +92,14 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
     val constantPool = constantPoolGen.constantPool
     val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
     val mirrorClassIdx = constantPoolGen.addClass(mirrorSlashName)
+    val refMirrorClassIdx = constantPoolGen.addClass(mirrorSlashName.split("$", limit = 2)[0])
     classGen.classNameIndex = mirrorClassIdx
+
+    fun fixOuterClassName(innerName: String): String {
+        val topLevelMirrorName = mirrorName.split("$", limit = 2)[0]
+        val innerPath = innerName.split("$", limit = 2)[1]
+        return "$topLevelMirrorName\$$innerPath"
+    }
 
     for (i in 1 until constantPoolGen.size) {
         val constant = constantPoolGen.getConstant(i)
@@ -97,21 +112,29 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
                 if (constant is ConstantMethodref) {
                     shouldReplace = !(referenceClass.declaredMethods.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.let { method ->
                         setOf(Helper::class.java, Generator::class.java, Next::class.java).any { annotation -> method.isAnnotationPresent(annotation) }
-                    } ?: false)
+                    } ?: false) && !memberName.contains('$')
                 } else if (constant is ConstantFieldref) {
                     shouldReplace = !(referenceClass.declaredFields.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.isAnnotationPresent(Helper::class.java) ?: false)
                 }
-                constant.classIndex = if (shouldReplace) newClassIdx else mirrorClassIdx
+                constant.classIndex = if (shouldReplace) newClassIdx else refMirrorClassIdx
+            } else if (className.startsWith("${referenceClass.canonicalName}$")) {
+                constant.classIndex = constantPoolGen.addClass(fixOuterClassName(className).replace('.', '/'))
             }
         } else if (constant is ConstantNameAndType) {
             val typeSignature = constant.getSignature(constantPool)
             if (typeSignature.contains(refLName)) {
-                constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(typeSignature.replace(refLName, subLName)))
+                val fixedSignature = typeSignature.replace(refLName, subLName).replace(refLBase, mirrorLBase)
+                constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(fixedSignature))
             }
         } else if (constant is ConstantClass) {
             val name = constant.getBytes(constantPool)
             if (name.startsWith("${baseClass.slashName()}\$")) {
-                constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(name.replace(baseClass.slashName(), mirrorSlashName)))
+                val inner = Class.forName(name.replace('/', '.'))
+                val innerMirror = mkMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade)
+                constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(innerMirror.slashName()))
+            } else if (name.startsWith("${referenceClass.slashName()}\$")) {
+                // Shouldn't merge this with the above condition because of possible mutual reference (infinite recursion)
+                constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(fixOuterClassName(name).replace('.', '/')))
             }
         }
     }
@@ -131,7 +154,7 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
 
     classGen.methods.forEach {
         classGen.removeMethod(it)
-        if (!it.isStatic || it.name == atVerifyName) return@forEach
+        if ((!it.isStatic || it.name == atVerifyName) && baseClass == referenceClass) return@forEach
 
         val newMethod = MethodGen(it, classGen.className, constantPoolGen)
         newMethod.argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
@@ -161,6 +184,6 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
         }
     }
 
-    classGen.javaClass.dump("Fiddled.class")
-    return loader.loadBytes(mirrorName, classGen.javaClass.bytes)
+    classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class")
+    return loader.loadBytes(mirrorName, classGen.javaClass.bytes).also { mirrorsMade[mirrorName] = it }
 }
