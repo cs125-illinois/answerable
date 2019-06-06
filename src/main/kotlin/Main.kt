@@ -15,7 +15,7 @@ fun main(args: Array<String>) {
     val answerable =
         {
             println(ClassDesignAnalysis(reference, submission).runSuite().toJson())
-            val tg = TestGenerator(reference, submission)
+            val tg = TestRunner(reference, submission)
             println(tg.runTests(Random.nextLong()).toJson())
         }
 
