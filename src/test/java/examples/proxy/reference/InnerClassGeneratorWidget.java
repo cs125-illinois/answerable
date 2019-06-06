@@ -26,12 +26,13 @@ public class InnerClassGeneratorWidget {
 
     @Generator
     public static InnerClassGeneratorWidget generate(int complexity, Random random) {
-        // Intentionally not using lambda syntax so that an inner class is generated
+        // Intentionally not using lambda syntax to guarantee that an inner class is generated
         final InnerClassGeneratorWidget[] widgetHolder = new InnerClassGeneratorWidget[1];
         new Runnable() {
             @Override
             public void run() {
-                widgetHolder[0] = new InnerClassGeneratorWidget(random.nextInt(complexity + 1));
+                NamedInner inner = new NamedInner(new InnerClassGeneratorWidget(random.nextInt(complexity + 1)));
+                widgetHolder[0] = inner.fiddle();
                 System.out.print("Runnable ran");
             }
         }.run();
@@ -42,5 +43,16 @@ public class InnerClassGeneratorWidget {
     @Verify
     public static void verify(TestOutput<InnerClassGeneratorWidget> ours, TestOutput<InnerClassGeneratorWidget> theirs) {
         Assertions.assertEquals(ours.getReceiver().getSprings(), theirs.getReceiver().getSprings());
+    }
+
+    private static class NamedInner {
+        private InnerClassGeneratorWidget widget;
+        private NamedInner(InnerClassGeneratorWidget setWidget) {
+            widget = setWidget;
+        }
+        private InnerClassGeneratorWidget fiddle() {
+            widget.moreSprings(1);
+            return widget;
+        }
     }
 }
