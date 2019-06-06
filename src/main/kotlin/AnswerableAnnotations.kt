@@ -1,6 +1,5 @@
 package edu.illinois.cs.cs125.answerable
 
-
 // TODO: Once MisuseExceptions can be detected and thrown, update docs
 
 /**

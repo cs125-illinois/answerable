@@ -27,9 +27,6 @@ private fun findClass(name: String, failMsg: String): Class<*> {
     return solutionClass
 }
 
-fun Class<*>.isClassDesignReference(): Boolean =
-        this.annotations.any { it.annotationClass == Solution::class }
-
 fun Class<*>.getReferenceSolutionMethod(): Method {
     val methods =
             this.declaredMethods
