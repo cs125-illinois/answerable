@@ -21,8 +21,6 @@ private class BytesClassLoader : ClassLoader() {
     }
 }
 
-private val loader = BytesClassLoader()
-
 /*
  * For performance reasons, we want to re-use instantiators as much as possible.
  * A map is used for future-safety so that as many proxy instantiators as are needed can be created safely,
@@ -59,10 +57,10 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
 private fun Class<*>.slashName() = name.replace('.', '/')
 
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
-    return mkMirrorClass(referenceClass, referenceClass, targetClass, "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf())
+    return mkMirrorClass(referenceClass, referenceClass, targetClass, "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), BytesClassLoader())
 }
 
-private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String, mirrorsMade: MutableMap<String, Class<*>>): Class<*> {
+private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String, mirrorsMade: MutableMap<String, Class<*>>, loader: BytesClassLoader): Class<*> {
     mirrorsMade[mirrorName]?.let { return it }
 
     val refLName = "L${referenceClass.slashName()};"
@@ -131,7 +129,7 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
             val name = constant.getBytes(constantPool)
             if (name.startsWith("${baseClass.slashName()}\$")) {
                 val inner = Class.forName(name.replace('/', '.'))
-                val innerMirror = mkMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade)
+                val innerMirror = mkMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade, loader)
                 constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(innerMirror.slashName()))
             } else if (name.startsWith("${referenceClass.slashName()}\$")) {
                 // Shouldn't merge this with the above condition because of possible mutual reference (infinite recursion)
