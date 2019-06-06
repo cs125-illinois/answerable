@@ -1,9 +1,6 @@
 package examples.proxy.reference;
 
-import edu.illinois.cs.cs125.answerable.Generator;
-import edu.illinois.cs.cs125.answerable.Solution;
-import edu.illinois.cs.cs125.answerable.TestOutput;
-import edu.illinois.cs.cs125.answerable.Verify;
+import edu.illinois.cs.cs125.answerable.*;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.Random;
@@ -11,6 +8,9 @@ import java.util.Random;
 public class FieldWidget {
 
     public int springs;
+
+    @Helper
+    private static FieldWidget lastGenerated;
 
     @Solution
     public void addSprings(int numSprings) {
@@ -24,7 +24,8 @@ public class FieldWidget {
 
     @Generator
     public static FieldWidget generator(int complexity, Random random) {
-        return new FieldWidget();
+        lastGenerated = new FieldWidget();
+        return lastGenerated;
     }
 
 }
