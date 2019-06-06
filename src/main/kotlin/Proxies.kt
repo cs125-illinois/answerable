@@ -103,13 +103,13 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
 
     for (i in 1 until constantPoolGen.size) {
         val constant = constantPoolGen.getConstant(i)
-        if (constant is ConstantCP) {
-            if (constant.classIndex == 0) continue
+        if (constant is ConstantCP && (constant is ConstantFieldref || constant is ConstantMethodref || constant is ConstantInterfaceMethodref)) {
+            if (constant.classIndex == 0 || constantPool.getConstant(constant.classIndex) !is ConstantClass) continue
             val className = constant.getClass(constantPool)
             if (className == referenceClass.canonicalName) {
                 var shouldReplace = false
                 val memberName = (constantPool.getConstant(constant.nameAndTypeIndex) as ConstantNameAndType).getName(constantPool)
-                if (constant is ConstantMethodref) {
+                if (constant is ConstantMethodref || constant is ConstantInterfaceMethodref) {
                     shouldReplace = !(referenceClass.declaredMethods.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.let { method ->
                         setOf(Helper::class.java, Generator::class.java, Next::class.java).any { annotation -> method.isAnnotationPresent(annotation) }
                     } ?: false) && !memberName.contains('$')
@@ -184,6 +184,5 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
         }
     }
 
-    classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class")
     return loader.loadBytes(mirrorName, classGen.javaClass.bytes).also { mirrorsMade[mirrorName] = it }
 }
