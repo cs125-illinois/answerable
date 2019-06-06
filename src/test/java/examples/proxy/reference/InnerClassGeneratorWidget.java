@@ -52,6 +52,17 @@ public class InnerClassGeneratorWidget {
         };
         lastRunnerHolder[0].run();
         System.out.println(", outer method ran (#" + runnableRuns + ")");
+        NamedInner[] inners = new NamedInner[10];
+        int[] identity = new int[10]; // Make sure primitive types' arrays don't clog the type mapper
+        NamedInner prev = null;
+        for (int i = 0; i < inners.length; i++) {
+            if (prev != null && prev.widget.getSprings() % 2 == 0 && identity[i] != -1) {
+                prev.fiddle();
+            }
+            inners[i] = new NamedInner(new InnerClassGeneratorWidget(i + 1));
+            prev = inners[i];
+            identity[i] = i;
+        }
         return widgetHolder[0];
     }
 

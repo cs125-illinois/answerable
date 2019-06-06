@@ -140,14 +140,15 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
 
     fun classIndexReplacement(currentIndex: Int): Int? {
         val classConst = constantPool.getConstant(currentIndex) as? ConstantClass ?: return null
-        val className = constantPool.getConstant(classConst.nameIndex) as? ConstantUtf8 ?: return null
-        return if (className.bytes == referenceClass.canonicalName.replace('.', '/')) {
-            newClassIdx
-        } else if (className.bytes.trimStart('[') == refLName) {
-            val arrDims = className.bytes.length - className.bytes.trimStart('[').length
-            constantPoolGen.addArrayClass(ArrayType(targetClass.canonicalName, arrDims))
-        } else {
+        val className = (constantPool.getConstant(classConst.nameIndex) as? ConstantUtf8)?.bytes ?: return null
+        val curType = if (className.startsWith("[")) Type.getType(className) else ObjectType(className)
+        val newType = fixType(curType)
+        return if (newType.signature == curType.signature) {
             currentIndex
+        } else if (newType is ArrayType) {
+            constantPoolGen.addArrayClass(newType)
+        } else {
+            constantPoolGen.addClass(newType as ObjectType)
         }
     }
 
@@ -183,5 +184,6 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
         }
     }
 
+    // classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
     return loader.loadBytes(mirrorName, classGen.javaClass.bytes).also { mirrorsMade[mirrorName] = it }
 }
