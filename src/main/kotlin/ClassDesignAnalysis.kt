@@ -295,8 +295,3 @@ private fun printModifiersIfNonzero(sb: StringBuilder, mask: Int, isDefault: Boo
 fun Field.simpleName(): String = this.name.split(".").last()
 
 fun Type.simpleName() = this.typeName.split(".").last()
-
-fun fixArrayToString(thing: Any?): String = when (thing) {
-    is Array<*> -> Arrays.toString(thing)
-    else -> thing.toString()
-}
