@@ -1,15 +1,16 @@
 package examples.proxy.reference;
 
-import edu.illinois.cs.cs125.answerable.Generator;
-import edu.illinois.cs.cs125.answerable.Solution;
-import edu.illinois.cs.cs125.answerable.TestOutput;
-import edu.illinois.cs.cs125.answerable.Verify;
+import edu.illinois.cs.cs125.answerable.*;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.Random;
 
 public class InnerClassGeneratorWidget {
+
     private int numSprings;
+
+    @Helper
+    private static int innerRuns = 0;
 
     public InnerClassGeneratorWidget(int springs) {
         numSprings = springs;
@@ -31,12 +32,13 @@ public class InnerClassGeneratorWidget {
         new Runnable() {
             @Override
             public void run() {
+                innerRuns++;
                 NamedInner inner = new NamedInner(new InnerClassGeneratorWidget(random.nextInt(complexity + 1)));
                 widgetHolder[0] = inner.fiddle();
-                System.out.print("Runnable ran");
+                System.out.print("Runnable ran (#" + innerRuns + ")");
             }
         }.run();
-        System.out.println(", outer method ran");
+        System.out.println(", outer method ran (#" + innerRuns + ")");
         return widgetHolder[0];
     }
 
