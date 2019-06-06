@@ -7,11 +7,11 @@ public class Generators {
     int a = -10;
 
     @Solution
-    int test(boolean b, Generators g) {
+    int test(boolean b, Generators[][] g) {
         if (b) {
             return 0;
         }
-        return g.a + a;
+        return a;
     }
 
     @Generator

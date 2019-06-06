@@ -2,10 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/GitHub.answerable.iml" filepath="$PROJECT_DIR$/.idea/modules/GitHub.answerable.iml" />
       <module fileurl="file://$PROJECT_DIR$/answerable.iml" filepath="$PROJECT_DIR$/answerable.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/answerable.main.iml" filepath="$PROJECT_DIR$/.idea/modules/answerable.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/answerable.main.iml" filepath="$PROJECT_DIR$/.idea/modules/answerable.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/answerable.test.iml" filepath="$PROJECT_DIR$/.idea/modules/answerable.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/answerable.test.iml" filepath="$PROJECT_DIR$/.idea/modules/answerable.test.iml" />
     </modules>
   </component>

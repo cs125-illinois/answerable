@@ -1,5 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 fun main(args: Array<String>) {
@@ -10,9 +12,19 @@ fun main(args: Array<String>) {
     val reference = getSolutionClass("${prefix}reference.$name")
     val submission = getAttemptClass("$prefix$name")
 
-    ClassDesignAnalysis(reference, submission).runSuite()
+    val answerable =
+        {
+            println(ClassDesignAnalysis(reference, submission).runSuite().toJson())
+            val tg = TestGenerator(reference, submission)
+            println(tg.runTests(Random.nextLong()).toJson())
+        }
 
-    val tg = TestGenerator(reference, submission)
+    val timeout = reference.getAnnotation(Timeout::class.java)?.timeout ?: 0
 
-    println(tg.runTests(Random.nextLong()).toJson())
+    if (timeout == 0L) {
+        answerable()
+    } else {
+        val executor = Executors.newSingleThreadExecutor()
+        executor.submit(answerable)[timeout, TimeUnit.MILLISECONDS]
+    }
 }

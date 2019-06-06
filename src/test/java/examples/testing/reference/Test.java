@@ -7,7 +7,7 @@ import java.util.Random;
 
 public class Test {
     @Solution
-    public static boolean test(int[] is) {
+    public static boolean test(int[][] is) {
         return true;
     }
 

@@ -2,9 +2,6 @@ package edu.illinois.cs.cs125.answerable
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
-import java.lang.Exception
-import java.lang.IllegalStateException
-import java.lang.reflect.Field
 
 internal class DiscovererTest {
     private val correctAdderReference: String = "examples.adder.correct.reference.Adder"
@@ -15,15 +12,6 @@ internal class DiscovererTest {
     @Test
     fun testGetSolutionClassAdder() {
         getSolutionClass(correctAdderReference)
-    }
-
-    @Test
-    fun testIsClassDesignReference() {
-        val ref = getSolutionClass(correctAdderReference)
-        assertFalse(ref.isClassDesignReference())
-
-        val ref2 = getSolutionClass(correctClassDesignReference)
-        assertTrue(ref2.isClassDesignReference())
     }
 
     @Test
@@ -52,10 +40,10 @@ internal class DiscovererTest {
     }
 
     @Test
-    fun testIsStaticVoid() {
+    fun testIsPrinter() {
         val printerReferenceClass = getSolutionClass(correctPrinterReference)
         val printerReferenceMethod = printerReferenceClass.getReferenceSolutionMethod()
-        assertTrue(printerReferenceMethod.isStaticVoid())
+        assertTrue(printerReferenceMethod.isPrinter())
     }
 
     @Test
