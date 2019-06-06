@@ -4,6 +4,7 @@ import edu.illinois.cs.cs125.answerable.*;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.Random;
+import java.util.stream.IntStream;
 
 public class InnerClassGeneratorWidget {
 
@@ -53,7 +54,7 @@ public class InnerClassGeneratorWidget {
             widget = setWidget;
         }
         private InnerClassGeneratorWidget fiddle() {
-            widget.moreSprings(1);
+            IntStream.range(1, 2).forEach(i -> widget.moreSprings(i));
             return widget;
         }
     }

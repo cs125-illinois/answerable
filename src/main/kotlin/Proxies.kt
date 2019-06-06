@@ -122,7 +122,7 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
             }
         } else if (constant is ConstantNameAndType) {
             val typeSignature = constant.getSignature(constantPool)
-            if (typeSignature.contains(refLName)) {
+            if (typeSignature.contains(refLName) || typeSignature.contains(refLBase)) {
                 val fixedSignature = typeSignature.replace(refLName, subLName).replace(refLBase, mirrorLBase)
                 constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(fixedSignature))
             }
