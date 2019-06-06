@@ -89,11 +89,7 @@ public class ComplexGeneratorWidget {
                 }
             }
         } else {
-            List<ComplexGeneratorWidget> options = new ArrayList<>();
-            options.add(generate(complexity - 1, random));
-            options.add(generate(complexity - 2, random));
-            options.add(generate(complexity - 3, random));
-            widget = options.get(random.nextInt(3));
+            widget = listToArray(generateThree(complexity, random))[random.nextInt(3)];
         }
         return widget;
     }
@@ -103,6 +99,20 @@ public class ComplexGeneratorWidget {
         for (int index : toClobber) {
             widget.replaceSpring(index, "Broken");
         }
+    }
+
+    @Helper
+    private static List<ComplexGeneratorWidget> generateThree(int complexity, Random random) {
+        List<ComplexGeneratorWidget> options = new ArrayList<>();
+        options.add(generate(complexity - 1, random));
+        options.add(generate(complexity - 2, random));
+        options.add(generate(complexity - 3, random));
+        return options;
+    }
+
+    @Helper
+    private static ComplexGeneratorWidget[] listToArray(List<ComplexGeneratorWidget> options) {
+        return options.toArray(new ComplexGeneratorWidget[3]);
     }
 
 }
