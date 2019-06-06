@@ -27,16 +27,14 @@ private fun findClass(name: String, failMsg: String): Class<*> {
     return solutionClass
 }
 
-fun Class<*>.getReferenceSolutionMethod(): Method {
+fun Class<*>.getReferenceSolutionMethod(name: String): Method {
     val methods =
             this.declaredMethods
-                .filter { method -> method.annotations.any { annotation ->
-                    annotation.annotationClass == Solution::class
-                } }
-    if (methods.size != 1) throw IllegalStateException("Can't find singular solution method.")
+                .filter { it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false }
+
+    if (methods.size != 1) throw IllegalStateException("Can't find singular solution method with tag `$name'.")
     val solution = methods[0]
-    solution.isAccessible = true
-    return solution
+    return solution.also { it.isAccessible = true }
 }
 
 fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
@@ -89,10 +87,22 @@ fun Class<*>.getGenerators(): List<Method> =
             .filter { method -> method.isAnnotationPresent(Generator::class.java) }
             .map { it.isAccessible = true; it }
 
-fun Class<*>.getAtNext(): Method? =
-        this.declaredMethods.lastOrNull { method -> method.isAnnotationPresent(Next::class.java) }
+fun Class<*>.getAtNext(enabledNames: Array<String>): Method? =
+        this.declaredMethods
+            .filter { it.getAnnotation(Next::class.java)?.name?.let { name -> enabledNames.contains(name) } ?: false }
+            .let { when (it.size) {
+                0 -> null
+                1 -> it[0]
+                else -> throw AnswerableMisuseException("Found multiple @Next annotations with enabled names.")
+            }}
 
-fun Class<*>.getCustomVerifier(): Method? =
-        this.declaredMethods.lastOrNull { method -> method.isAnnotationPresent(Verify::class.java) }
+fun Class<*>.getCustomVerifier(name: String): Method? =
+        this.declaredMethods
+            .filter { it.getAnnotation(Verify::class.java)?.name?.equals(name) ?: false }
+            .let { when(it.size) {
+                0 -> null
+                1 -> it[0]
+                else -> throw AnswerableMisuseException("Found multiple @Verify annotations with name `$name'.")
+            }}
 
 fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
