@@ -40,7 +40,7 @@ internal class TestGenerator(
 
     // TODO: enable verification pass
     init {
-        verify(referenceClass)
+        verify()
     }
 
     internal fun buildGeneratorMap(random: Random, submittedClassGenerator: Method? = null): Map<Class<*>, GenWrapper<*>> {
@@ -69,6 +69,16 @@ internal class TestGenerator(
         userGens.forEach(generatorMapBuilder::accept)
 
         return generatorMapBuilder.build()
+    }
+
+    internal fun verify() {
+        val dryRunOutput = loadSubmission(referenceClass).runTests(0x0403)
+
+        dryRunOutput.forEach {
+            if (!it.succeeded) {
+                throw AnswerableVerificationException("Testing reference against itself failed on inputs ${Arrays.deepToString(it.refOutput.args)}")
+            }
+        }
     }
 
     fun loadSubmission(
@@ -431,16 +441,6 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<*>> {
         return genArray(complexity, random.nextInt(complexity + 1))
     }
 
-}
-
-internal fun verify(clazz: Class<*>) {
-    val dryRunOutput = TestGenerator(clazz).loadSubmission(clazz).runTests(0x0403)
-
-    dryRunOutput.forEach {
-        if (!it.succeeded) {
-            throw AnswerableVerificationException("Testing reference against itself failed on inputs ${Arrays.deepToString(it.refOutput.args)}")
-        }
-    }
 }
 
 /**
