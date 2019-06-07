@@ -6,6 +6,7 @@ import org.apache.bcel.Const
 import org.apache.bcel.Repository
 import org.apache.bcel.classfile.*
 import org.apache.bcel.generic.*
+import org.apache.bcel.generic.FieldOrMethod
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
 import java.lang.reflect.Modifier
@@ -199,12 +200,25 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
     val toCheck = Repository.lookupClass(currentClass)
     val methodsToCheck = if (currentClass == referenceClass) {
         toCheck.methods.filter { it.annotationEntries.any {
-            ae -> ae.annotationType in setOf(Generator::class.java.name, Next::class.java.name, Helper::class.java.name).map { t -> "L${t.replace('.', '/')};" }
+            ae -> ae.annotationType in setOf(Generator::class.java.name, Next::class.java.name, Helper::class.java.name).map { t -> ObjectType(t).signature }
         } }.toTypedArray()
     } else {
         toCheck.methods
     }
 
     val constantPool = toCheck.constantPool
-    // TODO: verify
+    methodsToCheck.forEach { method ->
+        InstructionList(method.code.code).filter { it.instruction is FieldOrMethod && it.instruction !is INVOKEDYNAMIC }.forEach eachInstr@{ handle ->
+            val instr = handle.instruction as FieldOrMethod
+            val refConstant = constantPool.getConstant(instr.index) as? ConstantCP ?: return@eachInstr
+            if (refConstant.getClass(constantPool) != referenceClass.name) return@eachInstr
+            val signatureConstant = constantPool.getConstant(refConstant.nameAndTypeIndex) as ConstantNameAndType
+            if (instr is FieldInstruction) {
+                val field = try { referenceClass.getDeclaredField(signatureConstant.getName(constantPool)) } catch (e: NoSuchFieldException) { return@eachInstr }
+                if (Modifier.isStatic(field.modifiers) && field.isAnnotationPresent(Helper::class.java)) return@eachInstr
+                if (!Modifier.isPublic(field.modifiers))
+                    throw AnswerableMisuseException("Generator method ${method.name} in ${currentClass.name} (instruction at ${handle.position}) uses submission private field ${field.name}")
+            }
+        }
+    }
 }
