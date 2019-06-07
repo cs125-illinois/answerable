@@ -5,6 +5,6 @@ import edu.illinois.cs.cs125.answerable.Solution;
 public class MissingArrayComponent {
 
     @Solution
-    public static void test(String[] strings) { }
+    public static void test(StringBuilder[] sbs) { }
 
 }

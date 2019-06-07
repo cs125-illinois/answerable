@@ -40,7 +40,7 @@ internal class TestGeneratorTest {
             examples.testgeneration.generators.errors.MissingGenerator::class.java
         ) }.message!!
 
-        assertEquals("\nA generator for type `java.lang.String' was requested, but no generator for that type was found.", errMsg)
+        assertEquals("\nA generator for type `java.lang.StringBuilder' was requested, but no generator for that type was found.", errMsg)
     }
 
     @Test
@@ -50,6 +50,6 @@ internal class TestGeneratorTest {
             examples.testgeneration.generators.errors.MissingArrayComponent::class.java
         ) }.message!!
 
-        assertEquals("\nA generator for an array with component type `java.lang.String' was requested, but no generator for that type was found.", errMsg)
+        assertEquals("\nA generator for an array with component type `java.lang.StringBuilder' was requested, but no generator for that type was found.", errMsg)
     }
 }

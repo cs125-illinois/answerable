@@ -6,10 +6,11 @@ import java.lang.reflect.Modifier
 import org.junit.jupiter.api.Assertions.*
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
-import java.lang.IllegalStateException
 import java.lang.reflect.InvocationTargetException
 import java.nio.charset.StandardCharsets
 import java.util.*
+import kotlin.math.min
+import java.lang.Character.UnicodeBlock.*
 
 internal class TestGenerator(
     val referenceClass: Class<*>,
@@ -65,19 +66,7 @@ internal class TestGenerator(
             )
         }
 
-        val gens = listOf(
-            Int::class.java to DefaultIntGen(),
-            Double::class.java to DefaultDoubleGen(),
-            Float::class.java to DefaultFloatGen(),
-            Byte::class.java to DefaultByteGen(),
-            Short::class.java to DefaultShortGen(),
-            Long::class.java to DefaultLongGen(),
-            Char::class.java to DefaultCharGen(),
-            Boolean::class.java to DefaultBooleanGen(),
-            *userGens.toTypedArray()
-        )
-
-        gens.forEach(generatorMapBuilder::accept)
+        userGens.forEach(generatorMapBuilder::accept)
 
         return generatorMapBuilder.build()
     }
@@ -259,6 +248,11 @@ class TestRunner internal constructor(
 
 private class GeneratorMapBuilder(goalTypes: Collection<Class<*>>, private val random: Random) {
     private var knownGenerators: MutableMap<Class<*>, Lazy<Gen<*>>> = mutableMapOf()
+    init {
+        defaultGenerators.forEach(this::accept)
+        knownGenerators[String::class.java] = lazy { DefaultStringGen(knownGenerators[Char::class.java]!!.value) }
+    }
+
     private val requiredGenerators: Set<Class<*>> = goalTypes.toSet().also { it.forEach(this::request) }
 
     private fun lazyGenError(clazz: Class<*>) = AnswerableMisuseException(
@@ -291,14 +285,21 @@ private class GeneratorMapBuilder(goalTypes: Collection<Class<*>>, private val r
         }
     }
 
-    fun build(): Map<Class<*>, GenWrapper<*>> {
-        requiredGenerators.forEach {
-            knownGenerators[it]?.value ?: throw lazyGenError(it)
-        }
-
-        return mapOf(*requiredGenerators.map {
+    fun build(): Map<Class<*>, GenWrapper<*>> = mapOf(*requiredGenerators.map {
             it to (GenWrapper(knownGenerators[it]?.value ?: throw lazyGenError(it), random))
         }.toTypedArray())
+
+    companion object {
+        private val defaultGenerators: List<Pair<Class<*>, Gen<*>>> = listOf(
+            Int::class.java     to defaultIntGen,
+            Double::class.java  to defaultDoubleGen,
+            Float::class.java   to defaultFloatGen,
+            Byte::class.java    to defaultByteGen,
+            Short::class.java   to defaultShortGen,
+            Long::class.java    to defaultLongGen,
+            Char::class.java    to defaultCharGen,
+            Boolean::class.java to defaultBooleanGen
+        )
     }
 }
 
@@ -322,49 +323,97 @@ internal class CustomGen(private val gen: Method) : Gen<Any?> {
     override fun generate(complexity: Int, random: Random): Any? = gen(null, complexity, random)
 }
 
-internal class DefaultIntGen : Gen<Int> {
+internal val defaultIntGen = object : Gen<Int> {
     override fun generate(complexity: Int, random: Random): Int {
-        return random.nextInt(complexity * 10 + 1) - (complexity * 5)
+        var comp = complexity
+        if (complexity > Int.MAX_VALUE / 2) {
+            comp = Int.MAX_VALUE / 2
+        }
+        return random.nextInt(comp * 2 + 1) - comp
     }
 }
 
-internal class DefaultDoubleGen : Gen<Double> {
+internal val defaultDoubleGen = object : Gen<Double> {
     override fun generate(complexity: Int, random: Random): Double {
-        return 0.0
+        val denom = random.nextDouble() * (1e10 - 1) + 1
+        val num = (random.nextDouble() * 2 * complexity * denom) - complexity * denom
+        return num / denom
     }
 }
 
-internal class DefaultFloatGen : Gen<Float> {
+internal val defaultFloatGen = object : Gen<Float> {
     override fun generate(complexity: Int, random: Random): Float {
-        return 0f
+        val denom = random.nextDouble() * (1e10 - 1) + 1
+        val num = (random.nextDouble() * 2 * complexity * denom) - complexity * denom
+        return (num / denom).toFloat() // if complexity is > 1e38, this stops being uniform
     }
 }
 
-internal class DefaultByteGen : Gen<Byte> {
+internal val defaultByteGen = object : Gen<Byte> {
     override fun generate(complexity: Int, random: Random): Byte {
-        return 0
+        return (random.nextInt(complexity * 2 + 1) - complexity).toByte()
     }
 }
 
-internal class DefaultShortGen : Gen<Short> {
+internal val defaultShortGen = object : Gen<Short> {
     override fun generate(complexity: Int, random: Random): Short {
-        return 0
+        return (random.nextInt(complexity * 2 + 1) - complexity).toShort()
     }
 }
 
-internal class DefaultLongGen : Gen<Long> {
+internal val defaultLongGen = object : Gen<Long> {
+    private fun Random.nextLong(bound: Long): Long {
+        var bits: Long
+        var value: Long
+        do {
+            bits = (nextLong() shl 1) shr 1
+            value = bits % bound
+        } while (bits - value + (bound - 1) < 0L)
+        return value
+    }
+
     override fun generate(complexity: Int, random: Random): Long {
-        return 0
+        return random.nextLong(complexity.toLong() * 4 + 1) - (complexity.toLong() * 2)
     }
 }
 
-internal class DefaultCharGen : Gen<Char> {
+internal val defaultCharGen = object : Gen<Char> {
+    private fun Char.isPrintableAscii(): Boolean = this.toInt() in 32..126
+
+    private fun Char.isPrint(): Boolean = isPrintableAscii() || of(this) in setOf(
+        CYRILLIC, CYRILLIC_SUPPLEMENTARY, TAMIL, CURRENCY_SYMBOLS, ARROWS, SUPPLEMENTAL_ARROWS_A,
+        ETHIOPIC_EXTENDED, CJK_RADICALS_SUPPLEMENT, KANGXI_RADICALS, KATAKANA_PHONETIC_EXTENSIONS,
+        ENCLOSED_CJK_LETTERS_AND_MONTHS, OLD_PERSIAN
+    )
+
     override fun generate(complexity: Int, random: Random): Char {
-        return 'A'
+        return if (random.nextDouble() < min(.15/32 * complexity, .15)) {
+            var char: Char
+            do {
+                char = random.nextInt(0x10000).toChar()
+            } while (!char.isPrint())
+            char
+        } else {
+            (random.nextInt(95) + 32).toChar()
+        }
     }
 }
 
-internal class DefaultBooleanGen : Gen<Boolean> {
+internal val defaultAsciiGen = object : Gen<Char> {
+    override fun generate(complexity: Int, random: Random): Char {
+        return (random.nextInt(95) + 32).toChar()
+    }
+}
+
+internal class DefaultStringGen(private val cGen: Gen<*>) : Gen<String> {
+    override fun generate(complexity: Int, random: Random): String {
+        val len = random.nextInt(complexity + 1)
+
+        return String((1..len).map { cGen(complexity, random) as Char }.toTypedArray().toCharArray())
+    }
+}
+
+internal val defaultBooleanGen = object : Gen<Boolean> {
     override fun generate(complexity: Int, random: Random): Boolean = (complexity % 2 != 0)
 }
 
@@ -376,10 +425,10 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<*>> {
             if (length <= 0) {
                 arrayOf<Any?>()
             } else {
-                arrayOf(tGen(random.nextInt(complexity), random), *genArray(complexity, length - 1))
+                arrayOf(tGen(random.nextInt(complexity + 1), random), *genArray(complexity, length - 1))
             }
 
-        return genArray(complexity, complexity)
+        return genArray(complexity, random.nextInt(complexity + 1))
     }
 
 }
