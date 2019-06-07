@@ -223,7 +223,7 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
         (constantPool.getConstant(innerClass.innerClassIndex) as ConstantClass).getBytes(constantPool).startsWith("${toCheck.className.replace('.', '/')}$")
     }?.map { it.innerClassIndex } ?: listOf()
 
-    var dangersToInnerClasses = dangerousAccessors.toMutableMap()
+    val dangersToInnerClasses = dangerousAccessors.toMutableMap()
 
     val methodsChecked = mutableSetOf<Method>()
     fun checkMethod(method: Method, checkInner: Boolean) {
