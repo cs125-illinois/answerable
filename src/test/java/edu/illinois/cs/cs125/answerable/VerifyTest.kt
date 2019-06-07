@@ -19,6 +19,11 @@ internal class VerifyTest {
     }
 
     @Test
+    fun verifySafeImplementationInnerClassGenerator() {
+        verifyMemberAccess(IncidentalInnerClassWidget::class.java)
+    }
+
+    @Test
     fun verifyBadFieldAccessGenerator() {
         Assertions.assertThrows(AnswerableMisuseException::class.java) { verifyMemberAccess(BadFieldAccessWidget::class.java) }
     }
@@ -49,13 +54,18 @@ internal class VerifyTest {
     }
 
     @Test
-    fun verifyOverloadedMethodAccessGenerator() {
+    fun verifySafeOverloadedMethodAccessGenerator() {
         verifyMemberAccess(OverloadedSafeMethodAccessWidget::class.java)
     }
 
     @Test
     fun verifyBadFieldAccessFromInnerGenerator() {
         Assertions.assertThrows(AnswerableMisuseException::class.java) { verifyMemberAccess(BadFieldAccessFromInnerWidget::class.java) }
+    }
+
+    @Test
+    fun verifyBadMethodCallFromInnerGenerator() {
+        Assertions.assertThrows(AnswerableMisuseException::class.java) { verifyMemberAccess(BadMethodAccessFromInnerWidget::class.java) }
     }
 
 }

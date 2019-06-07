@@ -9,6 +9,8 @@ import org.apache.bcel.generic.*
 import org.apache.bcel.generic.FieldOrMethod
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
+import java.lang.IllegalStateException
+import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.util.*
 
@@ -190,10 +192,10 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
 }
 
 internal fun verifyMemberAccess(referenceClass: Class<*>) {
-    verifyMemberAccess(referenceClass, referenceClass, mutableSetOf())
+    verifyMemberAccess(referenceClass, referenceClass, mutableSetOf(), mapOf())
 }
 
-private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>, checked: MutableSet<Class<*>>) {
+private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>, checked: MutableSet<Class<*>>, dangerousAccessors: Map<String, AnswerableVerifyException>) {
     if (checked.contains(currentClass)) return
     checked.add(currentClass)
 
@@ -210,7 +212,14 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
     val innerClassIndexes = toCheck.attributes.filterIsInstance(InnerClasses::class.java).firstOrNull()?.innerClasses?.filter { innerClass ->
         (constantPool.getConstant(innerClass.innerClassIndex) as ConstantClass).getBytes(constantPool).startsWith("${toCheck.className.replace('.', '/')}$")
     }?.map { it.innerClassIndex } ?: listOf()
-    methodsToCheck.forEach { method ->
+
+    var dangersToInnerClasses = dangerousAccessors.toMutableMap()
+
+    val methodsChecked = mutableSetOf<Method>()
+    fun checkMethod(method: Method, checkInner: Boolean) {
+        if (methodsChecked.contains(method)) return
+        methodsChecked.add(method)
+
         InstructionList(method.code.code).map { it.instruction }.filterIsInstance(CPInstruction::class.java).forEach eachInstr@{ instr ->
             if (instr is FieldOrMethod) {
                 if (instr is INVOKEDYNAMIC) return@eachInstr
@@ -225,7 +234,7 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
                     }
                     if (Modifier.isStatic(field.modifiers) && field.isAnnotationPresent(Helper::class.java)) return@eachInstr
                     if (!Modifier.isPublic(field.modifiers))
-                        throw AnswerableMisuseException("Mirrorable method ${method.name} in ${currentClass.name} uses non-public submission field: $field")
+                        throw AnswerableVerifyException(method.name, currentClass.name, field)
                 } else if (instr is InvokeInstruction) {
                     referenceClass.declaredMethods.filter { dm ->
                         dm.name == signatureConstant.getName(constantPool)
@@ -233,15 +242,43 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
                                 && Type.getSignature(dm) == signatureConstant.getSignature(constantPool)
                                 && (setOf(Generator::class.java, Next::class.java, Helper::class.java).none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
                     }.forEach { candidate ->
-                        throw AnswerableMisuseException("Mirrorable method ${method.name} in ${currentClass.name} calls non-public submission method: $candidate")
+                        dangerousAccessors[candidate.name]?.let { throw AnswerableVerifyException(it, method.name, currentClass.name) }
+                        if (!candidate.name.contains('$')) throw AnswerableVerifyException(method.name, currentClass.name, candidate)
                     }
                 }
-            } else {
+            } else if (checkInner) {
                 val classConstant = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
                 if (innerClassIndexes.contains(instr.index)) {
-                    verifyMemberAccess(Class.forName(classConstant.getBytes(constantPool).replace('/', '.')), referenceClass, checked)
+                    verifyMemberAccess(Class.forName(classConstant.getBytes(constantPool).replace('/', '.')), referenceClass, checked, dangersToInnerClasses)
                 }
             }
         }
+    }
+
+    if (referenceClass == currentClass) {
+        toCheck.methods.filter { it.name.contains('$') }.forEach {
+            try {
+                checkMethod(it, false)
+            } catch (e: AnswerableVerifyException) {
+                dangersToInnerClasses.put(it.name, e)
+            }
+        }
+    }
+
+    methodsToCheck.forEach { checkMethod(it, true) }
+}
+
+class AnswerableVerifyException(val blameMethod: String, val blameClass: String, val member: Any) : AnswerableMisuseException("Illegal use of non-public submission members") {
+    override val message: String?
+        get() {
+            return "Mirrorable method $blameMethod in $blameClass " +
+                    when (member) {
+                        is java.lang.reflect.Method -> "calls non-public submission method ${member.name}"
+                        is Field -> "uses non-public submission field ${member.name}"
+                        else -> throw IllegalStateException("AnswerableVerifyException.member must be a Method or Field")
+                    }
+        }
+    constructor(fromInner: AnswerableVerifyException, blameMethod: String, blameClass: String) : this(blameMethod, blameClass, fromInner.member) {
+        initCause(fromInner)
     }
 }
