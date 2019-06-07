@@ -270,16 +270,25 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
 }
 
 class AnswerableBytecodeVerificationException(val blameMethod: String, val blameClass: Class<*>, val member: Member) : AnswerableVerificationException("Bytecode error not specified. Please report a bug.") {
+
     override val message: String?
         get() {
-            return "\nMirrorable method `$blameMethod' in `${blameClass.simpleName()}' " +
+            return "\nMirrorable method `$blameMethod' in ${describeClass(blameClass)} " +
                     when (member) {
                         is java.lang.reflect.Method -> "calls non-public submission method: ${MethodData(member)}"
                         is Field -> "uses non-public submission field: ${member.name}"
                         else -> throw IllegalStateException("AnswerableBytecodeVerificationException.member must be a Method or Field. Please report a bug.")
                     }
         }
+
+    private fun describeClass(clazz: Class<*>): String {
+        return "`${clazz.simpleName()}'" + (clazz.enclosingMethod?.let {
+            " (inside `${it.name}' method of ${describeClass(clazz.enclosingClass)})"
+        } ?: "")
+    }
+
     constructor(fromInner: AnswerableBytecodeVerificationException, blameMethod: String, blameClass: Class<*>) : this(blameMethod, blameClass, fromInner.member) {
         initCause(fromInner)
     }
+
 }
