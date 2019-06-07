@@ -33,11 +33,6 @@ public class BadPrimitiveParameterizedMethodAccessWidget {
         return widget;
     }
 
-    @Verify
-    public static void verify(TestOutput<GeneratedWidget> ours, TestOutput<GeneratedWidget> theirs) {
-        Assertions.assertEquals(ours.getReceiver().getSprings(), theirs.getReceiver().getSprings());
-    }
-
     @Next
     public static BadPrimitiveParameterizedMethodAccessWidget next(BadPrimitiveParameterizedMethodAccessWidget current, int iteration, Random random) {
         current.addSprings(iteration);
