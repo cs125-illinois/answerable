@@ -11,6 +11,7 @@ import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
 import java.lang.IllegalStateException
 import java.lang.reflect.Field
+import java.lang.reflect.Member
 import java.lang.reflect.Modifier
 import java.util.*
 
@@ -234,7 +235,7 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
                     }
                     if (Modifier.isStatic(field.modifiers) && field.isAnnotationPresent(Helper::class.java)) return@eachInstr
                     if (!Modifier.isPublic(field.modifiers))
-                        throw AnswerableVerifyException(method.name, currentClass.name, field)
+                        throw AnswerableVerifyException(method.name, currentClass, field)
                 } else if (instr is InvokeInstruction) {
                     referenceClass.declaredMethods.filter { dm ->
                         dm.name == signatureConstant.getName(constantPool)
@@ -242,8 +243,8 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
                                 && Type.getSignature(dm) == signatureConstant.getSignature(constantPool)
                                 && (setOf(Generator::class.java, Next::class.java, Helper::class.java).none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
                     }.forEach { candidate ->
-                        dangerousAccessors[candidate.name]?.let { throw AnswerableVerifyException(it, method.name, currentClass.name) }
-                        if (!candidate.name.contains('$')) throw AnswerableVerifyException(method.name, currentClass.name, candidate)
+                        dangerousAccessors[candidate.name]?.let { throw AnswerableVerifyException(it, method.name, currentClass) }
+                        if (!candidate.name.contains('$')) throw AnswerableVerifyException(method.name, currentClass, candidate)
                     }
                 }
             } else if (checkInner) {
@@ -268,17 +269,17 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
     methodsToCheck.forEach { checkMethod(it, true) }
 }
 
-class AnswerableVerifyException(val blameMethod: String, val blameClass: String, val member: Any) : AnswerableMisuseException("Illegal use of non-public submission members") {
+class AnswerableVerifyException(val blameMethod: String, val blameClass: Class<*>, val member: Member) : AnswerableMisuseException("Illegal use of non-public submission members") {
     override val message: String?
         get() {
-            return "Mirrorable method $blameMethod in $blameClass " +
+            return "\nMirrorable method `$blameMethod' in `${blameClass.simpleName()}' " +
                     when (member) {
-                        is java.lang.reflect.Method -> "calls non-public submission method ${member.name}"
-                        is Field -> "uses non-public submission field ${member.name}"
-                        else -> throw IllegalStateException("AnswerableVerifyException.member must be a Method or Field")
+                        is java.lang.reflect.Method -> "calls non-public submission method: ${MethodData(member)}"
+                        is Field -> "uses non-public submission field: ${member.name}"
+                        else -> throw IllegalStateException("AnswerableVerifyException.member must be a Method or Field. Please report a bug.")
                     }
         }
-    constructor(fromInner: AnswerableVerifyException, blameMethod: String, blameClass: String) : this(blameMethod, blameClass, fromInner.member) {
+    constructor(fromInner: AnswerableVerifyException, blameMethod: String, blameClass: Class<*>) : this(blameMethod, blameClass, fromInner.member) {
         initCause(fromInner)
     }
 }
