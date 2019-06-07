@@ -8,6 +8,7 @@ public final class Adder {
      */
     @Solution
     public static int add(int first, int second) {
+
         return first + second;
     }
 }

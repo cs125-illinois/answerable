@@ -5,6 +5,14 @@ package edu.illinois.cs.cs125.answerable
 /**
  * Annotation to mark a method as the reference solution for Answerable.
  *
+ * If your class provides references to multiple different problems, supply a <tt>tag</tt> parameter to each
+ * {@Code @Solution} annotation. You'll be able to invoke answerable with different test targets by specifying a tag.
+ * Answerable's default tag is <tt>"solution"</tt>.
+ *
+ * If you provide multiple generators (or {@Code @Next} methods) for the same type, then you should resolve conflicts
+ * by naming the generators and including the name in the <tt>generators</tt> string array parameter on the
+ * {@Code @Solution} annotation. The default name is the empty string.
+ *
  * If the method under test prints to System.out or System.err, specify the parameter <tt>prints</tt> as true.
  * Answerable's default verifier will assert that the printed strings to both are equal, and the <tt>stdOut</tt> and
  * <tt>stdErr</tt> fields of the <tt>TestOutput</tt> objects passed to {@Code @Verify} will be non-null.
@@ -12,6 +20,8 @@ package edu.illinois.cs.cs125.answerable
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Solution(
+    val name: String = "",
+    val generators: Array<String> = [],
     val prints: Boolean = false
 )
 
@@ -39,13 +49,19 @@ annotation class Timeout(
  * methods marked with {@Code @Next} <b>must</b> only use the <tt>public</tt> features of the reference class,
  * specifically those which the class design analysis pass will see.
  *
+ * If your class provides multiple {@Code @Solution} methods which should use different {@Code @Next} methods,
+ * then the {@Code @Next} annotations should each have a name parameter and should be explicitly enabled
+ * via the <tt>generators</tt> string array parameter of the appropriate {@Code @Solution} annotations.
+ *
  * If a helper method is needed that should not be included in class design analysis, see the {@Code @Helper} annotation.
  * The {@Code @Next} method <b>is</b> able to safely call methods marked with {@Code @Generator}, even a generator
  * for the reference class.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class Next
+annotation class Next(
+    val name: String = ""
+)
 
 /**
  * Marks a method which can produce objects (or primitives) of arbitrary type for testing.
@@ -64,13 +80,20 @@ annotation class Next
  * If a generator for the reference class is provided, and an {@Code @Next} method is not provided, then the generator
  * will be used to generate new receiver objects on every iteration of the testing loop.
  *
+ * {@Code @Generator} annotations can have a <tt>name</tt> parameter, which must be unique.
+ * If your class provides multiple generators for the same type, answerable will resolve conflicts by choosing the one
+ * whose name is in the <tt>generators</tt> array on the {@Code @Solution} annotation.
+ * The default tag if none is specified is the empty string.
+ *
  * If a helper method is needed that should not be included in class design analysis, see the {@Code @Helper} annotation.
  * Generators can safely call each other and the {@Code @Next} method (if any), even if those which create instance
  * of the reference class.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class Generator
+annotation class Generator(
+    val name: String = ""
+)
 
 /**
  * Marks a method as a custom verifier. The method will be called once per testing loop instead of Answerable's default verifier.
@@ -88,10 +111,20 @@ annotation class Generator
  *
  * If verification fails, an {@Code @Verify} method should throw an exception, which will be caught by Answerable and recorded
  * in the testing output. JUnit assertions are satisfactory, but they are not the only option.
+ *
+ * If your class provides references to multiple problems, specify a <tt>tag</tt> parameter on each {@Code @Verify}
+ * annotation. Answerable will use the verify method with the same tag as the {@Code @Solution} under test,
+ * or the default verifier if none were provided. The default tag if none is specified is the empty string.
+ *
+ * Answerable's default verifier only compares the method return types for equality. This may be unsafe if the
+ * method returns an instance of the declaring class. It will also not check the receiver objects for equality
+ * after testing, for the same reason. If either of these is desired, you should provide a custom verifier.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class Verify
+annotation class Verify(
+    val name: String = ""
+)
 
 /**
  * Marks a method as a helper method for {@Code @Next} or {@Code @Generator} methods which create instances of the
