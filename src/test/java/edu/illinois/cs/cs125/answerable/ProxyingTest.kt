@@ -55,4 +55,10 @@ internal class ProxyingTest {
         Assertions.assertNotEquals(first, second)
     }
 
+    @Test
+    fun testRequiredInnerClassWidget() {
+        val tg = TestRunner(examples.proxy.reference.RequiredInnerClassWidget::class.java, examples.proxy.RequiredInnerClassWidget::class.java)
+        assertAllSucceeded(tg.runTests(0x0403))
+    }
+
 }
