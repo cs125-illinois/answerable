@@ -34,13 +34,18 @@ internal class VerifyTest {
     }
 
     @Test
-    fun verifyBadPrimitiveParameterizedMethodAccessGenerator() {
+    fun verifyBadPrimitiveParameterizedMethodAccessNext() {
         Assertions.assertThrows(AnswerableMisuseException::class.java) { verifyMemberAccess(BadPrimitiveParameterizedMethodAccessWidget::class.java) }
     }
 
     @Test
     fun verifyOverloadedMethodAccessGenerator() {
         verifyMemberAccess(OverloadedSafeMethodAccessWidget::class.java)
+    }
+
+    @Test
+    fun verifyBadFieldAccessFromInnerGenerator() {
+        Assertions.assertThrows(AnswerableMisuseException::class.java) { verifyMemberAccess(BadFieldAccessFromInnerWidget::class.java) }
     }
 
 }
