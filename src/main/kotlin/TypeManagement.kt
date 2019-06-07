@@ -217,7 +217,17 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
                 val field = try { referenceClass.getDeclaredField(signatureConstant.getName(constantPool)) } catch (e: NoSuchFieldException) { return@eachInstr }
                 if (Modifier.isStatic(field.modifiers) && field.isAnnotationPresent(Helper::class.java)) return@eachInstr
                 if (!Modifier.isPublic(field.modifiers))
-                    throw AnswerableMisuseException("Generator method ${method.name} in ${currentClass.name} (instruction at ${handle.position}) uses submission private field ${field.name}")
+                    throw AnswerableMisuseException("Generator method ${method.name} in ${currentClass.name} (instruction at ${handle.position}) uses non-public submission field: $field")
+            } else if (instr is InvokeInstruction) {
+                val argTypes = Utility.methodSignatureArgumentTypes(signatureConstant.getSignature(constantPool))
+                referenceClass.declaredMethods.filter { dm ->
+                    dm.name == signatureConstant.getName(constantPool)
+                            && !Modifier.isPublic(dm.modifiers)
+                            && setOf(Generator::class.java, Next::class.java, Helper::class.java).none { dm.isAnnotationPresent(it) }
+                }.forEach { candidate ->
+                    if (argTypes.joinToString() == candidate.parameterTypes.joinToString { it.name })
+                        throw AnswerableMisuseException("Generator method ${method.name} in ${currentClass.name} (instruction at ${handle.position}) calls non-public submission method: $candidate")
+                }
             }
         }
     }
