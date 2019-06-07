@@ -207,25 +207,39 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
     }
 
     val constantPool = toCheck.constantPool
+    val innerClassIndexes = toCheck.attributes.filterIsInstance(InnerClasses::class.java).firstOrNull()?.innerClasses?.filter { innerClass ->
+        (constantPool.getConstant(innerClass.innerClassIndex) as ConstantClass).getBytes(constantPool).startsWith("${toCheck.className.replace('.', '/')}$")
+    }?.map { it.innerClassIndex } ?: listOf()
     methodsToCheck.forEach { method ->
-        InstructionList(method.code.code).filter { it.instruction is FieldOrMethod && it.instruction !is INVOKEDYNAMIC }.forEach eachInstr@{ handle ->
-            val instr = handle.instruction as FieldOrMethod
-            val refConstant = constantPool.getConstant(instr.index) as? ConstantCP ?: return@eachInstr
-            if (refConstant.getClass(constantPool) != referenceClass.name) return@eachInstr
-            val signatureConstant = constantPool.getConstant(refConstant.nameAndTypeIndex) as ConstantNameAndType
-            if (instr is FieldInstruction) {
-                val field = try { referenceClass.getDeclaredField(signatureConstant.getName(constantPool)) } catch (e: NoSuchFieldException) { return@eachInstr }
-                if (Modifier.isStatic(field.modifiers) && field.isAnnotationPresent(Helper::class.java)) return@eachInstr
-                if (!Modifier.isPublic(field.modifiers))
-                    throw AnswerableMisuseException("Generator method ${method.name} in ${currentClass.name} (instruction at ${handle.position}) uses non-public submission field: $field")
-            } else if (instr is InvokeInstruction) {
-                referenceClass.declaredMethods.filter { dm ->
-                    dm.name == signatureConstant.getName(constantPool)
-                            && !Modifier.isPublic(dm.modifiers)
-                            && Type.getSignature(dm) == signatureConstant.getSignature(constantPool)
-                            && (setOf(Generator::class.java, Next::class.java, Helper::class.java).none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
-                }.forEach { candidate ->
-                    throw AnswerableMisuseException("Generator method ${method.name} in ${currentClass.name} (instruction at ${handle.position}) calls non-public submission method: $candidate")
+        InstructionList(method.code.code).map { it.instruction }.filterIsInstance(CPInstruction::class.java).forEach eachInstr@{ instr ->
+            if (instr is FieldOrMethod) {
+                if (instr is INVOKEDYNAMIC) return@eachInstr
+                val refConstant = constantPool.getConstant(instr.index) as? ConstantCP ?: return@eachInstr
+                if (refConstant.getClass(constantPool) != referenceClass.name) return@eachInstr
+                val signatureConstant = constantPool.getConstant(refConstant.nameAndTypeIndex) as ConstantNameAndType
+                if (instr is FieldInstruction) {
+                    val field = try {
+                        referenceClass.getDeclaredField(signatureConstant.getName(constantPool))
+                    } catch (e: NoSuchFieldException) {
+                        return@eachInstr
+                    }
+                    if (Modifier.isStatic(field.modifiers) && field.isAnnotationPresent(Helper::class.java)) return@eachInstr
+                    if (!Modifier.isPublic(field.modifiers))
+                        throw AnswerableMisuseException("Mirrorable method ${method.name} in ${currentClass.name} uses non-public submission field: $field")
+                } else if (instr is InvokeInstruction) {
+                    referenceClass.declaredMethods.filter { dm ->
+                        dm.name == signatureConstant.getName(constantPool)
+                                && !Modifier.isPublic(dm.modifiers)
+                                && Type.getSignature(dm) == signatureConstant.getSignature(constantPool)
+                                && (setOf(Generator::class.java, Next::class.java, Helper::class.java).none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
+                    }.forEach { candidate ->
+                        throw AnswerableMisuseException("Mirrorable method ${method.name} in ${currentClass.name} calls non-public submission method: $candidate")
+                    }
+                }
+            } else {
+                val classConstant = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
+                if (innerClassIndexes.contains(instr.index)) {
+                    verifyMemberAccess(Class.forName(classConstant.getBytes(constantPool).replace('/', '.')), referenceClass, checked)
                 }
             }
         }
