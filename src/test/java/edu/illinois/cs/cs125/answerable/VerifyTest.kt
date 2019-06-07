@@ -39,6 +39,16 @@ internal class VerifyTest {
     }
 
     @Test
+    fun verifyBadPrimitiveArrayParameterizedMethodAccessNext() {
+        Assertions.assertThrows(AnswerableMisuseException::class.java) { verifyMemberAccess(BadPrimitiveArrayParameterizedMethodAccessWidget::class.java) }
+    }
+
+    @Test
+    fun verifyBadArrayParameterizedMethodAccessNext() {
+        Assertions.assertThrows(AnswerableMisuseException::class.java) { verifyMemberAccess(BadArrayParameterizedMethodAccessWidget::class.java) }
+    }
+
+    @Test
     fun verifyOverloadedMethodAccessGenerator() {
         verifyMemberAccess(OverloadedSafeMethodAccessWidget::class.java)
     }

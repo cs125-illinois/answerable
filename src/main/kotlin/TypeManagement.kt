@@ -219,14 +219,13 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
                 if (!Modifier.isPublic(field.modifiers))
                     throw AnswerableMisuseException("Generator method ${method.name} in ${currentClass.name} (instruction at ${handle.position}) uses non-public submission field: $field")
             } else if (instr is InvokeInstruction) {
-                val argTypes = Utility.methodSignatureArgumentTypes(signatureConstant.getSignature(constantPool))
                 referenceClass.declaredMethods.filter { dm ->
                     dm.name == signatureConstant.getName(constantPool)
                             && !Modifier.isPublic(dm.modifiers)
-                            && setOf(Generator::class.java, Next::class.java, Helper::class.java).none { dm.isAnnotationPresent(it) }
+                            && Type.getSignature(dm) == signatureConstant.getSignature(constantPool)
+                            && (setOf(Generator::class.java, Next::class.java, Helper::class.java).none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
                 }.forEach { candidate ->
-                    if (argTypes.joinToString() == candidate.parameterTypes.joinToString { it.name })
-                        throw AnswerableMisuseException("Generator method ${method.name} in ${currentClass.name} (instruction at ${handle.position}) calls non-public submission method: $candidate")
+                    throw AnswerableMisuseException("Generator method ${method.name} in ${currentClass.name} (instruction at ${handle.position}) calls non-public submission method: $candidate")
                 }
             }
         }
