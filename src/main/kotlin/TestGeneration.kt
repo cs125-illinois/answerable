@@ -40,7 +40,7 @@ internal class TestGenerator(
 
     // TODO: enable verification pass
     init {
-        // verify(referenceClass)
+        verify(referenceClass)
     }
 
     internal fun buildGeneratorMap(random: Random, submittedClassGenerator: Method? = null): Map<Class<*>, GenWrapper<*>> {
@@ -433,6 +433,16 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<*>> {
 
 }
 
+internal fun verify(clazz: Class<*>) {
+    val dryRunOutput = TestGenerator(clazz).loadSubmission(clazz).runTests(0x0403)
+
+    dryRunOutput.forEach {
+        if (!it.succeeded) {
+            throw AnswerableVerificationException("Testing reference against itself failed on inputs ${Arrays.deepToString(it.refOutput.args)}")
+        }
+    }
+}
+
 /**
  * A wrapper class used to pass data to custom verification methods.
  */
@@ -534,6 +544,6 @@ fun List<TestStep>.toJson(): String =
     this.joinToString(prefix = "[", postfix = "]", transform = TestStep::toJson)
 
 fun fixArrayToString(thing: Any?): String = when (thing) {
-    is Array<*> -> Arrays.toString(thing)
+    is Array<*> -> Arrays.deepToString(thing)
     else -> thing.toString()
 }
