@@ -17,14 +17,14 @@ public class RequiredInnerClassWidget {
 
     public NamedInner getInner(int widgets) {
         NamedInner inner = new NamedInner();
-        inner.widgets = widgets;
+        inner.soln_widgets = widgets;
         return inner;
     }
 
     public class NamedInner {
-        private int widgets;
+        private int soln_widgets;
         public int getWidgets() {
-            return widgets;
+            return soln_widgets;
         }
     }
 

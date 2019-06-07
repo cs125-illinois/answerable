@@ -36,6 +36,8 @@ private class BytesClassLoader : ClassLoader() {
 private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
 
 fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
+    if (superClass == childClass) return forward
+
     // if we don't have an instantiator for this proxy class, make a new one
     val instantiator = proxyInstantiators[superClass] ?: run {
         val factory = ProxyFactory()
@@ -52,7 +54,11 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
         childClass.getPublicFields().forEach { it.set(forward, self.javaClass.getField(it.name).get(self)) }
         val result = childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
         childClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(forward)) }
-        result
+        if (result != null && result.javaClass.enclosingClass != null && result.javaClass.name.startsWith("${childClass.name}$")) {
+            TODO("proxy inner class")
+        } else {
+            result
+        }
     }
 
     return subProxy
