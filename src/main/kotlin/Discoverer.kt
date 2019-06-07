@@ -27,16 +27,14 @@ private fun findClass(name: String, failMsg: String): Class<*> {
     return solutionClass
 }
 
-fun Class<*>.getReferenceSolutionMethod(): Method {
+fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method {
     val methods =
             this.declaredMethods
-                .filter { method -> method.annotations.any { annotation ->
-                    annotation.annotationClass == Solution::class
-                } }
-    if (methods.size != 1) throw IllegalStateException("Can't find singular solution method.")
+                .filter { it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false }
+
+    if (methods.size != 1) throw IllegalStateException("Can't find singular solution method with tag `$name'.")
     val solution = methods[0]
-    solution.isAccessible = true
-    return solution
+    return solution.also { it.isAccessible = true }
 }
 
 fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
@@ -64,7 +62,7 @@ fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
         )
     }
     // If the student code compiled, there can only be one method
-    return methods[0]
+    return methods[0].also { it.isAccessible = true }
 }
 
 fun Class<*>.getPublicFields(): List<Field> =
@@ -84,15 +82,57 @@ fun Class<*>.getPublicMethods(isReference: Boolean): List<Method> {
     return allPublicMethods
 }
 
-fun Class<*>.getGenerators(): List<Method> =
+fun Class<*>.getAllGenerators(): List<Method> =
         this.declaredMethods
             .filter { method -> method.isAnnotationPresent(Generator::class.java) }
             .map { it.isAccessible = true; it }
 
-fun Class<*>.getAtNext(): Method? =
-        this.declaredMethods.lastOrNull { method -> method.isAnnotationPresent(Next::class.java) }
+fun Class<*>.getEnabledGenerators(enabledNames: Array<String>): List<Method> =
+        this.declaredMethods
+            .filter { it.isAnnotationPresent(Generator::class.java) }
+            .groupBy { it.returnType }
+            .flatMap { entry -> when (entry.value.size) {
+                1 -> entry.value
+                else -> {
+                    entry.value
+                        .filter { it.getAnnotation(Generator::class.java).name in enabledNames }
+                        .let { enabledGenerators ->
+                            when (enabledGenerators.size) {
+                                1 -> enabledGenerators
+                                else ->
+                                    throw AnswerableMisuseException("Failed to resolve @Generator conflict:\nMultiple enabled generators found for type `${entry.key.canonicalName}'.")
+                            }
+                        }
+                }
+            }}
+            .map { it.isAccessible = true; it }
 
-fun Class<*>.getCustomVerifier(): Method? =
-        this.declaredMethods.lastOrNull { method -> method.isAnnotationPresent(Verify::class.java) }
+fun Class<*>.getDefaultAtNext(): Method? =
+        this.declaredMethods
+            .filter { it.getAnnotation(Next::class.java)?.name?.equals("") ?: false }
+            .let { unnamedNexts -> when (unnamedNexts.size) {
+                0 -> null
+                1 -> unnamedNexts[0].also {it.isAccessible = true }
+                else -> throw AnswerableMisuseException("Failed to resolve @Next conflict:\nFound multiple unnamed @Next annotations.")
+            }}
+
+fun Class<*>.getAtNext(enabledNames: Array<String>): Method? =
+        this.declaredMethods
+            .filter { it.getAnnotation(Next::class.java)?.name?.let { name -> enabledNames.contains(name) } ?: false }
+            .let { atNexts -> when (atNexts.size) {
+                0 -> null
+                1 -> atNexts[0].also { it.isAccessible = true }
+                else -> throw AnswerableMisuseException("Failed to resolve @Next conflict:\nFound multiple @Next annotations with enabled names.")
+            }}
+            ?: this.getDefaultAtNext()
+
+fun Class<*>.getCustomVerifier(name: String): Method? =
+        this.declaredMethods
+            .filter { it.getAnnotation(Verify::class.java)?.name?.equals(name) ?: false }
+            .let { verifiers -> when(verifiers.size) {
+                0 -> null
+                1 -> verifiers[0].also { it.isAccessible = true }
+                else -> throw AnswerableMisuseException("Found multiple @Verify annotations with name `$name'.")
+            }}
 
 fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
