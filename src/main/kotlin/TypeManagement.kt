@@ -55,7 +55,10 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
         val result = childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
         childClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(forward)) }
         if (result != null && result.javaClass.enclosingClass != null && result.javaClass.name.startsWith("${childClass.name}$")) {
-            TODO("proxy inner class")
+            val superInnerClass = superClass.declaredClasses.first { it.name.split('$', limit = 2)[1] == result.javaClass.name.split('$', limit = 2)[1] }
+            val innerProxy = mkProxy(superInnerClass, result.javaClass, result)
+            result.javaClass.getPublicFields().forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
+            innerProxy
         } else {
             result
         }
