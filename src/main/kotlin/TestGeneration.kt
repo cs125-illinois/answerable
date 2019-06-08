@@ -38,7 +38,6 @@ class TestGenerator(
         else -> throw AnswerableMisuseException("The reference solution must provide either an @Generator or an @Next method if @Solution is not static.")
     }
 
-    // TODO: enable verification pass
     init {
         verify()
     }
@@ -114,7 +113,6 @@ class TestRunner internal constructor(
     private val submissionGens = mirrorToStudentClass
             .getEnabledGenerators(testGenerator.enabledGeneratorAndNextNames)
             .find { it.returnType == submissionClass }
-
             .let { testGenerator.buildGeneratorMap(randomForSubmission, it) }
     private val referenceAtNext = testGenerator.atNextMethod
     private val submissionAtNext = mirrorToStudentClass.getAtNext(testGenerator.enabledGeneratorAndNextNames)
@@ -430,8 +428,8 @@ internal val defaultBooleanGen = object : Gen<Boolean> {
 
 // We can't reify `T`, so we have to inherit from Gen<Array<*>>.
 // When using the array generators, we have to be very careful to match the types ourselves.
-internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<*>> {
-    override fun generate(complexity: Int, random: Random): Array<*> {
+internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<T>> {
+    override fun generate(complexity: Int, random: Random): Array<T> {
         fun genArray(complexity: Int, length: Int): Array<*> =
             if (length <= 0) {
                 arrayOf<Any?>()
@@ -439,7 +437,7 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<*>> {
                 arrayOf(tGen(random.nextInt(complexity + 1), random), *genArray(complexity, length - 1))
             }
 
-        return genArray(complexity, random.nextInt(complexity + 1))
+        return genArray(complexity, random.nextInt(complexity + 1)) as Array<T>
     }
 
 }

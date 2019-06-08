@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test
 internal class AdHoc {
     @Test
     fun test() {
-        // Nothing under ad-hoc testing right now
+        val answerable = Answerable()
+        answerable.loadNewQuestion("test", examples.testing.reference.Test::class.java)
+        answerable.submitAndTest("test", examples.testing.reference.Test::class.java)
     }
 }

@@ -2,7 +2,6 @@ package edu.illinois.cs.cs125.answerable
 
 import java.lang.IllegalStateException
 import java.util.*
-import java.util.concurrent.ThreadLocalRandom
 
 class Answerable {
     val existingQuestions: MutableMap<String, TestGenerator> = mutableMapOf()

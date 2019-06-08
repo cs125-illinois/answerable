@@ -26,9 +26,9 @@ private fun findClass(name: String, failMsg: String): Class<*> {
 }
 
 internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method {
-    val methods = this.declaredMethods.let {
+    val methods =
             this.declaredMethods
-                .filter { it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false } }
+                .filter { it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false }
 
     if (methods.size != 1) throw IllegalStateException("Can't find singular solution method with tag `$name'.")
     val solution = methods[0]
