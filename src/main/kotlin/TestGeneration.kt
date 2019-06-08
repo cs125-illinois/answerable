@@ -287,17 +287,10 @@ private class GeneratorMapBuilder(goalTypes: Collection<Class<*>>, private val r
             request(clazz.componentType)
             knownGenerators[clazz] =
                 lazy {
-                    try {
-                        return@lazy DefaultArrayGen(
-                            knownGenerators[clazz.componentType]?.value
-                                ?: throw lazyArrayError(clazz)
-                        )
-                    } catch (e: FailedToConstructArrayGeneratorException) {
-                        throw FailedToConstructArrayGeneratorException("""
-                            Failed to generate a non-nullable instance of component type `${clazz.componentType.canonicalName}'.
-                            While trying to create a default array generator for type `${clazz.canonicalName}'.
-                        """.trimIndent())
-                    }
+                    DefaultArrayGen(
+                        knownGenerators[clazz.componentType]?.value ?: throw lazyArrayError(clazz),
+                        clazz.componentType
+                    )
                 }
         }
     }
@@ -434,21 +427,7 @@ internal val defaultBooleanGen = object : Gen<Boolean> {
     override fun generate(complexity: Int, random: Random): Boolean = (complexity % 2 != 0)
 }
 
-class FailedToConstructArrayGeneratorException(msg: String = "") : Exception(msg)
-internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<T>> {
-    private val tClass = run {
-        var comp = 0
-        var nonNullableT: T
-        do {
-            nonNullableT = tGen(comp, Random())
-            if (comp++ > 100) {
-                throw FailedToConstructArrayGeneratorException()
-            }
-        } while (nonNullableT == null)
-
-        (nonNullableT as Any)::class.java
-    }
-
+internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: Class<*>) : Gen<Array<T>> {
     override fun generate(complexity: Int, random: Random): Array<T> {
         fun genList(complexity: Int, length: Int): List<T> =
             if (length <= 0) {
