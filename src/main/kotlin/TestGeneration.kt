@@ -292,8 +292,8 @@ private class GeneratorMapBuilder(goalTypes: Collection<Class<*>>, private val r
                             knownGenerators[clazz.componentType]?.value
                                 ?: throw lazyArrayError(clazz)
                         )
-                    } catch (e: ArrayGenConstructionFailed) {
-                        throw AnswerableMisuseException("""
+                    } catch (e: FailedToConstructArrayGeneratorException) {
+                        throw FailedToConstructArrayGeneratorException("""
                             Failed to generate a non-nullable instance of component type `${clazz.componentType.canonicalName}'.
                             While trying to create a default array generator for type `${clazz.canonicalName}'.
                         """.trimIndent())
@@ -434,19 +434,19 @@ internal val defaultBooleanGen = object : Gen<Boolean> {
     override fun generate(complexity: Int, random: Random): Boolean = (complexity % 2 != 0)
 }
 
-class ArrayGenConstructionFailed : Exception()
+class FailedToConstructArrayGeneratorException(msg: String = "") : Exception(msg)
 internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<T>> {
-    val tClass = run {
+    private val tClass = run {
         var comp = 0
         var nonNullableT: T
         do {
             nonNullableT = tGen(comp, Random())
             if (comp++ > 100) {
-                throw ArrayGenConstructionFailed()
+                throw FailedToConstructArrayGeneratorException()
             }
         } while (nonNullableT == null)
 
-        (nonNullableT as Any)::class.java as Class<T>
+        (nonNullableT as Any)::class.java
     }
 
     override fun generate(complexity: Int, random: Random): Array<T> {
@@ -458,6 +458,7 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<T>> {
             }
 
         val vals = genList(complexity, random.nextInt(complexity + 1))
+        @Suppress("UNCHECKED_CAST")
         return ReflectArray.newInstance(tClass, vals.size).also {
             vals.forEachIndexed { idx, value -> ReflectArray.set(it, idx, value) }
         } as Array<T>

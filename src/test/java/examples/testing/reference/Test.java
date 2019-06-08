@@ -12,14 +12,13 @@ public class Test {
     private static int test = 0;
 
     @Solution(prints = true)
-    public static boolean test(String[] is) {
+    public static boolean test(String[][] is) {
         System.out.println(test++);
         return true;
     }
 
     @Verify
     public static void verify(TestOutput<Test> ours, TestOutput<Test> theirs) {
-        System.out.println("Ours: " + ours.getStdOut() + " Theirs: " + theirs.getStdOut());
         assertEquals(ours.getStdOut(), theirs.getStdOut());
     }
 
