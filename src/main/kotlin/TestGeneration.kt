@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets
 import java.util.*
 import kotlin.math.min
 import java.lang.Character.UnicodeBlock.*
+import java.lang.reflect.Array as ReflectArray
 
 class TestGenerator(
     val referenceClass: Class<*>,
@@ -286,10 +287,17 @@ private class GeneratorMapBuilder(goalTypes: Collection<Class<*>>, private val r
             request(clazz.componentType)
             knownGenerators[clazz] =
                 lazy {
-                    DefaultArrayGen(
-                        knownGenerators[clazz.componentType]?.value
-                            ?: throw lazyArrayError(clazz)
-                    )
+                    try {
+                        return@lazy DefaultArrayGen(
+                            knownGenerators[clazz.componentType]?.value
+                                ?: throw lazyArrayError(clazz)
+                        )
+                    } catch (e: ArrayGenConstructionFailed) {
+                        throw AnswerableMisuseException("""
+                            Failed to generate a non-nullable instance of component type `${clazz.componentType.canonicalName}'.
+                            While trying to create a default array generator for type `${clazz.canonicalName}'.
+                        """.trimIndent())
+                    }
                 }
         }
     }
@@ -318,7 +326,7 @@ val defaultArgs = TestRunnerArgs()
 internal class GenWrapper<T>(val gen: Gen<T>, private val random: Random) {
     operator fun invoke(complexity: Int) = gen.generate(complexity, random)
 
-    fun generate(complexity: Int) = gen.generate(complexity, random)
+    fun generate(complexity: Int): T = gen.generate(complexity, random)
 }
 
 // So named as to avoid conflict with the @Generator annotation, as that class name is part of the public API and this one is not.
@@ -426,20 +434,34 @@ internal val defaultBooleanGen = object : Gen<Boolean> {
     override fun generate(complexity: Int, random: Random): Boolean = (complexity % 2 != 0)
 }
 
-// We can't reify `T`, so we have to inherit from Gen<Array<*>>.
-// When using the array generators, we have to be very careful to match the types ourselves.
+class ArrayGenConstructionFailed : Exception()
 internal class DefaultArrayGen<T>(private val tGen: Gen<T>) : Gen<Array<T>> {
-    override fun generate(complexity: Int, random: Random): Array<T> {
-        fun genArray(complexity: Int, length: Int): Array<*> =
-            if (length <= 0) {
-                arrayOf<Any?>()
-            } else {
-                arrayOf(tGen(random.nextInt(complexity + 1), random), *genArray(complexity, length - 1))
+    val tClass = run {
+        var comp = 0
+        var nonNullableT: T
+        do {
+            nonNullableT = tGen(comp, Random())
+            if (comp++ > 100) {
+                throw ArrayGenConstructionFailed()
             }
+        } while (nonNullableT == null)
 
-        return genArray(complexity, random.nextInt(complexity + 1)) as Array<T>
+        (nonNullableT as Any)::class.java as Class<T>
     }
 
+    override fun generate(complexity: Int, random: Random): Array<T> {
+        fun genList(complexity: Int, length: Int): List<T> =
+            if (length <= 0) {
+                listOf()
+            } else {
+                listOf(tGen(random.nextInt(complexity + 1), random)) + genList(complexity, length - 1)
+            }
+
+        val vals = genList(complexity, random.nextInt(complexity + 1))
+        return ReflectArray.newInstance(tClass, vals.size).also {
+            vals.forEachIndexed { idx, value -> ReflectArray.set(it, idx, value) }
+        } as Array<T>
+    }
 }
 
 /**
