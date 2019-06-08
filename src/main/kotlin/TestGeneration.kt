@@ -12,26 +12,26 @@ import java.util.*
 import kotlin.math.min
 import java.lang.Character.UnicodeBlock.*
 
-internal class TestGenerator(
+class TestGenerator(
     val referenceClass: Class<*>,
-    tag: String = "",
+    name: String = "",
     private val testRunnerArgs: TestRunnerArgs = defaultArgs
 ) {
-    val referenceMethod: Method = referenceClass.getReferenceSolutionMethod(tag)
-    val enabledGeneratorAndNextNames: Array<String> =
+    internal val referenceMethod: Method = referenceClass.getReferenceSolutionMethod(name)
+    internal val enabledGeneratorAndNextNames: Array<String> =
         referenceMethod.getAnnotation(Solution::class.java).generators
 
-    val customVerifier: Method? = referenceClass.getCustomVerifier(tag)
-    val atNextMethod: Method? = referenceClass.getAtNext(enabledGeneratorAndNextNames)
+    internal val customVerifier: Method? = referenceClass.getCustomVerifier(name)
+    internal val atNextMethod: Method? = referenceClass.getAtNext(enabledGeneratorAndNextNames)
 
-    val isStatic = Modifier.isStatic(referenceMethod.modifiers)
-    val paramTypes: Array<Class<*>> = referenceMethod.parameterTypes
+    internal val isStatic = Modifier.isStatic(referenceMethod.modifiers)
+    internal val paramTypes: Array<Class<*>> = referenceMethod.parameterTypes
 
-    val random: Random = Random(0)
-    val generators: Map<Class<*>, GenWrapper<*>> = buildGeneratorMap(random)
+    internal val random: Random = Random(0)
+    internal val generators: Map<Class<*>, GenWrapper<*>> = buildGeneratorMap(random)
 
     internal enum class ReceiverGenStrategy { GENERATOR, NEXT, NONE }
-    val receiverGenStrategy: ReceiverGenStrategy = when {
+    internal val receiverGenStrategy: ReceiverGenStrategy = when {
         atNextMethod != null              -> NEXT
         referenceClass in generators.keys -> GENERATOR
         isStatic                          -> NONE
@@ -72,11 +72,12 @@ internal class TestGenerator(
     }
 
     internal fun verify() {
-        val dryRunOutput = loadSubmission(referenceClass).runTests(0x0403)
+        verifyMemberAccess(referenceClass)
 
+        val dryRunOutput = loadSubmission(referenceClass).runTests(0x0403)
         dryRunOutput.forEach {
             if (!it.succeeded) {
-                throw AnswerableVerificationException("Testing reference against itself failed on inputs ${Arrays.deepToString(it.refOutput.args)}")
+                throw AnswerableVerificationException("Testing reference against itself failed on inputs: ${Arrays.deepToString(it.refOutput.args)}")
             }
         }
     }
@@ -314,7 +315,7 @@ private class GeneratorMapBuilder(goalTypes: Collection<Class<*>>, private val r
 }
 
 data class TestRunnerArgs(val numTests: Int = 1000)
-private val defaultArgs = TestRunnerArgs()
+val defaultArgs = TestRunnerArgs()
 
 internal class GenWrapper<T>(val gen: Gen<T>, private val random: Random) {
     operator fun invoke(complexity: Int) = gen.generate(complexity, random)
@@ -460,7 +461,9 @@ data class TestOutput<T>(
     val stdOut: String?,
     /** The log of stdErr during the method invocation. Only non-null if the method is static and void. */
     val stdErr: String?
-) {
+) : DefaultSerializable {
+    override fun toJson() = defaultToJson()
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -490,31 +493,6 @@ data class TestOutput<T>(
 
 enum class Behavior { RETURNED, THREW }
 
-fun <T> TestOutput<T>.toJson(): String {
-    val specific = when (this.typeOfBehavior) {
-        Behavior.RETURNED -> "  returned: \"$output\""
-        Behavior.THREW -> "  threw: \"$threw\""
-    }
-
-    val stdOutputs = when (this.stdOut) {
-        null -> ""
-        else -> """
-            |,
-            |  stdOut: "$stdOut",
-            |  stdErr: "$stdErr"
-        """.trimMargin()
-    }
-
-    return """
-        |{
-        |  resultType: "$typeOfBehavior",
-        |  receiver: "$receiver",
-        |  args: ${args.joinToString(prefix = "[", postfix = "]", transform = ::fixArrayToString)},
-        |$specific$stdOutputs
-        |}
-    """.trimMargin()
-}
-
 data class TestStep(
     val testNumber: Int,
     val refReceiver: Any?,
@@ -523,27 +501,6 @@ data class TestStep(
     val refOutput: TestOutput<Any?>,
     val subOutput: TestOutput<Any?>,
     val assertErr: Throwable?
-)
-
-
-@Suppress("IMPLICIT_CAST_TO_ANY")
-fun TestStep.toJson(): String =
-    """
-        |{
-        |  testNumber: $testNumber,
-        |  refReceiver: $refReceiver,
-        |  subReceiver: $subReceiver,
-        |  succeeded: $succeeded,
-        |  refOutput: ${refOutput.toJson()},
-        |  subOutput: ${subOutput.toJson()},
-        |  assertErr: $assertErr
-        |}
-    """.trimMargin()
-
-fun List<TestStep>.toJson(): String =
-    this.joinToString(prefix = "[", postfix = "]", transform = TestStep::toJson)
-
-fun fixArrayToString(thing: Any?): String = when (thing) {
-    is Array<*> -> Arrays.deepToString(thing)
-    else -> thing.toString()
+) : DefaultSerializable {
+    override fun toJson() = defaultToJson()
 }

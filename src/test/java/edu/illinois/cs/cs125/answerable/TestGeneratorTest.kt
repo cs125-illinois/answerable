@@ -1,7 +1,5 @@
 package edu.illinois.cs.cs125.answerable
 
-import examples.testgeneration.generators.defaults.MultiDemensionalPrimitiveArrays
-import examples.testgeneration.generators.defaults.reference.MultiDimensionalPrimitiveArrays
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -16,7 +14,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testDefaultNestedPrimitiveArrayGeneration() {
-        val tg = TestGenerator(MultiDimensionalPrimitiveArrays::class.java)
+        val tg = TestGenerator(examples.testgeneration.generators.defaults.reference.MultiDimensionalPrimitiveArrays::class.java)
 
         assertTrue(Array<IntArray>::class.java in tg.generators.keys, "Generators does not contain key `Array<Array<Int>>'.")
 
@@ -51,5 +49,14 @@ internal class TestGeneratorTest {
         ) }.message!!
 
         assertEquals("\nA generator for an array with component type `java.lang.StringBuilder' was requested, but no generator for that type was found.", errMsg)
+    }
+
+    @Test
+    fun testVerifyFailsAgainstSelf() {
+        val errMsg = assertThrows<AnswerableVerificationException> { TestGenerator(
+            examples.verify.FailsAgainstSelf::class.java
+        ) }.message!!
+
+        assertEquals("\nTesting reference against itself failed on inputs: []", errMsg)
     }
 }

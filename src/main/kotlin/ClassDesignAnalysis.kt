@@ -3,7 +3,6 @@ package edu.illinois.cs.cs125.answerable
 import java.lang.IllegalStateException
 import java.lang.reflect.*
 import java.util.*
-import kotlin.math.exp
 
 class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: Class<*>) {
     fun runSuite(
@@ -134,55 +133,18 @@ enum class AnalysisTag {
 
     override fun toString(): String = name.toLowerCase().replace('_', ' ')
 }
-class AnalysisOutput(val tag: AnalysisTag, val result: AnalysisResult<*>) {
+class AnalysisOutput(val tag: AnalysisTag, val result: AnalysisResult<*>) : DefaultSerializable {
     override fun toString() = this.toErrorMsg() // see ClassDesignErrors.kt
+    override fun toJson() = this.defaultToJson()
 }
-
-fun AnalysisOutput.toJson() = """
-    |{
-    |  tag: "$tag",
-    |  matched: ${if (result is Matched) "true" else "false"},
-    |  result: ${result.toJson()}
-    |}
-""".trimMargin()
 
 fun List<AnalysisOutput>.toJson() = this.joinToString(prefix = "[", postfix = "]") { it.toJson() }
 
-sealed class AnalysisResult<out T>
+sealed class AnalysisResult<out T> : DefaultSerializable {
+    override fun toJson() = this.defaultToJson()
+}
     data class Matched<T>(val found: T) : AnalysisResult<T>()
     data class Mismatched<T>(val expected: T, val found: T) : AnalysisResult<T>()
-
-fun <T> AnalysisResult<T>.toJson() = when (this) {
-    is Matched -> """
-        |{
-        |  matched: true,
-        |  found: ${found.showExpectedOrFound()}
-        | }
-    """.trimMargin()
-    is Mismatched -> """
-        |{
-        |  matched: false,
-        |  expected: ${expected.showExpectedOrFound()}
-        |  found: ${found.showExpectedOrFound()}
-        |}
-    """.trimMargin()
-}
-
-private fun <T> T.showExpectedOrFound() = when (this) {
-    is String -> "\"$this\""
-    is List<*> -> this.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
-    is Pair<*, *> -> {
-        this as Pair<*, Array<*>>
-
-        """
-                    |{
-                    |  superclass: "${this.first}"
-                    |  interfaces: ${this.second.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }}
-                    |}
-                """.trimMargin()
-    }
-    else -> throw IllegalStateException("An analysis result contained an impossible type. Please report a bug.")
-}
 
 class MethodData(
     val method: Executable

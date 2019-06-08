@@ -9,6 +9,8 @@ class EndToEndTests {
     @Test
     fun testLastTenCorrect() {
         main(arrayOf("LastTen", "examples.lastten.correct."))
+
+
     }
 
     @Test

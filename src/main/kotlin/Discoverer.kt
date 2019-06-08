@@ -4,15 +4,13 @@ import java.lang.IllegalStateException
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
-import java.lang.reflect.Type
-import java.util.*
 
-fun getSolutionClass(name: String): Class<*> = findClass(
+internal fun getSolutionClass(name: String): Class<*> = findClass(
     name,
     "Couldn't find reference solution."
 )
 
-fun getAttemptClass(name: String): Class<*> = findClass(
+internal fun getAttemptClass(name: String): Class<*> = findClass(
     name,
     "Couldn't find student attempt class named $name."
 )
@@ -27,17 +25,17 @@ private fun findClass(name: String, failMsg: String): Class<*> {
     return solutionClass
 }
 
-fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method {
-    val methods =
+internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method {
+    val methods = this.declaredMethods.let {
             this.declaredMethods
-                .filter { it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false }
+                .filter { it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false } }
 
     if (methods.size != 1) throw IllegalStateException("Can't find singular solution method with tag `$name'.")
     val solution = methods[0]
     return solution.also { it.isAccessible = true }
 }
 
-fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
+internal fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
     val matchName: String = matchTo.name
     val matchRType: String = matchTo.genericReturnType.simpleName()
     val matchPTypes: List<String> = matchTo.genericParameterTypes.map { it.simpleName() }
@@ -65,12 +63,12 @@ fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
     return methods[0].also { it.isAccessible = true }
 }
 
-fun Class<*>.getPublicFields(): List<Field> =
+internal fun Class<*>.getPublicFields(): List<Field> =
     this.declaredFields.filter { Modifier.isPublic(it.modifiers) }
 
-val ignoredAnnotations = setOf(Next::class, Generator::class, Verify::class, Helper::class, Ignore::class)
+internal val ignoredAnnotations = setOf(Next::class, Generator::class, Verify::class, Helper::class, Ignore::class)
 
-fun Class<*>.getPublicMethods(isReference: Boolean): List<Method> {
+internal fun Class<*>.getPublicMethods(isReference: Boolean): List<Method> {
     val allPublicMethods = this.declaredMethods.filter { Modifier.isPublic(it.modifiers) }
 
     if (isReference) {
@@ -82,12 +80,12 @@ fun Class<*>.getPublicMethods(isReference: Boolean): List<Method> {
     return allPublicMethods
 }
 
-fun Class<*>.getAllGenerators(): List<Method> =
+internal fun Class<*>.getAllGenerators(): List<Method> =
         this.declaredMethods
             .filter { method -> method.isAnnotationPresent(Generator::class.java) }
             .map { it.isAccessible = true; it }
 
-fun Class<*>.getEnabledGenerators(enabledNames: Array<String>): List<Method> =
+internal fun Class<*>.getEnabledGenerators(enabledNames: Array<String>): List<Method> =
         this.declaredMethods
             .filter { it.isAnnotationPresent(Generator::class.java) }
             .groupBy { it.returnType }
@@ -107,7 +105,7 @@ fun Class<*>.getEnabledGenerators(enabledNames: Array<String>): List<Method> =
             }}
             .map { it.isAccessible = true; it }
 
-fun Class<*>.getDefaultAtNext(): Method? =
+internal fun Class<*>.getDefaultAtNext(): Method? =
         this.declaredMethods
             .filter { it.getAnnotation(Next::class.java)?.name?.equals("") ?: false }
             .let { unnamedNexts -> when (unnamedNexts.size) {
@@ -116,7 +114,7 @@ fun Class<*>.getDefaultAtNext(): Method? =
                 else -> throw AnswerableMisuseException("Failed to resolve @Next conflict:\nFound multiple unnamed @Next annotations.")
             }}
 
-fun Class<*>.getAtNext(enabledNames: Array<String>): Method? =
+internal fun Class<*>.getAtNext(enabledNames: Array<String>): Method? =
         this.declaredMethods
             .filter { it.getAnnotation(Next::class.java)?.name?.let { name -> enabledNames.contains(name) } ?: false }
             .let { atNexts -> when (atNexts.size) {
@@ -126,7 +124,7 @@ fun Class<*>.getAtNext(enabledNames: Array<String>): Method? =
             }}
             ?: this.getDefaultAtNext()
 
-fun Class<*>.getCustomVerifier(name: String): Method? =
+internal fun Class<*>.getCustomVerifier(name: String): Method? =
         this.declaredMethods
             .filter { it.getAnnotation(Verify::class.java)?.name?.equals(name) ?: false }
             .let { verifiers -> when(verifiers.size) {
@@ -135,4 +133,4 @@ fun Class<*>.getCustomVerifier(name: String): Method? =
                 else -> throw AnswerableMisuseException("Found multiple @Verify annotations with name `$name'.")
             }}
 
-fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
+internal fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
