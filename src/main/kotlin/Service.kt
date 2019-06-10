@@ -17,8 +17,10 @@ class Answerable {
             testgen = TestGenerator(referenceClass, solutionName, testRunnerArgs)
         } catch (ame: AnswerableMisuseException) {
             throw AnswerableMisuseException("${ame.message?.trim()}\nWhile trying to load new question: $questionName.")
+                .initCause(ame)
         } catch (ave: AnswerableVerificationException) {
             throw AnswerableVerificationException("${ave.message?.trim()}\nWhile trying to load new question: $questionName.")
+                .initCause(ave)
         }
 
         existingQuestions[questionName] = testgen
@@ -57,7 +59,7 @@ class Answerable {
         submissionClass: Class<*>,
         testRunnerArgs: TestRunnerArgs = defaultArgs,
         seed: Long = Random().nextLong()
-    ): List<TestStep> = submit(questionName, submissionClass, testRunnerArgs).runTests(seed)
+    ): TestRunOutput = submit(questionName, submissionClass, testRunnerArgs).runTests(seed)
     fun submitAndTest(
         questionName: String,
         submissionClass: Class<*>,

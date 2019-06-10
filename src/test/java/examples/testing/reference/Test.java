@@ -11,15 +11,15 @@ public class Test {
 
     private static int test = 0;
 
-    @Solution(prints = true)
-    public static boolean test(String[][] is) {
-        System.out.println(test++);
-        return true;
+    @Solution
+    public static int test(List<Integer> ss) {
+        return test++;
     }
 
     @Verify
     public static void verify(TestOutput<Test> ours, TestOutput<Test> theirs) {
-        assertEquals(ours.getStdOut(), theirs.getStdOut());
+        assertEquals(ours.getTypeOfBehavior(), Behavior.RETURNED);
+        assertEquals(ours.getOutput(), theirs.getOutput());
     }
 
     @Generator
@@ -32,7 +32,7 @@ public class Test {
         return List.of(r.nextInt());
     }
 
-    //@Generator
+    @Generator
     public static List<Character> genInt2(int complexity, Random r) {
         return List.of('a');
     }

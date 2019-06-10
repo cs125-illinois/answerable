@@ -5,8 +5,8 @@ import org.junit.jupiter.api.Test
 
 internal class ProxyingTest {
 
-    fun assertAllSucceeded(results: Collection<TestStep>) {
-        results.forEach {
+    fun assertAllSucceeded(results: TestRunOutput) {
+        results.testSteps.forEach {
             Assertions.assertNull(it.assertErr)
             Assertions.assertTrue(it.succeeded)
         }

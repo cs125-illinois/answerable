@@ -1,9 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
 import java.lang.IllegalStateException
-import java.lang.reflect.Field
-import java.lang.reflect.Method
-import java.lang.reflect.Modifier
+import java.lang.reflect.*
 
 internal fun getSolutionClass(name: String): Class<*> = findClass(
     name,
@@ -35,6 +33,9 @@ internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method {
     return solution.also { it.isAccessible = true }
 }
 
+internal fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
+
+// TODO: update to use some sort of "simpleSourceName"
 internal fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
     val matchName: String = matchTo.name
     val matchRType: String = matchTo.genericReturnType.simpleName()
@@ -88,7 +89,7 @@ internal fun Class<*>.getAllGenerators(): List<Method> =
 internal fun Class<*>.getEnabledGenerators(enabledNames: Array<String>): List<Method> =
         this.declaredMethods
             .filter { it.isAnnotationPresent(Generator::class.java) }
-            .groupBy { it.returnType }
+            .groupBy { it.genericReturnType }
             .flatMap { entry -> when (entry.value.size) {
                 1 -> entry.value
                 else -> {
@@ -97,13 +98,36 @@ internal fun Class<*>.getEnabledGenerators(enabledNames: Array<String>): List<Me
                         .let { enabledGenerators ->
                             when (enabledGenerators.size) {
                                 1 -> enabledGenerators
-                                else ->
-                                    throw AnswerableMisuseException("Failed to resolve @Generator conflict:\nMultiple enabled generators found for type `${entry.key.canonicalName}'.")
+                                else -> {
+                                    val name = entry.key.sourceName()
+                                    throw AnswerableMisuseException(
+                                        "Failed to resolve @Generator conflict:\n" +
+                                                "Multiple enabled generators found for type `$name'."
+                                    )
+                                }
                             }
                         }
                 }
             }}
             .map { it.isAccessible = true; it }
+
+internal fun Type.sourceName(): String = when (this) {
+    is Class<*> -> this.canonicalName
+    is GenericArrayType -> "${this.genericComponentType.sourceName()}[]"
+    is ParameterizedType ->
+        "${this.rawType.sourceName()}${this.actualTypeArguments.let {
+            if (it.isEmpty()) "" else it.joinToString(prefix = "<", postfix = ">", transform = Type::sourceName)
+        }}"
+    is WildcardType -> {
+        when {
+            this.lowerBounds.isNotEmpty() -> "? super ${lowerBounds[0].sourceName()}"
+            this.upperBounds.isNotEmpty() ->
+                "? extends ${upperBounds.joinToString(separator = " & ", transform = Type::sourceName)}"
+            else -> "?"
+        }
+    }
+    else -> this.toString()
+}
 
 internal fun Class<*>.getDefaultAtNext(): Method? =
         this.declaredMethods
@@ -133,4 +157,4 @@ internal fun Class<*>.getCustomVerifier(name: String): Method? =
                 else -> throw AnswerableMisuseException("Found multiple @Verify annotations with name `$name'.")
             }}
 
-internal fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
+internal fun Class<*>.getEnabledCornerCases() { }

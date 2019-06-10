@@ -1,35 +1,33 @@
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.TestGenerator.ReceiverGenStrategy.*
-import java.lang.reflect.Method
-import java.lang.reflect.Modifier
 import org.junit.jupiter.api.Assertions.*
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
-import java.lang.reflect.InvocationTargetException
 import java.nio.charset.StandardCharsets
 import java.util.*
 import kotlin.math.min
 import java.lang.Character.UnicodeBlock.*
+import java.lang.reflect.*
 import java.lang.reflect.Array as ReflectArray
 
 class TestGenerator(
     val referenceClass: Class<*>,
-    name: String = "",
+    val solutionName: String = "",
     private val testRunnerArgs: TestRunnerArgs = defaultArgs
 ) {
-    internal val referenceMethod: Method = referenceClass.getReferenceSolutionMethod(name)
+    internal val referenceMethod: Method = referenceClass.getReferenceSolutionMethod(solutionName)
     internal val enabledGeneratorAndNextNames: Array<String> =
         referenceMethod.getAnnotation(Solution::class.java).generators
 
-    internal val customVerifier: Method? = referenceClass.getCustomVerifier(name)
+    internal val customVerifier: Method? = referenceClass.getCustomVerifier(solutionName)
     internal val atNextMethod: Method? = referenceClass.getAtNext(enabledGeneratorAndNextNames)
 
     internal val isStatic = Modifier.isStatic(referenceMethod.modifiers)
-    internal val paramTypes: Array<Class<*>> = referenceMethod.parameterTypes
+    internal val paramTypes: Array<Type> = referenceMethod.genericParameterTypes
 
     internal val random: Random = Random(0)
-    internal val generators: Map<Class<*>, GenWrapper<*>> = buildGeneratorMap(random)
+    internal val generators: Map<Type, GenWrapper<*>> = buildGeneratorMap(random)
 
     internal enum class ReceiverGenStrategy { GENERATOR, NEXT, NONE }
     internal val receiverGenStrategy: ReceiverGenStrategy = when {
@@ -43,7 +41,7 @@ class TestGenerator(
         verify()
     }
 
-    internal fun buildGeneratorMap(random: Random, submittedClassGenerator: Method? = null): Map<Class<*>, GenWrapper<*>> {
+    internal fun buildGeneratorMap(random: Random, submittedClassGenerator: Method? = null): Map<Type, GenWrapper<*>> {
         val types = paramTypes.toSet().let {
             if (!isStatic && atNextMethod == null) {
                 it + referenceClass
@@ -54,15 +52,15 @@ class TestGenerator(
 
         val userGens = referenceClass.getEnabledGenerators(enabledGeneratorAndNextNames).map {
             return@map if (it.returnType == referenceClass && submittedClassGenerator != null) {
-                Pair(it.returnType, CustomGen(submittedClassGenerator))
+                Pair(it.genericReturnType, CustomGen(submittedClassGenerator))
             } else {
-                Pair(it.returnType, CustomGen(it))
+                Pair(it.genericReturnType, CustomGen(it))
             }
         }
 
         userGens.groupBy { it.first }.forEach { gensForType ->
             if (gensForType.value.size > 1) throw AnswerableMisuseException(
-                "Found multiple enabled generators for type `${gensForType.key.canonicalName}'."
+                "Found multiple enabled generators for type `${gensForType.key.sourceName()}'."
             )
         }
 
@@ -74,8 +72,9 @@ class TestGenerator(
     internal fun verify() {
         verifyMemberAccess(referenceClass)
 
+        // TODO: This dry run should probably have a timeout for safety?
         val dryRunOutput = loadSubmission(referenceClass).runTests(0x0403)
-        dryRunOutput.forEach {
+        dryRunOutput.testSteps.forEach {
             if (!it.succeeded) {
                 throw AnswerableVerificationException("Testing reference against itself failed on inputs: ${Arrays.deepToString(it.refOutput.args)}")
             }
@@ -98,6 +97,8 @@ class TestRunner internal constructor(
     constructor(
         referenceClass: Class<*>, submissionClass: Class<*>, testRunnerArgs: TestRunnerArgs = defaultArgs
     ) : this(TestGenerator(referenceClass), submissionClass, testRunnerArgs)
+
+    private val solutionName = testGenerator.solutionName
 
     private val referenceClass = testGenerator.referenceClass
     private val referenceMethod = testGenerator.referenceMethod
@@ -238,7 +239,9 @@ class TestRunner internal constructor(
         )
     }
 
-    fun runTests(seed: Long): List<TestStep> {
+    fun runTests(seed: Long): TestRunOutput {
+        val startTime: Long = System.currentTimeMillis()
+
         setOf(randomForReference, randomForSubmission).forEach { it.setSeed(seed) }
 
         val testStepList: MutableList<TestStep> = mutableListOf()
@@ -252,50 +255,72 @@ class TestRunner internal constructor(
             testStepList.add(result)
         }
 
-        return testStepList
+        val endTime: Long = System.currentTimeMillis()
+
+        return TestRunOutput(
+            seed = seed,
+            testedClass = referenceClass,
+            solutionName = solutionName,
+            startTime = startTime,
+            endTime = endTime,
+            testSteps = testStepList
+        )
     }
 }
 
-private class GeneratorMapBuilder(goalTypes: Collection<Class<*>>, private val random: Random) {
-    private var knownGenerators: MutableMap<Class<*>, Lazy<Gen<*>>> = mutableMapOf()
+private class GeneratorMapBuilder(goalTypes: Collection<Type>, private val random: Random) {
+    private var knownGenerators: MutableMap<Type, Lazy<Gen<*>>> = mutableMapOf()
     init {
         defaultGenerators.forEach(this::accept)
         knownGenerators[String::class.java] = lazy { DefaultStringGen(knownGenerators[Char::class.java]!!.value) }
     }
 
-    private val requiredGenerators: Set<Class<*>> = goalTypes.toSet().also { it.forEach(this::request) }
+    private val requiredGenerators: Set<Type> = goalTypes.toSet().also { it.forEach(this::request) }
 
-    private fun lazyGenError(clazz: Class<*>) = AnswerableMisuseException(
-        "A generator for type `${clazz.canonicalName}' was requested, but no generator for that type was found."
+    private fun lazyGenError(type: Type) = AnswerableMisuseException(
+        "A generator for type `$type' was requested, but no generator for that type was found."
     )
 
-    private fun lazyArrayError(clazz: Class<*>) = AnswerableMisuseException(
-        "A generator for an array with component type `${clazz.componentType.canonicalName}' was requested, but no generator for that type was found."
+    private fun lazyArrayError(type: Type) = AnswerableMisuseException(
+        "A generator for an array with component type `${type.sourceName()}' was requested, but no generator for that type was found."
     )
 
-    fun accept(pair: Pair<Class<*>, Gen<*>?>) = accept(pair.first, pair.second)
+    fun accept(pair: Pair<Type, Gen<*>?>) = accept(pair.first, pair.second)
 
-    fun accept(clazz: Class<*>, gen: Gen<*>?) {
+    fun accept(type: Type, gen: Gen<*>?) {
         if (gen != null) {
             // kotlin fails to smart cast here even though it says the cast isn't needed
-            knownGenerators[clazz] = lazy { gen as Gen<*> }
+            knownGenerators[type] = lazy { gen as Gen<*> }
         }
     }
 
-    private fun request(clazz: Class<*>) {
-        if (clazz.isArray) {
-            request(clazz.componentType)
-            knownGenerators[clazz] =
-                lazy {
-                    DefaultArrayGen(
-                        knownGenerators[clazz.componentType]?.value ?: throw lazyArrayError(clazz),
-                        clazz.componentType
-                    )
+    private fun request(type: Type) {
+        when (type) {
+            is Class<*> -> if (type.isArray) {
+                request(type.componentType)
+                knownGenerators[type] =
+                    lazy {
+                        DefaultArrayGen(
+                            knownGenerators[type.componentType]?.value ?: throw lazyArrayError(type.componentType),
+                            type.componentType
+                        )
+                    }
                 }
+            // TODO: Support generic arrays with a default generator if possible. It may not be possible.
+            /*is GenericArrayType -> {
+                request(type.genericComponentType)
+                knownGenerators[type] =
+                    lazy {
+                        DefaultArrayGen(
+                            knownGenerators[type.genericComponentType]?.value ?: throw lazyArrayError(type.genericComponentType),
+                            type.genericComponentType
+                        )
+                    }
+            }*/
         }
     }
 
-    fun build(): Map<Class<*>, GenWrapper<*>> = mapOf(*requiredGenerators.map {
+    fun build(): Map<Type, GenWrapper<*>> = mapOf(*requiredGenerators.map {
             it to (GenWrapper(knownGenerators[it]?.value ?: throw lazyGenError(it), random))
         }.toTypedArray())
 
@@ -424,7 +449,7 @@ internal class DefaultStringGen(private val cGen: Gen<*>) : Gen<String> {
 }
 
 internal val defaultBooleanGen = object : Gen<Boolean> {
-    override fun generate(complexity: Int, random: Random): Boolean = (complexity % 2 != 0)
+    override fun generate(complexity: Int, random: Random): Boolean = random.nextInt(2) == 0
 }
 
 internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: Class<*>) : Gen<Array<T>> {
@@ -441,6 +466,18 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: 
         return ReflectArray.newInstance(tClass, vals.size).also {
             vals.forEachIndexed { idx, value -> ReflectArray.set(it, idx, value) }
         } as Array<T>
+    }
+}
+
+internal class DefaultListGen<T>(private val tGen: Gen<T>) : Gen<List<T>> {
+    override fun generate(complexity: Int, random: Random): List<T> {
+        fun genList(complexity: Int, length: Int): List<T> =
+            if (length <= 0) {
+                listOf()
+            } else {
+                listOf(tGen(random.nextInt(complexity + 1), random)) + genList(complexity, length - 1)
+            }
+        return genList(complexity, random.nextInt(complexity + 1))
     }
 }
 
@@ -501,6 +538,17 @@ data class TestStep(
     val refOutput: TestOutput<Any?>,
     val subOutput: TestOutput<Any?>,
     val assertErr: Throwable?
+) : DefaultSerializable {
+    override fun toJson() = defaultToJson()
+}
+
+data class TestRunOutput(
+    val seed: Long,
+    val testedClass: Class<*>,
+    val solutionName: String,
+    val startTime: Long,
+    val endTime: Long,
+    val testSteps: List<TestStep>
 ) : DefaultSerializable {
     override fun toJson() = defaultToJson()
 }

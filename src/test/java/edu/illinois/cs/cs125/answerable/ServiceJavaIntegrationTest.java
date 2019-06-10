@@ -8,11 +8,11 @@ public class ServiceJavaIntegrationTest {
     void testService() {
         Answerable answerable = new Answerable();
 
-        answerable.loadNewQuestion("MyGreatNewQuestion", examples.lastten.correct.reference.LastTen.class);
+        answerable.loadNewQuestion("LastTen", examples.lastten.correct.reference.LastTen.class);
 
-        System.out.println(DefaultFrontend.toJson(
-                answerable.submitAndTest("MyGreatNewQuestion", examples.lastten.correct.LastTen.class)
-        ));
+        System.out.println(answerable
+                .submitAndTest("LastTen", examples.lastten.correct.LastTen.class).toJson()
+        );
     }
 
 }

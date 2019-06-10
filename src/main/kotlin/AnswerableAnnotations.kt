@@ -47,7 +47,8 @@ annotation class Timeout(
  * solution, and once to create a receiver object for the submitted class. Answerable will automatically manage
  * the transformation required to use the method to create instances of the submitted class. Due to this behavior,
  * methods marked with {@Code @Next} <b>must</b> only use the <tt>public</tt> features of the reference class,
- * specifically those which the class design analysis pass will see.
+ * specifically those which the class design analysis pass will see. Answerable tries to verify that your
+ * {@Code @Next} methods are safe and raise <tt>AnswerableVerificationException</tt>s if there is a problem.
  *
  * If your class provides multiple {@Code @Solution} methods which should use different {@Code @Next} methods,
  * then the {@Code @Next} annotations should each have a name parameter and should be explicitly enabled
@@ -75,7 +76,8 @@ annotation class Next(
  * If the generator generates instance of the reference class, Answerable will automatically manage the transformation
  * required to use the method to generate instances of the submitted class. Due to this behavior, methods marked with
  * {@Code @Generator} and whose return type is of the reference class <b>must</b> only use the <tt>public</tt> features
- * of the reference class, specifically those which the class design analysis pass will see.
+ * of the reference class, specifically those which the class design analysis pass will see. Answerable tries to
+ * verify that your generators are safe and raise <tt>AnswerableVerificationException</tt>s if there is a problem.
  *
  * If a generator for the reference class is provided, and an {@Code @Next} method is not provided, then the generator
  * will be used to generate new receiver objects on every iteration of the testing loop.
@@ -96,6 +98,40 @@ annotation class Generator(
 )
 
 /**
+ * Marks a field or function as storing or returning all the 'edge cases' for a type. Answerable provides defaults.
+ * User-provided edge cases will <i>override</i> the defaults; the defaults will be ignored. The cases will be
+ * accessed only once, when testing begins.
+ *
+ * The cases for the type of the reference <b>must</b> be returned from a function, so that Answerable can
+ * manage the transformation required to produce the same cases for the submission class. Due to this behavior,
+ * cases should be created using only public features of the class, specifically those which the class design
+ * analysis pass will see. Answerable tries to verify that these case functions are safe and raise
+ * <tt>AnswerableVerificationException</tt>s if there is a problem.
+ */
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.FIELD)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class EdgeCase(
+    val name: String
+)
+
+/**
+ * Marks a field or function as storing or returning all the 'corner cases' for a type. Answerable provides defaults.
+ * User-provided edge cases will <i>override</i> the defaults; the defaults will be ignored. The cases will be
+ * accessed only once, when testing begins.
+ *
+ * The cases for the type of the reference <b>must</b> be returned from a function, so that Answerable can
+ * manage the transformation required to produce the same cases for the submission class. Due to this behavior,
+ * cases should be created using only public features of the class, specifically those which the class design
+ * analysis pass will see. Answerable tries to verify that these case functions are safe and raise
+ * <tt>AnswerableVerificationException</tt>s if there is a problem.
+ */
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.FIELD)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class SimpleCase(
+    val name: String
+)
+
+/**
  * Marks a method as a custom verifier. The method will be called once per testing loop instead of Answerable's default verifier.
  * The method must be static and take 2 parameters;
  * (1) a <tt>TestOutput<></tt> instance representing the result of calling the reference method, and
@@ -107,7 +143,7 @@ annotation class Generator(
  * The <tt>receiver</tt> field in the <tt>TestOutput</tt> of the submitted method contains an instance of the submitted class
  * which can be used as though it were an instance of the reference class. Due to this behavior, <b>only</b> the <tt>public</tt>
  * members of the reference class should be accessed from this instance, specifically those which the class design
- * analysis pass will see.
+ * analysis pass will see. Answerable <i>does not</i> currently attempt to verify the safety of {@Code @Verify} methods.
  *
  * If verification fails, an {@Code @Verify} method should throw an exception, which will be caught by Answerable and recorded
  * in the testing output. JUnit assertions are satisfactory, but they are not the only option.

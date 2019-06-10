@@ -9,7 +9,7 @@ internal class TestGeneratorTest {
     fun testMutableArguments() {
         val tg = TestRunner(examples.testgeneration.mutablearguments.reference.Array::class.java, examples.testgeneration.mutablearguments.Array::class.java)
         val output = tg.runTests(0x0403)
-        assertTrue(output.all { it.succeeded })
+        assertTrue(output.testSteps.all { it.succeeded })
     }
 
     @Test
@@ -19,7 +19,7 @@ internal class TestGeneratorTest {
         assertTrue(Array<IntArray>::class.java in tg.generators.keys, "Generators does not contain key `Array<Array<Int>>'.")
 
         assertTrue(tg.loadSubmission(examples.testgeneration.generators.defaults.MultiDemensionalPrimitiveArrays::class.java).runTests(0x0403)
-            .all { it.refOutput.threw == null && it.subOutput.threw == null }, "An error was thrown while testing nested primitive array generation")
+            .testSteps.all { it.refOutput.threw == null && it.subOutput.threw == null }, "An error was thrown while testing nested primitive array generation")
     }
 
     @Test

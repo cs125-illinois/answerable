@@ -13,7 +13,7 @@ fun <E : DefaultSerializable> List<E>.toJson(): String =
 
 internal fun <T> TestOutput<T>.defaultToJson(): String {
     val specific = when (this.typeOfBehavior) {
-        Behavior.RETURNED -> "  returned: \"$output\""
+        Behavior.RETURNED -> "  returned: \"${Regex.escape(output.toString())}\""
         Behavior.THREW -> "  threw: \"$threw\""
     }
 
@@ -21,15 +21,15 @@ internal fun <T> TestOutput<T>.defaultToJson(): String {
         null -> ""
         else -> """
             |,
-            |  stdOut: "$stdOut",
-            |  stdErr: "$stdErr"
+            |  stdOut: ${stdOut.jsonStringOrNull()},
+            |  stdErr: ${stdErr.jsonStringOrNull()}"
         """.trimMargin()
     }
 
     return """
         |{
         |  resultType: "$typeOfBehavior",
-        |  receiver: "$receiver",
+        |  receiver: ${receiver.jsonStringOrNull()},
         |  args: ${args.joinToString(prefix = "[", postfix = "]", transform = ::fixArrayToString)},
         |$specific$stdOutputs
         |}
@@ -41,19 +41,34 @@ internal fun TestStep.defaultToJson(): String =
     """
         |{
         |  testNumber: $testNumber,
-        |  refReceiver: $refReceiver,
-        |  subReceiver: $subReceiver,
+        |  refReceiver: ${refReceiver.jsonStringOrNull()},
+        |  subReceiver: ${subReceiver.jsonStringOrNull()},
         |  succeeded: $succeeded,
         |  refOutput: ${refOutput.toJson()},
         |  subOutput: ${subOutput.toJson()},
-        |  assertErr: $assertErr
+        |  assertErr: ${assertErr.jsonStringOrNull()}
         |}
     """.trimMargin()
 
+internal fun Any?.jsonStringOrNull(): String = when (this) {
+    null -> "null"
+    else -> "\"${Regex.escape(this.toString())}\""
+}
 internal fun fixArrayToString(thing: Any?): String = when (thing) {
     is Array<*> -> Arrays.deepToString(thing)
     else -> thing.toString()
 }
+
+internal fun TestRunOutput.defaultToJson(): String =
+    """
+        |{
+        |  seed: $seed,
+        |  testedClass: "${testedClass.canonicalName}",
+        |  solutionName: "$solutionName",
+        |  startTime: $startTime,
+        |  endTime: $endTime,
+        |  testSteps: ${testSteps.toJson()}
+    """.trimMargin()
 
 internal fun <T> AnalysisResult<T>.defaultToJson() = when (this) {
     is Matched -> """
