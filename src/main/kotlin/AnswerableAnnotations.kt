@@ -100,7 +100,7 @@ annotation class Generator(
 /**
  * Marks a field or function as storing or returning all the 'edge cases' for a type. Answerable provides defaults.
  * User-provided edge cases will <i>override</i> the defaults; the defaults will be ignored. The cases will be
- * accessed only once, when testing begins. Cases should be provided in a non-null array.
+ * accessed only once, when testing begins. Cases should be provided in a non-empty array. Null arrays will be ignored.
  *
  * The cases for the type of the reference <b>must</b> be returned from a function, so that Answerable can
  * manage the transformation required to produce the same cases for the submission class. Due to this behavior,
@@ -117,7 +117,7 @@ annotation class EdgeCase(
 /**
  * Marks a field or function as storing or returning all the 'corner cases' for a type. Answerable provides defaults.
  * User-provided edge cases will <i>override</i> the defaults; the defaults will be ignored. The cases will be
- * accessed only once, when testing begins.
+ * accessed only once, when testing begins. Cases should be provided in a non-empty array. Null arrays will be ignored.
  *
  * The cases for the type of the reference <b>must</b> be returned from a function, so that Answerable can
  * manage the transformation required to produce the same cases for the submission class. Due to this behavior,

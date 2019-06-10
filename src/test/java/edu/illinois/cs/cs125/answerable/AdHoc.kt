@@ -10,8 +10,9 @@ internal class AdHoc {
 
         assertThrows<AnswerableVerificationException> {
             answerable.loadNewQuestion("test", examples.testing.reference.Test::class.java)
+
+            answerable.submitAndTest("test", examples.testing.reference.Test::class.java)
         }
 
-        answerable.submitAndTest("test", examples.testing.reference.Test::class.java)
     }
 }

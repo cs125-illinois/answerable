@@ -23,17 +23,19 @@ class TestGenerator(
     private val testRunnerArgs: TestRunnerArgs = defaultArgs
 ) {
     internal val referenceMethod: Method = referenceClass.getReferenceSolutionMethod(solutionName)
-    internal val enabledGeneratorAndNextNames: Array<String> =
+    internal val enabledNames: Array<String> =
         referenceMethod.getAnnotation(Solution::class.java).generators
 
     internal val customVerifier: Method? = referenceClass.getCustomVerifier(solutionName)
-    internal val atNextMethod: Method? = referenceClass.getAtNext(enabledGeneratorAndNextNames)
+    internal val atNextMethod: Method? = referenceClass.getAtNext(enabledNames)
 
     internal val isStatic = Modifier.isStatic(referenceMethod.modifiers)
     internal val paramTypes: Array<Type> = referenceMethod.genericParameterTypes
 
     internal val random: Random = Random(0)
     internal val generators: Map<Type, GenWrapper<*>> = buildGeneratorMap(random)
+    internal val edgeCases: Map<Type, Array<out Any?>?> = getEdgeCases(referenceClass, paramTypes)
+    internal val simpleCases: Map<Type, Array<out Any?>?> = getSimpleCases(referenceClass, paramTypes)
 
     internal enum class ReceiverGenStrategy { GENERATOR, NEXT, NONE }
     internal val receiverGenStrategy: ReceiverGenStrategy = when {
@@ -56,7 +58,7 @@ class TestGenerator(
 
         val generatorMapBuilder = GeneratorMapBuilder(types, random)
 
-        val userGens = referenceClass.getEnabledGenerators(enabledGeneratorAndNextNames).map {
+        val userGens = referenceClass.getEnabledGenerators(enabledNames).map {
             return@map if (it.returnType == referenceClass && submittedClassGenerator != null) {
                 Pair(it.genericReturnType, CustomGen(submittedClassGenerator))
             } else {
@@ -73,6 +75,15 @@ class TestGenerator(
         userGens.forEach(generatorMapBuilder::accept)
 
         return generatorMapBuilder.build()
+    }
+
+    private fun getEdgeCases(clazz: Class<*>, types: Array<Type>): Map<Type, Array<out Any?>?> {
+        val all = clazz.getEnabledEdgeCases(enabledNames)
+        return mapOf(*types.map { it to all[it] }.toTypedArray())
+    }
+    private fun getSimpleCases(clazz: Class<*>, types: Array<Type>): Map<Type, Array<out Any?>?> {
+        val all = clazz.getEnabledSimpleCases(enabledNames)
+        return mapOf(*types.map { it to all[it] }.toTypedArray())
     }
 
     internal fun verify() {
@@ -112,35 +123,54 @@ class TestRunner internal constructor(
     private val submissionMethod = submissionClass.findSolutionAttemptMethod(referenceMethod)
     private val paramTypes = testGenerator.paramTypes
 
+    private val testRunnerRandom = Random(0)
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
     private val mirrorToStudentClass = mkGeneratorMirrorClass(testGenerator.referenceClass, submissionClass)
 
+    private val referenceEdgeCases = testGenerator.edgeCases
+    private val referenceSimpleCases = testGenerator.simpleCases
+    private val submissionEdgeCases: Map<Type, Array<out Any?>?> = referenceEdgeCases
+        // replace reference class cases with mirrored cases
+        .toMutableMap().also {
+            it.replace(
+                referenceClass,
+                mirrorToStudentClass.getEnabledEdgeCases(testGenerator.enabledNames)[mirrorToStudentClass]
+            )
+        }
+    private val submissionSimpleCases: Map<Type, Array<out Any?>?> = referenceSimpleCases
+        // replace reference class cases with mirrored cases
+        .toMutableMap().also {
+            it.replace(
+                referenceClass,
+                mirrorToStudentClass.getEnabledSimpleCases(testGenerator.enabledNames)[mirrorToStudentClass]
+            )
+        }
+
     private val referenceGens = testGenerator.generators
     private val submissionGens = mirrorToStudentClass
-            .getEnabledGenerators(testGenerator.enabledGeneratorAndNextNames)
-            .find { it.returnType == submissionClass }
-            .let { testGenerator.buildGeneratorMap(randomForSubmission, it) }
+        .getEnabledGenerators(testGenerator.enabledNames)
+        .find { it.returnType == submissionClass }
+        .let { testGenerator.buildGeneratorMap(randomForSubmission, it) }
     private val referenceAtNext = testGenerator.atNextMethod
-    private val submissionAtNext = mirrorToStudentClass.getAtNext(testGenerator.enabledGeneratorAndNextNames)
+    private val submissionAtNext = mirrorToStudentClass.getAtNext(testGenerator.enabledNames)
 
     private val receiverGenStrategy = testGenerator.receiverGenStrategy
     private val capturePrint = referenceMethod.getAnnotation(Solution::class.java).prints
     private val isStatic = testGenerator.isStatic
 
-    private fun testWith(iteration: Int, complexity: Int, prevRefReceiver: Any?, prevSubReceiver: Any?): TestStep {
-        val refMethodArgs = paramTypes.map { referenceGens[it]?.generate(complexity) }.toTypedArray()
-        val subMethodArgs = paramTypes.map { submissionGens[it]?.generate(complexity) }.toTypedArray()
+    private fun testWith(
+        iteration: Int,
+        refReceiver: Any?,
+        subReceiver: Any?,
+        refMethodArgs: Array<Any?>,
+        subMethodArgs: Array<Any?>
+    ): TestStep {
 
-        var refReceiver: Any? = null
-        var subReceiver: Any? = null
         var subProxy: Any? = null
 
         if (!isStatic) {
-            refReceiver = mkRefReceiver(iteration, complexity, prevRefReceiver)
-            subReceiver = mkSubReceiver(iteration, complexity, prevSubReceiver)
-
             subProxy = mkProxy(referenceClass, submissionClass, subReceiver!!)
         }
 
@@ -245,18 +275,66 @@ class TestRunner internal constructor(
         )
     }
 
-    fun runTests(seed: Long): TestRunOutput {
-        val startTime: Long = System.currentTimeMillis()
+    fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs = this.testRunnerArgs): TestRunOutput {
+        val numTests = testRunnerArgs.numTests
 
-        setOf(randomForReference, randomForSubmission).forEach { it.setSeed(seed) }
+        val numEdgeCombinations = referenceEdgeCases.map { it.value }.fold(1) { acc, arr -> acc * (arr?.size ?: 1) }
+        val numSimpleCombinations = referenceSimpleCases.map { it.value }.fold(1) { acc, arr -> acc * (arr?.size ?: 1) }
+        val numEdgeCaseTests = if (referenceEdgeCases.values.all { it.isNullOrEmpty() }) 0 else min(
+            testRunnerArgs.maxOnlyEdgeCaseTests,
+            numEdgeCombinations
+        )
+        val edgeExhaustive = numEdgeCombinations <= testRunnerArgs.maxOnlyEdgeCaseTests
+        val numSimpleCaseTests = if (referenceSimpleCases.values.all { it.isNullOrEmpty() }) 0 else min(
+            testRunnerArgs.maxOnlySimpleCaseTests,
+            numSimpleCombinations
+        )
+        val simpleExhaustive = numSimpleCombinations <= testRunnerArgs.maxOnlySimpleCaseTests
+        val numSimpleEdgeMixedTests = testRunnerArgs.numSimpleEdgeMixedTests
+        val numAllGeneratedTests = testRunnerArgs.numAllGeneratedTests
+        val numGeneratedMixedTests = numTests -
+                numAllGeneratedTests -
+                numSimpleEdgeMixedTests -
+                numSimpleCaseTests -
+                numEdgeCaseTests
+
+        val edgeCaseUpperBound = numEdgeCaseTests
+        val simpleCaseUpperBound = numEdgeCaseTests + numSimpleCaseTests
+        val simpleEdgeMixedUpperBound = simpleCaseUpperBound + numSimpleEdgeMixedTests
+        val generatedMixedUpperBound = simpleEdgeMixedUpperBound + numGeneratedMixedTests
+        val allGeneratedUpperBound = generatedMixedUpperBound + numAllGeneratedTests
+
+        setOf(randomForReference, randomForSubmission, testRunnerRandom).forEach { it.setSeed(seed) }
 
         val testStepList: MutableList<TestStep> = mutableListOf()
         var refReceiver: Any? = null
         var subReceiver: Any? = null
-        for (i in 1..1000) {
-            val result = testWith(i, i / 20, refReceiver, subReceiver)
-            refReceiver = result.refReceiver
-            subReceiver = result.subReceiver
+        var iteration: Int = 0
+
+        val startTime: Long = System.currentTimeMillis()
+
+        for (i in 1..edgeCaseUpperBound) {
+            refReceiver = mkRefReceiver(iteration, 0, refReceiver)
+            subReceiver = mkSubReceiver(iteration, 0, subReceiver)
+
+            /* TODO
+             * if we can exhaust, then use numeric indexing and generate given i
+             * (for example, if arg1 in { -1, 0, 1 } and arg2 in { 'a', 'b' }, then
+             *  0 -> {-1, 'a'}, 1 -> {-1, 'b'}, 2 -> {0, 'a'}, ...)
+             *
+             * if we can't exhaust, use numeric indexing from a random index between 0 and numEdgeCombinations
+             */
+
+        }
+
+        for (i in 1..testRunnerArgs.numTests) {
+            refReceiver = mkRefReceiver(iteration, i / 20, refReceiver)
+            subReceiver = mkSubReceiver(iteration, i / 20, subReceiver)
+
+            val refMethodArgs = paramTypes.map { referenceGens[it]?.generate(i / 20) }.toTypedArray()
+            val subMethodArgs = paramTypes.map { submissionGens[it]?.generate(i / 20) }.toTypedArray()
+
+            val result = testWith(iteration, refReceiver, subReceiver, refMethodArgs, subMethodArgs)
 
             testStepList.add(result)
         }
@@ -272,6 +350,9 @@ class TestRunner internal constructor(
             testSteps = testStepList
         )
     }
+
+    fun runTests(seed: Long) = runTests(seed, this.testRunnerArgs) // to expose the overload to Java
+
 }
 
 private class GeneratorMapBuilder(goalTypes: Collection<Type>, private val random: Random) {
@@ -348,7 +429,7 @@ data class TestRunnerArgs(
     val numTests: Int = 1024,
     val maxOnlyEdgeCaseTests: Int = numTests/16,
     val maxOnlySimpleCaseTests: Int = numTests/16,
-    val maxSimpleEdgeMixTests: Int = numTests/16,
+    val numSimpleEdgeMixedTests: Int = numTests/16,
     val numAllGeneratedTests: Int = numTests/2
 )
 val defaultArgs = TestRunnerArgs()
