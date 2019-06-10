@@ -40,7 +40,7 @@ public class InnerClassGeneratorWidget {
         // Intentionally not using lambda syntax to guarantee that an inner class is generated
         final InnerClassGeneratorWidget[] widgetHolder = new InnerClassGeneratorWidget[1];
         lastRunnerHolder = new Runnable[1];
-        lastRunnerHolder[0] = new Runnable() {
+        class LocalRunnable implements Runnable {
             @Override
             public void run() {
                 runnableRuns++;
@@ -49,7 +49,8 @@ public class InnerClassGeneratorWidget {
                 ((Runnable) () -> lastNamedInner.new InnerInner(2).doAgain()).run();
                 System.out.print(", runnable ran (#" + runnableRuns + ")");
             }
-        };
+        }
+        lastRunnerHolder[0] = new LocalRunnable();
         lastRunnerHolder[0].run();
         System.out.println(", outer method ran (#" + runnableRuns + ")");
         NamedInner[] inners = new NamedInner[10];
