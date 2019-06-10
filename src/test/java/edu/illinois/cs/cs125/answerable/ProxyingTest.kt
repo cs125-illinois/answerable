@@ -69,4 +69,10 @@ internal class ProxyingTest {
         assertAllSucceeded(tg.runTests(0x0403))
     }
 
+    @Test
+    fun testFinalInnerClassWidget() {
+        val tg = TestRunner(examples.proxy.reference.FinalRequiredInnerClassWidget::class.java, examples.proxy.FinalRequiredInnerClassWidget::class.java)
+        assertAllSucceeded(tg.runTests(0x0403))
+    }
+
 }
