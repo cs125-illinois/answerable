@@ -35,7 +35,35 @@ private class BytesClassLoader : ClassLoader() {
  */
 private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
 
+/**
+ * Creates a proxy to allow treating an object as an instance of a similarly-shaped class.
+ * @param superClass the class that the object needs to appear as (be an instance of)
+ * @param childClass the original class
+ * @param forward an instance of childClass to which method calls will be forwarded
+ * @return an instance (the proxy) of a subclass of superClass
+ */
 fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
+    return mkProxy(superClass, superClass, childClass, childClass, forward)
+}
+
+private data class TypeMap(
+        val from: Class<*>,
+        val to: Class<*>
+)
+
+private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?): TypeMap? {
+    if (childClass == null) return null
+    if (childClass.enclosingClass == null) return null
+    val innerPath = childClass.name.split('$', limit = 2)[1]
+    val correspondingSuper = "${outermostSuperClass.name}\$$innerPath"
+    try {
+        return TypeMap(to = Class.forName(correspondingSuper), from = childClass)
+    } catch (e: ClassNotFoundException) {
+        return mostDerivedProxyableClass(outermostSuperClass, childClass.superclass)
+    }
+}
+
+private fun mkProxy(superClass: Class<*>, outermostSuperClass: Class<*>, childClass: Class<*>, outermostChildClass: Class<*>, forward: Any): Any {
     if (superClass == childClass) return forward
 
     // if we don't have an instantiator for this proxy class, make a new one
@@ -54,11 +82,15 @@ fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
         childClass.getPublicFields().forEach { it.set(forward, self.javaClass.getField(it.name).get(self)) }
         val result = childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
         childClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(forward)) }
-        if (result != null && result.javaClass.enclosingClass != null && result.javaClass.name.startsWith("${childClass.name}$")) {
-            val superInnerClass = superClass.declaredClasses.first { it.name.split('$', limit = 2)[1] == result.javaClass.name.split('$', limit = 2)[1] }
-            val innerProxy = mkProxy(superInnerClass, result.javaClass, result)
-            result.javaClass.getPublicFields().forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
-            innerProxy
+        if (result != null && result.javaClass.enclosingClass != null && result.javaClass.name.startsWith("${outermostChildClass.name}$")) {
+            val innerMap = mostDerivedProxyableClass(outermostSuperClass, result.javaClass)
+            if (innerMap == null) {
+                result
+            } else {
+                val innerProxy = mkProxy(innerMap.to, outermostSuperClass, innerMap.from, outermostChildClass, result)
+                innerMap.from.getPublicFields().forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
+                innerProxy
+            }
         } else {
             result
         }
