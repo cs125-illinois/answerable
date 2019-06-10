@@ -51,6 +51,12 @@ private data class TypeMap(
         val to: Class<*>
 )
 
+/**
+ * Determines what an inner class should be proxied to, if any.
+ * @param outermostSuperClass the outer class a proxy is being made an instance of
+ * @param childClass an inner class of the real/original class
+ * @return a TypeMap that determines what classes to map fields and method between, or null if no proxy is needed
+ */
 private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?): TypeMap? {
     if (childClass == null) return null
     if (childClass.enclosingClass == null) return null
@@ -101,10 +107,26 @@ private fun mkProxy(superClass: Class<*>, outermostSuperClass: Class<*>, childCl
 
 private fun Class<*>.slashName() = name.replace('.', '/')
 
+/**
+ * Creates a mirror class containing only enough of the reference class to generate submission classes.
+ * @param referenceClass the reference class containing methods to mirror
+ * @param targetClass the class the generator should make instances of
+ * @return a mirror class suitable only for generation
+ */
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
     return mkMirrorClass(referenceClass, referenceClass, targetClass, "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), BytesClassLoader())
 }
 
+/**
+ * Mirrors one class, which may be an inner class. (Recursive helper for mkGeneratorMirrorClass.)
+ * @param baseClass the class to mirror
+ * @param referenceClass the original, outermost reference class
+ * @param targetClass the original, outermost submission class (to generate instances of)
+ * @param mirrorName the desired fully-qualified dot name of the mirror class
+ * @param mirrorsMade the map of names to finished mirrors
+ * @param loader the class loader to load the mirror
+ * @return the mirrored class
+ */
 private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String, mirrorsMade: MutableMap<String, Class<*>>, loader: BytesClassLoader): Class<*> {
     mirrorsMade[mirrorName]?.let { return it }
 
@@ -130,7 +152,7 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
     val atVerifyName = baseClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
     val classGen = ClassGen(Repository.lookupClass(baseClass))
-    Repository.clearCache()
+    Repository.clearCache() // Otherwise future mirrorings will fail
 
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
@@ -233,10 +255,21 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
     return loader.loadBytes(mirrorName, classGen.javaClass.bytes).also { mirrorsMade[mirrorName] = it }
 }
 
+/**
+ * Throws AnswerableBytecodeVerificationException if a mirror of the given generator class would fail with an illegal or absent member access.
+ * @param referenceClass the original, non-mirrored reference class
+ */
 internal fun verifyMemberAccess(referenceClass: Class<*>) {
     verifyMemberAccess(referenceClass, referenceClass, mutableSetOf(), mapOf())
 }
 
+/**
+ * Verifies the given class, which may be an inner class. (Recursive helper for the above overload.)
+ * @param currentClass the class to verify
+ * @param referenceClass the original, outermost reference class
+ * @param checked the collection of classes already verified
+ * @param dangerousAccessors members whose access will cause the given problem
+ */
 private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>, checked: MutableSet<Class<*>>, dangerousAccessors: Map<String, AnswerableBytecodeVerificationException>) {
     if (checked.contains(currentClass)) return
     checked.add(currentClass)
