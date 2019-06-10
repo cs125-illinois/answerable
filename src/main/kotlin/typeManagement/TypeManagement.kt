@@ -1,5 +1,6 @@
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.typeManagement
 
+import edu.illinois.cs.cs125.answerable.*
 import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
 import org.apache.bcel.Const
@@ -117,7 +118,8 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
                         setOf(Helper::class.java, Generator::class.java, Next::class.java).any { annotation -> method.isAnnotationPresent(annotation) }
                     } ?: false) && !memberName.contains('$')
                 } else if (constant is ConstantFieldref) {
-                    shouldReplace = !(referenceClass.declaredFields.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.isAnnotationPresent(Helper::class.java) ?: false)
+                    shouldReplace = !(referenceClass.declaredFields.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.isAnnotationPresent(
+                        Helper::class.java) ?: false)
                 }
                 constant.classIndex = if (shouldReplace) newClassIdx else refMirrorClassIdx
             } else if (className.startsWith("${referenceClass.canonicalName}$")) {

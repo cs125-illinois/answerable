@@ -36,7 +36,7 @@ internal class ServiceTests {
             )
         }.message!!
 
-        assertEquals("Testing reference against itself failed on inputs: []\n" +
+        assertEquals("\nTesting reference against itself failed on inputs: []\n" +
                 "While trying to load new question: ImpossibleToPass.", errMsg)
     }
 
@@ -49,7 +49,7 @@ internal class ServiceTests {
             )
         }.message!!
 
-        assertEquals("Mirrorable method `generate' in `BadFieldAccessWidget' uses non-public submission field: numSprings\n" +
+        assertEquals("\nMirrorable method `generate' in `BadFieldAccessWidget' uses non-public submission field: numSprings\n" +
                 "While trying to load new question: BadFieldAccessWidget.", errMsg)
     }
 }

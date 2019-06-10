@@ -1,6 +1,12 @@
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.TestGenerator.ReceiverGenStrategy.*
+import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
+import edu.illinois.cs.cs125.answerable.api.defaultToJson
+import edu.illinois.cs.cs125.answerable.typeManagement.*
+import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
+import edu.illinois.cs.cs125.answerable.typeManagement.mkProxy
+import edu.illinois.cs.cs125.answerable.typeManagement.verifyMemberAccess
 import org.junit.jupiter.api.Assertions.*
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
@@ -278,7 +284,7 @@ private class GeneratorMapBuilder(goalTypes: Collection<Type>, private val rando
     private val requiredGenerators: Set<Type> = goalTypes.toSet().also { it.forEach(this::request) }
 
     private fun lazyGenError(type: Type) = AnswerableMisuseException(
-        "A generator for type `$type' was requested, but no generator for that type was found."
+        "A generator for type `${type.sourceName()}' was requested, but no generator for that type was found."
     )
 
     private fun lazyArrayError(type: Type) = AnswerableMisuseException(
@@ -338,7 +344,13 @@ private class GeneratorMapBuilder(goalTypes: Collection<Type>, private val rando
     }
 }
 
-data class TestRunnerArgs(val numTests: Int = 1000)
+data class TestRunnerArgs(
+    val numTests: Int = 1024,
+    val maxOnlyEdgeCaseTests: Int = numTests/16,
+    val maxOnlySimpleCaseTests: Int = numTests/16,
+    val maxSimpleEdgeMixTests: Int = numTests/16,
+    val numAllGeneratedTests: Int = numTests/2
+)
 val defaultArgs = TestRunnerArgs()
 
 internal class GenWrapper<T>(val gen: Gen<T>, private val random: Random) {
@@ -452,8 +464,8 @@ internal val defaultBooleanGen = object : Gen<Boolean> {
     override fun generate(complexity: Int, random: Random): Boolean = random.nextInt(2) == 0
 }
 
-internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: Class<*>) : Gen<Array<T>> {
-    override fun generate(complexity: Int, random: Random): Array<T> {
+internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: Class<*>) : Gen<Any> {
+    override fun generate(complexity: Int, random: Random): Any {
         fun genList(complexity: Int, length: Int): List<T> =
             if (length <= 0) {
                 listOf()
@@ -464,8 +476,34 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: 
         val vals = genList(complexity, random.nextInt(complexity + 1))
         @Suppress("UNCHECKED_CAST")
         return ReflectArray.newInstance(tClass, vals.size).also {
-            vals.forEachIndexed { idx, value -> ReflectArray.set(it, idx, value) }
-        } as Array<T>
+            when (it::class.java) {
+                IntArray::class.java -> { vals as List<Int>
+                    vals.forEachIndexed { idx, value -> ReflectArray.setInt(it, idx, value) }
+                }
+                ShortArray::class.java -> { vals as List<Short>
+                    vals.forEachIndexed { idx, value -> ReflectArray.setShort(it, idx, value) }
+                }
+                ByteArray::class.java -> { vals as List<Byte>
+                    vals.forEachIndexed { idx, value -> ReflectArray.setByte(it, idx, value) }
+                }
+                LongArray::class.java -> { vals as List<Long>
+                    vals.forEachIndexed { idx, value -> ReflectArray.setLong(it, idx, value) }
+                }
+                DoubleArray::class.java -> { vals as List<Double>
+                    vals.forEachIndexed { idx, value -> ReflectArray.setDouble(it, idx, value) }
+                }
+                FloatArray::class.java -> { vals as List<Float>
+                    vals.forEachIndexed { idx, value -> ReflectArray.setFloat(it, idx, value) }
+                }
+                CharArray::class.java -> { vals as List<Char>
+                    vals.forEachIndexed { idx, value -> ReflectArray.setChar(it, idx, value) }
+                }
+                BooleanArray::class.java -> { vals as List<Boolean>
+                    vals.forEachIndexed { idx, value -> ReflectArray.setBoolean(it, idx, value) }
+                }
+                else -> vals.forEachIndexed { idx, value -> ReflectArray.set(it, idx, value) }
+            }
+        }
     }
 }
 

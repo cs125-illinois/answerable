@@ -1,5 +1,8 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
+import examples.proxy.GeneratedWidget
+import examples.proxy.reference.InnerClassGeneratorWidget
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -50,8 +53,8 @@ internal class ProxyingTest {
 
     @Test
     fun testMultipleMirrors() {
-        val first = mkGeneratorMirrorClass(examples.proxy.reference.InnerClassGeneratorWidget::class.java, examples.proxy.GeneratedWidget::class.java)
-        val second = mkGeneratorMirrorClass(examples.proxy.reference.InnerClassGeneratorWidget::class.java, examples.proxy.GeneratedWidget::class.java)
+        val first = mkGeneratorMirrorClass(InnerClassGeneratorWidget::class.java, GeneratedWidget::class.java)
+        val second = mkGeneratorMirrorClass(InnerClassGeneratorWidget::class.java, GeneratedWidget::class.java)
         Assertions.assertNotEquals(first, second)
     }
 

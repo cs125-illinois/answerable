@@ -1,5 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
+import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import java.lang.IllegalStateException
 import java.lang.reflect.*
 import java.util.*

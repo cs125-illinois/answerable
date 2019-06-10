@@ -68,4 +68,11 @@ internal class DiscovererTest {
             classDesignReferenceClass.getPublicMethods(isReference = false).toString()
         )
     }
+
+    @Test
+    fun testGetEnabledEdgeCases() {
+        val reference = getSolutionClass(correctAdderReference)
+
+        assertArrayEquals(arrayOf(-1, 0, 1), reference.getEnabledEdgeCases(arrayOf())[Int::class.java])
+    }
 }
