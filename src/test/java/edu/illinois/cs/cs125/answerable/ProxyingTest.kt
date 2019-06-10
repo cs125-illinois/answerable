@@ -75,4 +75,16 @@ internal class ProxyingTest {
         assertAllSucceeded(tg.runTests(0x0403))
     }
 
+    @Test
+    fun testInstanceofInnerClassWidget() {
+        val tg = TestRunner(examples.proxy.reference.InstanceofInnerClassWidget::class.java, examples.proxy.InstanceofInnerClassWidget::class.java)
+        assertAllSucceeded(tg.runTests(0x0403))
+    }
+
+    @Test
+    fun testUnknownSubclassInnerClassWidget() {
+        val tg = TestRunner(examples.proxy.reference.InstanceofInnerClassWidget::class.java, examples.proxy.SubclassedInnerClassWidget::class.java)
+        assertAllSucceeded(tg.runTests(0x0403))
+    }
+
 }
