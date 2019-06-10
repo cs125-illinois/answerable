@@ -4,6 +4,8 @@ import edu.illinois.cs.cs125.answerable.typeManagement.AnswerableBytecodeVerific
 import edu.illinois.cs.cs125.answerable.typeManagement.verifyMemberAccess
 import examples.proxy.reference.GeneratedWidget
 import examples.proxy.reference.InnerClassGeneratorWidget
+import examples.proxy.reference.RequiredInnerClassWidget
+import examples.proxy.reference.StaticInitGeneratorWidget
 import examples.verify.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -68,6 +70,16 @@ internal class VerifyTest {
     @Test
     fun verifyBadMethodCallFromInnerGenerator() {
         assertThrows<AnswerableBytecodeVerificationException> { verifyMemberAccess(BadMethodAccessFromInnerWidget::class.java) }
+    }
+
+    @Test
+    fun verifyRequiredInnerClassGenerator() {
+        verifyMemberAccess(RequiredInnerClassWidget::class.java)
+    }
+
+    @Test
+    fun verifyStaticInitGeneratorWidget() {
+        verifyMemberAccess(StaticInitGeneratorWidget::class.java)
     }
 
 }

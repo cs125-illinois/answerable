@@ -58,4 +58,36 @@ internal class ProxyingTest {
         Assertions.assertNotEquals(first, second)
     }
 
+    @Test
+    fun testStaticInitWidget() {
+        // CAUTION: There isn't really a viable way to mirror just the parts of <clinit> that have to do with generation.
+        // This test only works because the static initializer isn't involved in implementation details.
+        val tg = TestRunner(examples.proxy.reference.StaticInitGeneratorWidget::class.java, examples.proxy.StaticInitGeneratorWidget::class.java)
+        assertAllSucceeded(tg.runTests(0x0403))
+    }
+
+    @Test
+    fun testRequiredInnerClassWidget() {
+        val tg = TestRunner(examples.proxy.reference.RequiredInnerClassWidget::class.java, examples.proxy.RequiredInnerClassWidget::class.java)
+        assertAllSucceeded(tg.runTests(0x0403))
+    }
+
+    @Test
+    fun testFinalInnerClassWidget() {
+        val tg = TestRunner(examples.proxy.reference.FinalRequiredInnerClassWidget::class.java, examples.proxy.FinalRequiredInnerClassWidget::class.java)
+        assertAllSucceeded(tg.runTests(0x0403))
+    }
+
+    @Test
+    fun testInstanceofInnerClassWidget() {
+        val tg = TestRunner(examples.proxy.reference.InstanceofInnerClassWidget::class.java, examples.proxy.InstanceofInnerClassWidget::class.java)
+        assertAllSucceeded(tg.runTests(0x0403))
+    }
+
+    @Test
+    fun testUnknownSubclassInnerClassWidget() {
+        val tg = TestRunner(examples.proxy.reference.InstanceofInnerClassWidget::class.java, examples.proxy.SubclassedInnerClassWidget::class.java)
+        assertAllSucceeded(tg.runTests(0x0403))
+    }
+
 }
