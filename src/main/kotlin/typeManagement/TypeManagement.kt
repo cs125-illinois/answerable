@@ -177,12 +177,16 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
                 var shouldReplace = false
                 val memberName = (constantPool.getConstant(constant.nameAndTypeIndex) as ConstantNameAndType).getName(constantPool)
                 if (constant is ConstantMethodref || constant is ConstantInterfaceMethodref) {
+                    val helperAnnotations = setOf(Helper::class.java, Generator::class.java, Next::class.java, EdgeCase::class.java, SimpleCase::class.java)
                     shouldReplace = !(referenceClass.declaredMethods.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.let { method ->
-                        setOf(Helper::class.java, Generator::class.java, Next::class.java).any { annotation -> method.isAnnotationPresent(annotation) }
+                        helperAnnotations.any { annotation -> method.isAnnotationPresent(annotation) }
                     } ?: false) && !memberName.contains('$')
                 } else if (constant is ConstantFieldref) {
-                    shouldReplace = !(referenceClass.declaredFields.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.isAnnotationPresent(
-                        Helper::class.java) ?: false)
+                    val helperAnnotations = setOf(Helper::class.java, EdgeCase::class.java, SimpleCase::class.java)
+                    shouldReplace = !(referenceClass.declaredFields
+                        .firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.let { field ->
+                            helperAnnotations.any { annotation -> field.isAnnotationPresent(annotation) }
+                        } ?: false)
                 }
                 constant.classIndex = if (shouldReplace) newClassIdx else refMirrorClassIdx
             } else if (className.startsWith("${referenceClass.canonicalName}$")) {

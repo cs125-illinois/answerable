@@ -1,30 +1,18 @@
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.api
 
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import edu.illinois.cs.cs125.answerable.*
 import kotlin.random.Random
 
 fun main(args: Array<String>) {
-    val name = args[0]
+    val referenceName = args[0]
+    val solutionName = args[1]
 
-    val prefix = args.elementAtOrElse(1) {""} // for testing
+    val prefix = args.elementAtOrElse(2) {""} // for testing
 
-    val reference = getSolutionClass("${prefix}reference.$name")
-    val submission = getAttemptClass("$prefix$name")
+    val reference = getSolutionClass("${prefix}reference.$referenceName")
+    val submission = getAttemptClass("$prefix$referenceName")
 
-    val answerable =
-        {
-            println(ClassDesignAnalysis(reference, submission).runSuite().toJson())
-            val tg = TestRunner(reference, submission)
-            println(tg.runTests(Random.nextLong()).toJson())
-        }
-
-    val timeout = reference.getAnnotation(Timeout::class.java)?.timeout ?: 0
-
-    if (timeout == 0L) {
-        answerable()
-    } else {
-        val executor = Executors.newSingleThreadExecutor()
-        executor.submit(answerable)[timeout, TimeUnit.MILLISECONDS]
-    }
+    val tg = TestGenerator(reference, solutionName)
+    val tr = tg.loadSubmission(submission)
+    println(tr.runTests(Random.nextLong()).toJson())
 }

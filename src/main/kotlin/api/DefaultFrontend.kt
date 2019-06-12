@@ -1,8 +1,11 @@
 @file: JvmName("DefaultFrontend")
 package edu.illinois.cs.cs125.answerable.api
 
+import com.google.gson.JsonPrimitive
 import edu.illinois.cs.cs125.answerable.*
+import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.IllegalStateException
+import java.lang.reflect.Type
 import java.util.*
 
 interface DefaultSerializable {
@@ -14,16 +17,16 @@ fun <E : DefaultSerializable> List<E>.toJson(): String =
 
 internal fun <T> TestOutput<T>.defaultToJson(): String {
     val specific = when (this.typeOfBehavior) {
-        Behavior.RETURNED -> "  returned: \"${Regex.escape(output.toString())}\""
-        Behavior.THREW -> "  threw: \"$threw\""
+        Behavior.RETURNED -> "  returned: ${output.jsonStringOrNull()},\n"
+        Behavior.THREW -> "  threw: \"$threw\",\n"
+        Behavior.VERIFY_ONLY -> ""
     }
 
     val stdOutputs = when (this.stdOut) {
         null -> ""
         else -> """
-            |,
             |  stdOut: ${stdOut.jsonStringOrNull()},
-            |  stdErr: ${stdErr.jsonStringOrNull()}"
+            |  stdErr: ${stdErr.jsonStringOrNull()}
         """.trimMargin()
     }
 
@@ -53,8 +56,10 @@ internal fun TestStep.defaultToJson(): String =
 
 internal fun Any?.jsonStringOrNull(): String = when (this) {
     null -> "null"
-    else -> "\"${Regex.escape(this.toString())}\""
+    else -> this.toString().escape()
 }
+internal fun String.escape(): String = JsonPrimitive(this).toString()
+
 internal fun fixArrayToString(thing: Any?): String = when (thing) {
     is Array<*> -> Arrays.deepToString(thing)
     else -> thing.toString()
@@ -68,7 +73,16 @@ internal fun TestRunOutput.defaultToJson(): String =
         |  solutionName: "$solutionName",
         |  startTime: $startTime,
         |  endTime: $endTime,
+        |  timedOut: $timedOut,
+        |  numTests: $numTests,
+        |  numEdgeCaseTests: $numEdgeCaseTests,
+        |  numSimpleCaseTests: $numSimpleCaseTests,
+        |  numSimpleAndEdgeCaseTests: $numSimpleAndEdgeCaseTests,
+        |  numMixedTests: $numMixedTests,
+        |  numAllGeneratedTests: $numAllGeneratedTests,
+        |  classDesignAnalysisResult: ${classDesignAnalysisResult.toJson()},
         |  testSteps: ${testSteps.toJson()}
+        |}
     """.trimMargin()
 
 internal fun <T> AnalysisResult<T>.defaultToJson() = when (this) {
@@ -99,12 +113,13 @@ private fun <T> T.showExpectedOrFound() = when (this) {
     is String -> "\"$this\""
     is List<*> -> this.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
     is Pair<*, *> -> {
-        this as Pair<*, Array<*>>
+        @Suppress("UNCHECKED_CAST")
+        this as Pair<Type, Array<Type>>
 
         """
                     |{
-                    |  superclass: "${this.first}"
-                    |  interfaces: ${this.second.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }}
+                    |  superclass: "${this.first.sourceName}"
+                    |  interfaces: ${this.second.joinToString(prefix = "[", postfix = "]") { "\"${it.sourceName}\"" }}
                     |}
                 """.trimMargin()
     }

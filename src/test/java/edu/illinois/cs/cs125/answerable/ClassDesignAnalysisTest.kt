@@ -504,7 +504,7 @@ internal class ClassDesignAnalysisTest {
     }
 
     private fun analyzer(refName: String, attName: String): ClassDesignAnalysis =
-        ClassDesignAnalysis(getSolutionClass(refName), getAttemptClass(attName))
+        ClassDesignAnalysis("", getSolutionClass(refName), getAttemptClass(attName))
 
     private fun ClassDesignAnalysis.assertMismatchMsg(
         expected: String,

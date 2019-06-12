@@ -3,11 +3,12 @@ package edu.illinois.cs.cs125.answerable
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import kotlin.random.Random
 
 internal class TestGeneratorTest {
     @Test
     fun testMutableArguments() {
-        val tg = TestRunner(examples.testgeneration.mutablearguments.reference.Array::class.java, examples.testgeneration.mutablearguments.Array::class.java)
+        val tg = PassedClassDesignRunner(examples.testgeneration.mutablearguments.reference.Array::class.java, examples.testgeneration.mutablearguments.Array::class.java)
         val output = tg.runTests(0x0403)
         assertTrue(output.testSteps.all { it.succeeded })
     }
@@ -34,7 +35,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testMissingGeneratorError() {
-        val errMsg = assertThrows<AnswerableMisuseException> { TestRunner(
+        val errMsg = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
             examples.testgeneration.generators.errors.reference.MissingGenerator::class.java,
             examples.testgeneration.generators.errors.MissingGenerator::class.java
         ) }.message!!
@@ -44,7 +45,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testMissingArrayComponentError() {
-        val errMsg = assertThrows<AnswerableMisuseException> { TestRunner(
+        val errMsg = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
             examples.testgeneration.generators.errors.reference.MissingArrayComponent::class.java,
             examples.testgeneration.generators.errors.MissingArrayComponent::class.java
         ) }.message!!
@@ -59,5 +60,16 @@ internal class TestGeneratorTest {
         ) }.message!!
 
         assertEquals("\nTesting reference against itself failed on inputs: []", errMsg)
+    }
+
+    @Test
+    fun testStandaloneVerify() {
+        val tg = TestGenerator(examples.testgeneration.standaloneverify.reference.Standalone::class.java, "standalone test")
+        val tr = tg.loadSubmission(examples.testgeneration.standaloneverify.Standalone::class.java)
+
+        val out = tr.runTests(Random.nextLong())
+
+        assertFalse(out.timedOut, "Testing timed out: ")
+        assertTrue(out.testSteps.all { it.succeeded && it.refOutput.threw == null })
     }
 }

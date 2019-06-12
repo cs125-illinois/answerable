@@ -6,7 +6,7 @@ import java.lang.IllegalStateException
 import java.lang.reflect.*
 import java.util.*
 
-class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: Class<*>) {
+class ClassDesignAnalysis(private val solutionName: String, private val reference: Class<*>, private val attempt: Class<*>) {
     fun runSuite(
         name: Boolean = true,
         classStatus: Boolean = true,
@@ -86,6 +86,14 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
         }
     )
 
+    private val referenceAnnotations = setOf(
+        Generator::class.java,
+        Verify::class.java,
+        Next::class.java,
+        Helper::class.java,
+        Ignore::class.java
+    )
+
     fun publicFieldsMatch() = AnalysisOutput(AnalysisTag.FIELDS, run {
         fun mkFieldString(field: Field): String {
             val sb = StringBuilder()
@@ -97,6 +105,7 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
 
         val refFields =
             reference.getPublicFields()
+                .filter { field -> referenceAnnotations.none { field.isAnnotationPresent(it) } }
                 .map(::mkFieldString)
                 .sorted()
         val attFields =
@@ -113,11 +122,16 @@ class ClassDesignAnalysis(private val reference: Class<*>, private val attempt: 
 
     fun publicMethodsMatch() = AnalysisOutput(AnalysisTag.METHODS, run {
         val refMethodData =
-            (reference.getPublicMethods(true) + reference.constructors)
+            (reference.getPublicMethods() + reference.constructors)
+                .filter { method -> referenceAnnotations.none { method.isAnnotationPresent(it) } }
+                .filter { method ->
+                    !method.isAnnotationPresent(Solution::class.java) ||
+                            method.getAnnotation(Solution::class.java)!!.name == solutionName
+                }
                 .map { MethodData(it) }
                 .sortedBy { it.signature }
         val attMethodData =
-            (attempt.getPublicMethods(false) + attempt.constructors)
+            (attempt.getPublicMethods() + attempt.constructors)
                 .map { MethodData(it) }
                 .sortedBy { it.signature }
 

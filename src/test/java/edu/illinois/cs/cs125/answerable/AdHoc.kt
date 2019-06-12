@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.api.Answerable
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

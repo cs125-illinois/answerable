@@ -23,7 +23,7 @@ internal class DiscovererTest {
     fun testGetReferenceSolutionMethod() {
         val soln = getSolutionClass(correctAdderReference)
         val ref = soln.getReferenceSolutionMethod()
-        assertEquals("add", ref.name)
+        assertEquals("add", ref?.name)
     }
 
     @Test
@@ -34,16 +34,16 @@ internal class DiscovererTest {
         val attempt = getAttemptClass(correctAdderAttempt)
         val attemptMethod = attempt.findSolutionAttemptMethod(solnMethod)
 
-        assertEquals("add", attemptMethod.name)
-        assertEquals(Int::class.java, attemptMethod.genericReturnType)
-        assertArrayEquals(arrayOf(Int::class.java, Int::class.java), attemptMethod.genericParameterTypes)
+        assertEquals("add", attemptMethod?.name)
+        assertEquals(Int::class.java, attemptMethod?.genericReturnType)
+        assertArrayEquals(arrayOf(Int::class.java, Int::class.java), attemptMethod?.genericParameterTypes)
     }
 
     @Test
     fun testIsPrinter() {
         val printerReferenceClass = getSolutionClass(correctPrinterReference)
         val printerReferenceMethod = printerReferenceClass.getReferenceSolutionMethod()
-        assertTrue(printerReferenceMethod.isPrinter())
+        assertTrue(printerReferenceMethod?.isPrinter() ?: false)
     }
 
     @Test
@@ -58,14 +58,10 @@ internal class DiscovererTest {
     @Test
     fun testGetPublicMethods() {
         val classDesignReferenceClass = getSolutionClass(correctClassDesignReference)
-        assertEquals(
-            "[public java.lang.Object examples.classdesign.correct1.reference.ClassDesign.get(int)]",
-            classDesignReferenceClass.getPublicMethods(isReference = true).toString()
-        )
 
         assertEquals(
             "[public java.lang.Object examples.classdesign.correct1.reference.ClassDesign.get(int), public static examples.classdesign.correct1.reference.ClassDesign examples.classdesign.correct1.reference.ClassDesign.next(examples.classdesign.correct1.reference.ClassDesign,int)]",
-            classDesignReferenceClass.getPublicMethods(isReference = false).toString()
+            classDesignReferenceClass.getPublicMethods().toString()
         )
     }
 
@@ -73,6 +69,6 @@ internal class DiscovererTest {
     fun testGetEnabledEdgeCases() {
         val reference = getSolutionClass(correctAdderReference)
 
-        assertArrayEquals(arrayOf(-1, 0, 1), reference.getEnabledEdgeCases(arrayOf())[Int::class.java])
+        assertEquals(IntArrayWrapper(intArrayOf(-1, 0, 1)), reference.getEnabledEdgeCases(arrayOf())[Int::class.java])
     }
 }

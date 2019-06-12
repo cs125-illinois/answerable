@@ -1,6 +1,11 @@
 package edu.illinois.cs.cs125.answerable
 
-import org.junit.jupiter.api.Assertions.assertEquals
+import edu.illinois.cs.cs125.answerable.api.Answerable
+import examples.binarytree.size.YourBinaryTree
+import examples.testgeneration.timeout.reference.TimeOut
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.*
+import examples.binarytree.reference.YourBinaryTree as ReferenceYBT
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -8,6 +13,13 @@ import org.junit.jupiter.api.assertThrows
 internal class ServiceTests {
 
     var answerableService: Answerable = Answerable()
+
+    private fun TestRunOutput.assertAllSucceeded() {
+        this.testSteps.forEach {
+            assertNull(it.assertErr)
+            assertTrue(it.succeeded)
+        }
+    }
 
     @BeforeEach
     fun setUp() {
@@ -51,5 +63,18 @@ internal class ServiceTests {
 
         assertEquals("\nMirrorable method `generate' in `BadFieldAccessWidget' uses non-public submission field: numSprings\n" +
                 "While trying to load new question: BadFieldAccessWidget.", errMsg)
+    }
+
+    @Test
+    fun testTimeOut() {
+        answerableService.loadNewQuestion("Timeout", examples.testgeneration.timeout.reference.TimeOut::class.java)
+        val o = answerableService.submitAndTest("Timeout", examples.testgeneration.timeout.TimeOut::class.java)
+        assertTrue(o.timedOut, "Failed to timeout: ")
+    }
+
+    @Test
+    fun testYourBinaryTreeSize() {
+        answerableService.loadNewQuestion("YourBinaryTree size", "size", ReferenceYBT::class.java)
+        answerableService.submitAndTest("YourBinaryTree size", YourBinaryTree::class.java).assertAllSucceeded()
     }
 }

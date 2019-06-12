@@ -24,23 +24,24 @@ private fun findClass(name: String, failMsg: String): Class<*> {
     return solutionClass
 }
 
-internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method {
+internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method? {
     val methods =
             this.declaredMethods
                 .filter { it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false }
 
-    if (methods.size != 1) throw IllegalStateException("Can't find singular solution method with tag `$name'.")
+    if (methods.size > 1) throw AnswerableMisuseException("Can't find singular solution method with tag `$name'.")
+    if (methods.isEmpty()) return null
     val solution = methods[0]
     return solution.also { it.isAccessible = true }
 }
 
 internal fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
 
-// TODO: update to use some sort of "simpleSourceName"
-internal fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
+internal fun Class<*>.findSolutionAttemptMethod(matchTo: Method?): Method? {
+    if (matchTo == null) return null
     val matchName: String = matchTo.name
-    val matchRType: String = matchTo.genericReturnType.simpleName()
-    val matchPTypes: List<String> = matchTo.genericParameterTypes.map { it.simpleName() }
+    val matchRType: String = matchTo.genericReturnType.sourceName
+    val matchPTypes: List<String> = matchTo.genericParameterTypes.map { it.sourceName }
 
     var methods =
             this.declaredMethods
@@ -49,15 +50,14 @@ internal fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
         throw SubmissionMismatchException("Expected a method named `$matchName'.")
     }
 
-    methods = methods.filter { it.genericReturnType.simpleName() == matchRType }
+    methods = methods.filter { it.genericReturnType.sourceName == matchRType }
     if (methods.isEmpty()) {
         throw SubmissionMismatchException("Expected a method with return type `$matchRType'.")
     }
 
-    methods = methods.filter { it.genericParameterTypes?.map { it.simpleName() }?.equals(matchPTypes) ?: false }
+    methods = methods.filter { it.genericParameterTypes?.map { it.sourceName }?.equals(matchPTypes) ?: false }
     if (methods.isEmpty()) {
         throw SubmissionMismatchException(
-            // TODO probably: improve this error message
             "Expected a method with parameter types `${matchPTypes.joinToString(prefix = "[", postfix = "]")}'."
         )
     }
@@ -68,19 +68,8 @@ internal fun Class<*>.findSolutionAttemptMethod(matchTo: Method): Method {
 internal fun Class<*>.getPublicFields(): List<Field> =
     this.declaredFields.filter { Modifier.isPublic(it.modifiers) }
 
-internal val ignoredAnnotations = setOf(Next::class, Generator::class, Verify::class, Helper::class, Ignore::class)
-
-internal fun Class<*>.getPublicMethods(isReference: Boolean): List<Method> {
-    val allPublicMethods = this.declaredMethods.filter { Modifier.isPublic(it.modifiers) }
-
-    if (isReference) {
-        return allPublicMethods.filter {
-                method -> method.annotations.none { it.annotationClass in ignoredAnnotations }
-        }
-    }
-
-    return allPublicMethods
-}
+internal fun Class<*>.getPublicMethods(): List<Method> =
+    declaredMethods.filter { Modifier.isPublic(it.modifiers) }
 
 internal fun Class<*>.getAllGenerators(): List<Method> =
         this.declaredMethods
@@ -100,7 +89,7 @@ internal fun Class<*>.getEnabledGenerators(enabledNames: Array<String>): List<Me
                             when (enabledGenerators.size) {
                                 1 -> enabledGenerators
                                 else -> {
-                                    val name = entry.key.sourceName()
+                                    val name = entry.key.sourceName
                                     throw AnswerableMisuseException(
                                         "Failed to resolve @Generator conflict:\n" +
                                                 "Multiple enabled generators found for type `$name'."
@@ -143,6 +132,12 @@ internal fun Class<*>.getCustomVerifier(name: String): Method? =
 // We use this class so that we can manipulate Fields and Methods at the same time,
 // as it is an erroneous conflict to provide both a field and a method for the same type's edge or corner cases.
 private class FieldOrMethod(val member: Member) {
+    init {
+        when (member) {
+            is Field -> member.isAccessible = true
+            is Method -> member.isAccessible = true
+        }
+    }
     val genericType: Type = when(member) {
         is Field -> member.genericType
         is Method -> member.genericReturnType
@@ -160,18 +155,18 @@ private class FieldOrMethod(val member: Member) {
         else -> throw IllegalStateException()
     }
 
-    fun get(): Array<*>? {
+    fun get(): ArrayWrapper {
         val value = when (member) {
             is Field -> member[null]
             is Method -> member.invoke(null)
             else -> throw IllegalStateException()
-        }
+        } ?: throw IllegalStateException()
 
-        return boxArray(value)
+        return wrapArray(value)
     }
 }
 
-private fun Class<*>.getEnabledCases(edgeIfElseSimple: Boolean, enabledNames: Array<String>): Map<Type, Array<out Any?>> {
+private fun Class<*>.getEnabledCases(edgeIfElseSimple: Boolean, enabledNames: Array<String>): Map<Type, ArrayWrapper> {
     val annotationClass = if (edgeIfElseSimple) EdgeCase::class.java else SimpleCase::class.java
 
     val caseName = if (edgeIfElseSimple) "edge" else "simple"
@@ -214,7 +209,9 @@ private fun Class<*>.getEnabledCases(edgeIfElseSimple: Boolean, enabledNames: Ar
                                 }?.equals("") ?: false
                             }
                             1 -> enabled[0]
-                            else -> throw AnswerableMisuseException("Multiple enabled $caseName case providers for type `${entry.key.sourceName()}'.")
+                            else ->
+                                throw AnswerableMisuseException(
+                                    "Multiple enabled $caseName case providers for type `${entry.key.sourceName}'.")
                         }
                     }
             }
@@ -224,15 +221,16 @@ private fun Class<*>.getEnabledCases(edgeIfElseSimple: Boolean, enabledNames: Ar
     val casesInUseMap = mapOf(*casesInUseList.toTypedArray())
 
     return casesInUseMap.mapValues {
-        when (val res = it.value.get()) {
-            null -> throw AnswerableMisuseException("Provided $caseName cases array for type `${it.key.sourceName()}' was null.")
-            else -> res
+        try {
+            return@mapValues it.value.get()
+        } catch (e: IllegalStateException) {
+            throw AnswerableMisuseException("Provided $caseName cases array for type `${it.key.sourceName}' was null.")
         }
     }
 }
 
-internal fun Class<*>.getEnabledEdgeCases(enabledNames: Array<String>): Map<Type, Array<out Any?>> =
+internal fun Class<*>.getEnabledEdgeCases(enabledNames: Array<String>): Map<Type, ArrayWrapper> =
     getEnabledCases(true, enabledNames)
 
-internal fun Class<*>.getEnabledSimpleCases(enabledNames: Array<String>): Map<Type, Array<out Any?>> =
+internal fun Class<*>.getEnabledSimpleCases(enabledNames: Array<String>): Map<Type, ArrayWrapper> =
     getEnabledCases(false, enabledNames)

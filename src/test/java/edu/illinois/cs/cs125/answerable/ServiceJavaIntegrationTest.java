@@ -1,8 +1,9 @@
 package edu.illinois.cs.cs125.answerable;
 
+import edu.illinois.cs.cs125.answerable.api.Answerable;
 import org.junit.jupiter.api.Test;
 
-public class ServiceJavaIntegrationTest {
+class ServiceJavaIntegrationTest {
 
     @Test
     void testService() {

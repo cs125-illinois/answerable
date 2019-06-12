@@ -1,9 +1,6 @@
 package examples.lastten.correct.reference;
 
-import edu.illinois.cs.cs125.answerable.Next;
-import edu.illinois.cs.cs125.answerable.Solution;
-import edu.illinois.cs.cs125.answerable.TestOutput;
-import edu.illinois.cs.cs125.answerable.Verify;
+import edu.illinois.cs.cs125.answerable.*;
 
 import java.util.Arrays;
 import java.util.Random;
@@ -70,4 +67,5 @@ public class LastTen {
             return current;
         }
     }
+
 }
