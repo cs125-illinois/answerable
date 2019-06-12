@@ -8,6 +8,7 @@ import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
 import edu.illinois.cs.cs125.answerable.typeManagement.mkProxy
 import edu.illinois.cs.cs125.answerable.typeManagement.verifyMemberAccess
 import org.junit.jupiter.api.Assertions.*
+import org.opentest4j.AssertionFailedError
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.charset.StandardCharsets
@@ -16,6 +17,7 @@ import kotlin.math.min
 import java.lang.Character.UnicodeBlock.*
 import java.lang.IllegalStateException
 import java.lang.reflect.*
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -46,11 +48,12 @@ class TestGenerator(
 
     internal val isStatic = referenceMethod?.let { Modifier.isStatic(it.modifiers) } ?: false
     internal val paramTypes: Array<Type> = referenceMethod?.genericParameterTypes ?: arrayOf()
+    internal val paramTypesWithReceiver: Array<Type> = arrayOf(referenceClass, *paramTypes)
 
     internal val random: Random = Random(0)
     internal val generators: Map<Type, GenWrapper<*>> = buildGeneratorMap(random)
-    internal val edgeCases: Map<Type, ArrayWrapper?> = getEdgeCases(referenceClass, paramTypes)
-    internal val simpleCases: Map<Type, ArrayWrapper?> = getSimpleCases(referenceClass, paramTypes)
+    internal val edgeCases: Map<Type, ArrayWrapper?> = getEdgeCases(referenceClass, paramTypesWithReceiver)
+    internal val simpleCases: Map<Type, ArrayWrapper?> = getSimpleCases(referenceClass, paramTypesWithReceiver)
 
     internal val timeout = referenceMethod?.getAnnotation(Timeout::class.java)?.timeout
         ?: (customVerifier?.getAnnotation(Timeout::class.java)?.timeout ?: 0)
@@ -107,11 +110,30 @@ class TestGenerator(
     internal fun verify() {
         verifyMemberAccess(referenceClass)
 
-        // TODO: This dry run should probably have a timeout for safety?
-        val dryRunOutput = loadSubmission(referenceClass).runTests(0x0403)
+        val dryRun = { loadSubmission(referenceClass).runTests(0x0403) }
+        val dryRunOutput: TestRunOutput
+
+        try {
+            dryRunOutput = Executors.newSingleThreadExecutor().submit(dryRun)[10000, TimeUnit.MILLISECONDS]
+        } catch (e: TimeoutException) {
+            throw AnswerableVerificationException(
+                "Testing reference against itself timed out (10s)."
+            )
+        } catch (e: ExecutionException) {
+            if (e.cause != null) {
+                throw e.cause!!
+            } else {
+                throw e
+            }
+        }
+
         dryRunOutput.testSteps.forEach {
             if (!it.succeeded) {
-                throw AnswerableVerificationException("Testing reference against itself failed on inputs: ${Arrays.deepToString(it.refOutput.args)}")
+                throw AnswerableVerificationException(
+                    "Testing reference against itself failed on inputs: ${Arrays.deepToString(
+                        it.refOutput.args
+                    )}"
+                ).initCause(it.assertErr)
             }
         }
     }
@@ -154,12 +176,13 @@ open class PassedClassDesignRunner internal constructor(
     private val customVerifier = testGenerator.customVerifier
     private val submissionMethod = submissionClass.findSolutionAttemptMethod(referenceMethod)
     private val paramTypes = testGenerator.paramTypes
+    private val paramTypesWithReceiver = testGenerator.paramTypesWithReceiver
 
     private val testRunnerRandom = Random(0)
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
-    private val mirrorToStudentClass = mkGeneratorMirrorClass(testGenerator.referenceClass, submissionClass)
+    private val mirrorToStudentClass = mkGeneratorMirrorClass(referenceClass, submissionClass)
 
     private val referenceEdgeCases = testGenerator.edgeCases
     private val referenceSimpleCases = testGenerator.simpleCases
@@ -181,6 +204,9 @@ open class PassedClassDesignRunner internal constructor(
             )
         }
 
+    private val numEdgeCombinations = calculateNumCases(referenceEdgeCases)
+    private val numSimpleCombinations = calculateNumCases(referenceSimpleCases)
+
     private val referenceGens = testGenerator.generators
     private val submissionGens = mirrorToStudentClass
         .getEnabledGenerators(testGenerator.enabledNames)
@@ -194,29 +220,60 @@ open class PassedClassDesignRunner internal constructor(
     private val isStatic = testGenerator.isStatic
     private val timeout = testGenerator.timeout
 
+    private fun calculateNumCases(cases: Map<Type, ArrayWrapper?>): Int =
+        paramTypesWithReceiver.foldIndexed(1) { idx, acc, type ->
+            cases[type]?.let { cases: ArrayWrapper ->
+                (if (idx == 0) ((cases as? AnyArrayWrapper<*>)?.sizeWithoutNull ?: 1) else cases.size).let {
+                    return@foldIndexed acc * it
+                }
+            } ?: acc
+        }
+
     private fun calculateCase(
         index: Int,
+        total: Int,
         cases: Map<Type, ArrayWrapper?>,
         backups: Map<Type, GenWrapper<*>>
     ): Array<Any?> {
-        var segmentSize = cases.map { it.value }.fold(1) { acc, arr -> acc * (arr?.size ?: 1) }
+        var segmentSize = total
         var segmentIndex = index
 
-        val case = Array<Any?>(paramTypes.size) { null }
-        for (i in paramTypes.indices) {
-            val type = paramTypes[i]
+        val case = Array<Any?>(paramTypesWithReceiver.size) { null }
+        for (i in paramTypesWithReceiver.indices) {
+            val type = paramTypesWithReceiver[i]
             val typeCases = cases[type]
 
-            if (typeCases == null || typeCases.size == 0) {
-                case[i] = backups[type]?.generate(0)
-                continue
+            if (i == 0) { // receiver
+                if (typeCases == null) {
+                    case[0] = null
+                    continue
+                }
+                typeCases as? AnyArrayWrapper<*> ?: throw IllegalStateException("Answerable thinks a receiver type is primitive. Please report a bug.")
+                val typeCasesArr = typeCases.arr
+                val typeCasesLst = typeCasesArr.filter { it != null } // receivers can't be null
+
+                if (typeCasesLst.isEmpty()) {
+                    case[0] = null
+                    continue
+                }
+
+                val typeNumCases = typeCasesLst.size
+                segmentSize /= typeNumCases
+                case[i] = typeCases[segmentIndex / segmentSize]
+                segmentIndex %= segmentSize
+
+            } else { // non-receiver
+
+                if (typeCases == null || typeCases.size == 0) {
+                    case[i] = backups[type]?.generate(0)
+                    continue
+                }
+
+                val typeNumCases = typeCases.size
+                segmentSize /= typeNumCases
+                case[i] = typeCases[segmentIndex / segmentSize]
+                segmentIndex %= segmentSize
             }
-
-            val typeNumCases = typeCases.size
-
-            segmentSize /= typeNumCases
-            case[i] = typeCases[segmentIndex / segmentSize]
-            segmentIndex %= segmentSize
         }
         return case
     }
@@ -232,8 +289,6 @@ open class PassedClassDesignRunner internal constructor(
             val edge = random.nextInt(2) == 0
             var simple = !edge
             val type = paramTypes[i]
-
-            // TODO if array is empty don't try and call random
 
             if (edge) {
                 if (edges[type] != null && edges.getValue(type)!!.size != 0) {
@@ -394,6 +449,8 @@ open class PassedClassDesignRunner internal constructor(
             }
         } catch (ite: InvocationTargetException) {
             assertErr = ite.cause
+        } catch (e: AssertionFailedError) {
+            assertErr = e
         }
 
         return TestStep(
@@ -410,8 +467,6 @@ open class PassedClassDesignRunner internal constructor(
     override fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs): TestRunOutput {
         val numTests = testRunnerArgs.numTests
 
-        val numEdgeCombinations = referenceEdgeCases.map { it.value }.fold(1) { acc, arr -> acc * (arr?.size ?: 1) }
-        val numSimpleCombinations = referenceSimpleCases.map { it.value }.fold(1) { acc, arr -> acc * (arr?.size ?: 1) }
         val numEdgeCaseTests = if (referenceEdgeCases.values.all { it.isNullOrEmpty() }) 0 else min(
             testRunnerArgs.maxOnlyEdgeCaseTests,
             numEdgeCombinations
@@ -465,26 +520,34 @@ open class PassedClassDesignRunner internal constructor(
                     in 1 .. edgeCaseUpperBound -> {
                         block = 0
 
-                        refReceiver = mkRefReceiver(i, 0, refReceiver)
-                        subReceiver = mkSubReceiver(i, 0, subReceiver)
-
                         // if we can't exhaust the cases, duplicates are less impactful
                         val idx = if (edgeExhaustive) (i - 1) else testRunnerRandom.nextInt(numEdgeCombinations)
 
-                        refMethodArgs = calculateCase(idx, referenceEdgeCases, referenceGens)
-                        subMethodArgs = calculateCase(idx, submissionEdgeCases, submissionGens)
+                        val refCase = calculateCase(idx, numEdgeCombinations, referenceEdgeCases, referenceGens)
+                        val subCase = calculateCase(idx, numEdgeCombinations, submissionEdgeCases, submissionGens)
+
+                        refMethodArgs = refCase.slice(1..refCase.indices.last).toTypedArray()
+                        subMethodArgs = subCase.slice(1..subCase.indices.last).toTypedArray()
+
+                        refReceiver = if (refCase[0] != null) refCase[0] else mkRefReceiver(i, 0, refReceiver)
+                        subReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, subReceiver)
+
                     }
                     in (edgeCaseUpperBound + 1) .. simpleCaseUpperBound -> {
                         block = 1
 
-                        refReceiver = mkRefReceiver(i, 2, refReceiver)
-                        subReceiver = mkSubReceiver(i, 2, subReceiver)
-
                         val idxInSegment = i - edgeCaseUpperBound - 1
                         val idx = if (simpleExhaustive) idxInSegment else testRunnerRandom.nextInt(numSimpleCombinations)
 
-                        refMethodArgs = calculateCase(idx, referenceSimpleCases, referenceGens)
-                        subMethodArgs = calculateCase(idx, submissionSimpleCases, submissionGens)
+                        val refCase = calculateCase(idx, numSimpleCombinations, referenceSimpleCases, referenceGens)
+                        val subCase = calculateCase(idx, numSimpleCombinations, submissionSimpleCases, submissionGens)
+
+                        refMethodArgs = refCase.slice(1..refCase.indices.last).toTypedArray()
+                        subMethodArgs = subCase.slice(1..subCase.indices.last).toTypedArray()
+
+                        refReceiver = if (refCase[0] != null) refCase[0] else mkRefReceiver(i, 0, refReceiver)
+                        subReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, subReceiver)
+
                     }
                     in (simpleCaseUpperBound + 1) .. simpleEdgeMixedUpperBound -> {
                         block = 2
@@ -643,18 +706,7 @@ private class GeneratorMapBuilder(goalTypes: Collection<Type>, private val rando
                             type.componentType
                         )
                     }
-                }
-            // TODO: Support generic arrays with a default generator if possible. It may not be possible.
-            /*is GenericArrayType -> {
-                request(type.genericComponentType)
-                knownGenerators[type] =
-                    lazy {
-                        DefaultArrayGen(
-                            knownGenerators[type.genericComponentType]?.value ?: throw lazyArrayError(type.genericComponentType),
-                            type.genericComponentType
-                        )
-                    }
-            }*/
+            }
         }
     }
 
@@ -889,12 +941,14 @@ internal sealed class ArrayWrapper {
     abstract val size: Int
 
 }
-internal class nullArrayWrapper()
-internal class AnyArrayWrapper<T>(private val arr: Array<T>) : ArrayWrapper() {
+internal class AnyArrayWrapper<T>(val arr: Array<T>) : ArrayWrapper() {
     override fun get(index: Int) = arr[index]
     override fun random(random: Random) = arr.random(random.asKotlinRandom())
     override val size: Int
         get() = arr.size
+
+    val sizeWithoutNull: Int
+        get() = arr.filter { it != null }.size
 }
 internal class IntArrayWrapper(private val arr: IntArray) : ArrayWrapper() {
     override fun get(index: Int): Int = arr[index]

@@ -10,16 +10,16 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
+fun TestRunOutput.assertAllSucceeded() {
+    this.testSteps.forEach {
+        assertNull(it.assertErr)
+        assertTrue(it.succeeded)
+    }
+}
+
 internal class ServiceTests {
 
     var answerableService: Answerable = Answerable()
-
-    private fun TestRunOutput.assertAllSucceeded() {
-        this.testSteps.forEach {
-            assertNull(it.assertErr)
-            assertTrue(it.succeeded)
-        }
-    }
 
     @BeforeEach
     fun setUp() {

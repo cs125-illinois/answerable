@@ -72,4 +72,25 @@ internal class TestGeneratorTest {
         assertFalse(out.timedOut, "Testing timed out: ")
         assertTrue(out.testSteps.all { it.succeeded && it.refOutput.threw == null })
     }
+
+    @Test
+    fun testEdgeCases() {
+        val out = TestGenerator(examples.testgeneration.reference.EdgeCases::class.java, "")
+            .loadSubmission(examples.testgeneration.EdgeCases::class.java)
+            .runTests(Random.nextLong())
+
+        out.assertAllSucceeded()
+    }
+
+    @Test
+    fun testReceiverEdgeCases() {
+        val out = TestGenerator(examples.testgeneration.reference.ReceiverEdgeCase::class.java, "")
+            .loadSubmission(examples.testgeneration.ReceiverEdgeCase::class.java)
+            .runTests(Random.nextLong())
+
+        out.assertAllSucceeded()
+
+        assertTrue(out.testSteps.any { it.succeeded && it.refOutput.output == true })
+
+    }
 }
