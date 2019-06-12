@@ -192,7 +192,7 @@ open class PassedClassDesignRunner internal constructor(
         .toMutableMap().apply {
             replace(
                 referenceClass,
-                mirrorToStudentClass.getEnabledEdgeCases(testGenerator.enabledNames)[mirrorToStudentClass]
+                mirrorToStudentClass.getEnabledEdgeCases(testGenerator.enabledNames)[submissionClass]
             )
         }
     private val submissionSimpleCases: Map<Type, ArrayWrapper?> = referenceSimpleCases
@@ -200,7 +200,7 @@ open class PassedClassDesignRunner internal constructor(
         .toMutableMap().apply {
             replace(
                 referenceClass,
-                mirrorToStudentClass.getEnabledSimpleCases(testGenerator.enabledNames)[mirrorToStudentClass]
+                mirrorToStudentClass.getEnabledSimpleCases(testGenerator.enabledNames)[submissionClass]
             )
         }
 

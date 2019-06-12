@@ -90,6 +90,8 @@ class ClassDesignAnalysis(private val solutionName: String, private val referenc
         Generator::class.java,
         Verify::class.java,
         Next::class.java,
+        EdgeCase::class.java,
+        SimpleCase::class.java,
         Helper::class.java,
         Ignore::class.java
     )
