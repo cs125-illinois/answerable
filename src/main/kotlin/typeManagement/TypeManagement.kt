@@ -11,6 +11,7 @@ import org.apache.bcel.generic.FieldOrMethod
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
 import java.lang.IllegalStateException
+import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Member
 import java.lang.reflect.Modifier
@@ -317,14 +318,25 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
                     if (!Modifier.isPublic(field.modifiers))
                         throw AnswerableBytecodeVerificationException(method.name, currentClass, field)
                 } else if (instr is InvokeInstruction) {
-                    referenceClass.declaredMethods.filter { dm ->
-                        dm.name == signatureConstant.getName(constantPool)
-                                && !Modifier.isPublic(dm.modifiers)
-                                && Type.getSignature(dm) == signatureConstant.getSignature(constantPool)
-                                && (setOf(Generator::class.java, Next::class.java, Helper::class.java).none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
-                    }.forEach { candidate ->
-                        dangerousAccessors[candidate.name]?.let { throw AnswerableBytecodeVerificationException(it, method.name, currentClass) }
-                        if (!candidate.name.contains('$')) throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
+                    val name = signatureConstant.getName(constantPool)
+                    val signature = signatureConstant.getSignature(constantPool)
+                    if (name == "<init>") {
+                        referenceClass.declaredConstructors.filter { dc ->
+                            !Modifier.isPublic(dc.modifiers)
+                                    && signature == "(${dc.parameterTypes.joinToString(separator = "") { Type.getType(it).signature }})V"
+                        }.forEach { candidate ->
+                            throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
+                        }
+                    } else {
+                        referenceClass.declaredMethods.filter { dm ->
+                            dm.name == name
+                                    && !Modifier.isPublic(dm.modifiers)
+                                    && Type.getSignature(dm) == signature
+                                    && (setOf(Generator::class.java, Next::class.java, Helper::class.java).none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
+                        }.forEach { candidate ->
+                            dangerousAccessors[candidate.name]?.let { throw AnswerableBytecodeVerificationException(it, method.name, currentClass) }
+                            if (!candidate.name.contains('$')) throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
+                        }
                     }
                 }
             } else if (checkInner) {
@@ -357,6 +369,7 @@ class AnswerableBytecodeVerificationException(val blameMethod: String, val blame
                     when (member) {
                         is java.lang.reflect.Method -> "calls non-public submission method: ${MethodData(member)}"
                         is Field -> "uses non-public submission field: ${member.name}"
+                        is Constructor<*> -> "uses non-public submission constructor: ${MethodData(member)}"
                         else -> throw IllegalStateException("AnswerableBytecodeVerificationException.member must be a Method or Field. Please report a bug.")
                     }
         }

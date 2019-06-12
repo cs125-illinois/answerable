@@ -82,4 +82,9 @@ internal class VerifyTest {
         verifyMemberAccess(StaticInitGeneratorWidget::class.java)
     }
 
+    @Test
+    fun verifyBadConstructorAccess() {
+        assertThrows<AnswerableBytecodeVerificationException> { verifyMemberAccess(BadConstructorAccess::class.java) }
+    }
+
 }
