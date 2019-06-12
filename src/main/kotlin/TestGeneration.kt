@@ -145,7 +145,7 @@ open class PassedClassDesignRunner internal constructor(
 ) : TestRunner {
     constructor(
         referenceClass: Class<*>, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
-    ) : this(TestGenerator(referenceClass), submissionClass, cdaResult, testRunnerArgs)
+    ) : this(TestGenerator(mkOpenMirrorClass(referenceClass)), mkOpenMirrorClass(submissionClass), cdaResult, testRunnerArgs)
 
     private val solutionName = testGenerator.solutionName
 
