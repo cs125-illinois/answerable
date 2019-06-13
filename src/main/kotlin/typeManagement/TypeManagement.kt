@@ -286,7 +286,6 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
 
     // Get a mutable ClassGen, initialized as a copy of the existing class
     val classGen = ClassGen(arena.getBcelClassForClass(clazz))
-    Repository.clearCache()
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
 
@@ -301,6 +300,7 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
     classGen.attributes.filterIsInstance(InnerClasses::class.java).firstOrNull()?.innerClasses?.forEach { innerClass ->
         val innerName = (constantPool.getConstant(innerClass.innerClassIndex) as? ConstantClass)?.getBytes(constantPool) ?: return@forEach
         if (innerName.startsWith(baseClass.slashName() + "$")) {
+            if (Modifier.isFinal(innerClass.innerAccessFlags)) innerClass.innerAccessFlags -= Modifier.FINAL
             val innerPath = innerName.split('$', limit = 2)[1]
             mkOpenMirrorClass(arena.classForName(innerName.replace('/', '.')), baseClass,
                     "$newBase\$$innerPath", alreadyDone, arena)
