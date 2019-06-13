@@ -36,6 +36,7 @@ private class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLoader(
  * We map from 'superClass' instead of directly from 'proxyClass' as we won't have access to
  * the same reference to 'proxyClass' on future calls.
  */
+// TODO: Put this in an arena so unneeded instantiators can be GC'd
 private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
 
 /**
@@ -43,10 +44,11 @@ private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?
  * @param superClass the class that the object needs to appear as (be an instance of)
  * @param childClass the original class
  * @param forward an instance of childClass to which method calls will be forwarded
+ * @param arena the type arena to look for classes in
  * @return an instance (the proxy) of a subclass of superClass
  */
-internal fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
-    return mkProxy(superClass, superClass, childClass, childClass, forward)
+internal fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any, arena: TypeArena): Any {
+    return mkProxy(superClass, superClass, childClass, childClass, forward, arena)
 }
 
 private data class TypeMap(
@@ -58,21 +60,23 @@ private data class TypeMap(
  * Determines what an inner class should be proxied to, if any.
  * @param outermostSuperClass the outer class a proxy is being made an instance of
  * @param childClass an inner class of the real/original class
+ * @param arena type arena to look for classes in
  * @return a TypeMap that determines what classes to map fields and method between, or null if no proxy is needed
  */
-private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?): TypeMap? {
+private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?, arena: TypeArena): TypeMap? {
     if (childClass == null) return null
     if (childClass.enclosingClass == null) return null
     val innerPath = childClass.name.split('$', limit = 2)[1]
     val correspondingSuper = "${outermostSuperClass.name}\$$innerPath"
     try {
-        return TypeMap(to = Class.forName(correspondingSuper), from = childClass)
+        return TypeMap(to = arena.classForName(correspondingSuper), from = childClass)
     } catch (e: ClassNotFoundException) {
-        return mostDerivedProxyableClass(outermostSuperClass, childClass.superclass)
+        return mostDerivedProxyableClass(outermostSuperClass, childClass.superclass, arena)
     }
 }
 
-private fun mkProxy(superClass: Class<*>, outermostSuperClass: Class<*>, childClass: Class<*>, outermostChildClass: Class<*>, forward: Any): Any {
+private fun mkProxy(superClass: Class<*>, outermostSuperClass: Class<*>, childClass: Class<*>, outermostChildClass: Class<*>,
+                    forward: Any, arena: TypeArena): Any {
     if (superClass == childClass) return forward
 
     // if we don't have an instantiator for this proxy class, make a new one
@@ -92,11 +96,11 @@ private fun mkProxy(superClass: Class<*>, outermostSuperClass: Class<*>, childCl
         val result = childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
         childClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(forward)) }
         if (result != null && result.javaClass.enclosingClass != null && result.javaClass.name.startsWith("${outermostChildClass.name}$")) {
-            val innerMap = mostDerivedProxyableClass(outermostSuperClass, result.javaClass)
+            val innerMap = mostDerivedProxyableClass(outermostSuperClass, result.javaClass, arena)
             if (innerMap == null) {
                 result
             } else {
-                val innerProxy = mkProxy(innerMap.to, outermostSuperClass, innerMap.from, outermostChildClass, result)
+                val innerProxy = mkProxy(innerMap.to, outermostSuperClass, innerMap.from, outermostChildClass, result, arena)
                 innerMap.from.getPublicFields().forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
                 innerProxy
             }
@@ -158,7 +162,6 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
     val atVerifyName = baseClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
     val classGen = ClassGen(arena.getBcelClassForClass(baseClass))
-    Repository.clearCache() // Otherwise future mirrorings will fail
 
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
@@ -334,7 +337,7 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
     }
 
     // Create and load the modified class
-    // classGen.javaClass.dump("Opened${alreadyDone.indexOf(newName)}.class") // Uncomment for debugging
+    classGen.javaClass.dump("Opened${alreadyDone.indexOf(newName)}.class") // Uncomment for debugging
     return arena.loadBytes(newName, classGen.javaClass)
 }
 
@@ -466,29 +469,37 @@ internal class AnswerableBytecodeVerificationException(val blameMethod: String, 
 }
 
 internal class TypeArena(private val bytecodeProvider: BytecodeProvider?, private val parent: TypeArena? = null) {
+
     private val bcelClasses = mutableMapOf<Class<*>, JavaClass>()
     private val loader: BytesClassLoader = BytesClassLoader(parent?.loader)
+
     fun getBcelClassForClass(clazz: Class<*>): JavaClass {
         try {
             return parent!!.getBcelClassForClass(clazz)
         } catch (e: Exception) {
             // Ignored - parent couldn't find it
         }
+        val old = bcelClasses[clazz] ?: localGetBcelClassForClass(clazz).also { bcelClasses[clazz] = it }
+        return ClassParser(old.bytes.inputStream(), old.className).parse()
+    }
+
+    private fun localGetBcelClassForClass(clazz: Class<*>): JavaClass {
         return try {
             Repository.lookupClass(clazz).also { Repository.clearCache() }
-        } catch (e: Exception) {
-            bcelClasses[clazz] ?: run {
-                if (bytecodeProvider == null) throw NoClassDefFoundError("Could not find bytecode for $clazz")
-                val bytecode = bytecodeProvider.getBytecode(clazz)
-                val parser = ClassParser(bytecode.inputStream(), "")
-                parser.parse()!!.also { bcelClasses[clazz] = it }
-            }
+        } catch (e: Exception) { // BECL couldn't find it
+            if (bytecodeProvider == null) throw NoClassDefFoundError("Could not find bytecode for $clazz")
+            val bytecode = bytecodeProvider.getBytecode(clazz)
+            val parser = ClassParser(bytecode.inputStream(), clazz.name)
+            parser.parse()
         }
     }
+
     fun loadBytes(name: String, bcelClass: JavaClass): Class<*> {
         return loader.loadBytes(name, bcelClass.bytes).also { bcelClasses[it] = bcelClass }
     }
+
     fun classForName(name: String): Class<*> {
         return Class.forName(name, true, loader)
     }
+
 }
