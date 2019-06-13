@@ -149,6 +149,26 @@ annotation class SimpleCase(
 )
 
 /**
+ * Marks a function as a precondition check on a set of arguments, allowing you to discard test cases which don't meet a precondition.
+ *
+ * Preconditions should have a [name] corresponding to an @[Solution], otherwise they won't be used.
+ *
+ * A precondition method must take the same arguments as the @[Solution] annotation to which it corresponds.
+ * @[Precondition] method must be static if the corresponding @[Solution] is static. Precondition methods should return a boolean,
+ * true if the precondition is satisfied and false otherwise.
+ *
+ * Preconditions will be only called on the arguments (and receiver) that will be supplied to the reference solution.
+ * If a precondition fails, the test case will be "discarded." This is reflected in the [TestStep]. If too many
+ * test cases are discarded, Answerable will give up. Answerable aims to complete (AKA not discard) [TestRunnerArgs.numTests]
+ * tests.
+ */
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Precondition(
+    val name: String = ""
+)
+
+/**
  * Marks a method as a custom verifier. The method will be called once per testing loop instead of Answerable's default verifier.
  *
  * The method must be static and take 2 parameters;

@@ -234,3 +234,14 @@ internal fun Class<*>.getEnabledEdgeCases(enabledNames: Array<String>): Map<Type
 
 internal fun Class<*>.getEnabledSimpleCases(enabledNames: Array<String>): Map<Type, ArrayWrapper> =
     getEnabledCases(false, enabledNames)
+
+internal fun Class<*>.getPrecondition(name: String): Method? =
+        this.declaredMethods
+            .filter { it.getAnnotation(Precondition::class.java)?.name?.equals(name) ?: false }
+            .let {
+                when (it.size) {
+                    0 -> null
+                    1 -> it[0]
+                    else -> throw AnswerableMisuseException("Multiple Preconditions found with name `$name'.")
+                }
+            }

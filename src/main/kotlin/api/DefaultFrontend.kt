@@ -28,8 +28,8 @@ fun <E : DefaultSerializable> List<E>.toJson(): String =
 
 internal fun <T> TestOutput<T>.defaultToJson(): String {
     val specific = when (this.typeOfBehavior) {
-        Behavior.RETURNED -> "  returned: ${output.jsonStringOrNull()},\n"
-        Behavior.THREW -> "  threw: \"$threw\",\n"
+        Behavior.RETURNED -> "  returned: ${output.jsonStringOrNull()}"
+        Behavior.THREW -> "  threw: \"$threw\""
         Behavior.VERIFY_ONLY -> ""
     }
 
@@ -45,23 +45,33 @@ internal fun <T> TestOutput<T>.defaultToJson(): String {
         |{
         |  resultType: "$typeOfBehavior",
         |  receiver: ${receiver.jsonStringOrNull()},
-        |  args: ${args.joinToString(prefix = "[", postfix = "]", transform = ::fixArrayToString)},
-        |$specific$stdOutputs
+        |  args: ${args.joinToString(prefix = "[", postfix = "]", transform = ::fixArrayToString)}${if (specific == "") "" else ","}
+        |$specific${if (stdOutputs == "") "" else ",\n"}$stdOutputs
         |}
     """.trimMargin()
 }
 
-@Suppress("IMPLICIT_CAST_TO_ANY")
-internal fun TestStep.defaultToJson(): String =
+internal fun ExecutedTestStep.defaultToJson(): String =
     """
         |{
         |  testNumber: $testNumber,
+        |  discarded: false,
         |  refReceiver: ${refReceiver.jsonStringOrNull()},
         |  subReceiver: ${subReceiver.jsonStringOrNull()},
         |  succeeded: $succeeded,
         |  refOutput: ${refOutput.toJson()},
         |  subOutput: ${subOutput.toJson()},
         |  assertErr: ${assertErr.jsonStringOrNull()}
+        |}
+    """.trimMargin()
+
+internal fun DiscardedTestStep.defaultToJson(): String =
+    """
+        |{
+        |  testNumber: $testNumber,
+        |  discarded: true,
+        |  receiver: $receiver,
+        |  args: ${args.joinToString(prefix = "[", postfix = "]", transform = ::fixArrayToString)}
         |}
     """.trimMargin()
 
@@ -86,6 +96,7 @@ internal fun TestRunOutput.defaultToJson(): String =
         |  startTime: $startTime,
         |  endTime: $endTime,
         |  timedOut: $timedOut,
+        |  numDiscardedTests: $numDiscardedTests,
         |  numTests: $numTests,
         |  numEdgeCaseTests: $numEdgeCaseTests,
         |  numSimpleCaseTests: $numSimpleCaseTests,

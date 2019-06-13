@@ -10,7 +10,7 @@ internal class TestGeneratorTest {
     fun testMutableArguments() {
         val tg = PassedClassDesignRunner(examples.testgeneration.mutablearguments.reference.Array::class.java, examples.testgeneration.mutablearguments.Array::class.java)
         val output = tg.runTests(0x0403)
-        assertTrue(output.testSteps.all { it.succeeded })
+        assertTrue(output.testSteps.all { (it as ExecutedTestStep).succeeded } )
     }
 
     @Test
@@ -20,7 +20,7 @@ internal class TestGeneratorTest {
         assertTrue(Array<IntArray>::class.java in tg.generators.keys, "Generators does not contain key `Array<Array<Int>>'.")
 
         assertTrue(tg.loadSubmission(examples.testgeneration.generators.defaults.MultiDemensionalPrimitiveArrays::class.java).runTests(0x0403)
-            .testSteps.all { it.refOutput.threw == null && it.subOutput.threw == null }, "An error was thrown while testing nested primitive array generation")
+            .testSteps.all { it as ExecutedTestStep; it.refOutput.threw == null && it.subOutput.threw == null }, "An error was thrown while testing nested primitive array generation")
     }
 
     @Test
@@ -70,7 +70,7 @@ internal class TestGeneratorTest {
         val out = tr.runTests(Random.nextLong())
 
         assertFalse(out.timedOut, "Testing timed out: ")
-        assertTrue(out.testSteps.all { it.succeeded && it.refOutput.threw == null })
+        assertTrue(out.testSteps.all { it as ExecutedTestStep; it.succeeded && it.refOutput.threw == null })
     }
 
     @Test
@@ -91,7 +91,26 @@ internal class TestGeneratorTest {
 
         out.assertAllSucceeded()
 
-        assertTrue(out.testSteps.any { it.succeeded && it.refOutput.output == true })
+        assertTrue(out.testSteps.any { it as ExecutedTestStep; it.succeeded && it.refOutput.output == true })
 
+    }
+
+    @Test
+    fun testPreconditions() {
+        val out = TestGenerator(examples.testgeneration.reference.PreconditionTest::class.java)
+            .loadSubmission(examples.testgeneration.PreconditionTest::class.java)
+            .runTests(Random.nextLong())
+
+        println(out.toJson())
+
+        assertTrue(
+            out.testSteps.any { it is ExecutedTestStep }
+        )
+        assertTrue(
+            out.testSteps.any { it is DiscardedTestStep }
+        )
+        assertTrue(
+            out.testSteps.none { (it as? ExecutedTestStep)?.refOutput?.output?.equals(false) ?: false }
+        )
     }
 }
