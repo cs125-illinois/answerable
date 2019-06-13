@@ -2,6 +2,7 @@ package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.TestGenerator.ReceiverGenStrategy.*
 import edu.illinois.cs.cs125.answerable.api.Answerable
+import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.typeManagement.*
@@ -42,7 +43,8 @@ import java.lang.reflect.Array as ReflectArray
 class TestGenerator(
     val referenceClass: Class<*>,
     val solutionName: String = "",
-    private val testRunnerArgs: TestRunnerArgs = defaultArgs
+    private val testRunnerArgs: TestRunnerArgs = defaultArgs,
+    private val bytecodeProvider: BytecodeProvider? = null // TODO: Document
 ) {
     /**
      * A secondary constructor which uses Answerable's [defaultArgs].
@@ -51,6 +53,8 @@ class TestGenerator(
     init {
         verifyStaticSignatures(referenceClass)
     }
+
+    internal val typeArena = TypeArena(bytecodeProvider)
 
     internal val referenceMethod: Method? = referenceClass.getReferenceSolutionMethod(solutionName)
     internal val enabledNames: Array<String> =
@@ -131,9 +135,9 @@ class TestGenerator(
     }
 
     private fun verifySafety() {
-        verifyMemberAccess(referenceClass)
+        verifyMemberAccess(referenceClass, typeArena)
 
-        val dryRun = { loadSubmission(referenceClass).runTests(0x0403) }
+        val dryRun = { loadSubmission(mkOpenMirrorClass(referenceClass, typeArena), runClassDesign = false).runTests(0x0403) }
         val dryRunOutput: TestRunOutput
 
         try {
@@ -173,8 +177,16 @@ class TestGenerator(
      * @param testRunnerArgs the arguments that the [TestRunner] returned should default to.
      */
     fun loadSubmission(
+            submissionClass: Class<*>,
+            testRunnerArgs: TestRunnerArgs = this.testRunnerArgs
+    ): TestRunner {
+        return loadSubmission(submissionClass, testRunnerArgs, true)
+    }
+
+    private fun loadSubmission(
         submissionClass: Class<*>,
-        testRunnerArgs: TestRunnerArgs = this.testRunnerArgs
+        testRunnerArgs: TestRunnerArgs = this.testRunnerArgs,
+        runClassDesign: Boolean = true
     ): TestRunner {
         val cda = ClassDesignAnalysis(solutionName, referenceClass, submissionClass).runSuite()
         val cdaPassed = cda.all { ao -> ao.result is Matched }
@@ -184,8 +196,9 @@ class TestGenerator(
         // We can't just exclude them from class design analysis in the submission because then real submissions
         // could subvert the system. On the other hand, it's impossible for the reference class to be unsafe against itself.
         // So we simply allow testing to continue if the reference and submission classes are the same class.
-        return if (cdaPassed || referenceClass == submissionClass) {
-            PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs)
+        return if (cdaPassed || !runClassDesign) {
+            val subArena = TypeArena(null, typeArena)
+            PassedClassDesignRunner(this, mkOpenMirrorClass(submissionClass, subArena), cda, testRunnerArgs, subArena)
         } else {
             FailedClassDesignTestRunner(referenceClass, solutionName, submissionClass, cda)
         }
@@ -211,11 +224,12 @@ class PassedClassDesignRunner internal constructor(
     testGenerator: TestGenerator,
     private val submissionClass: Class<*>,
     private val cachedClassDesignAnalysisResult: List<AnalysisOutput> = listOf(),
-    private val testRunnerArgs: TestRunnerArgs
+    private val testRunnerArgs: TestRunnerArgs,
+    typeArena: TypeArena
 ) : TestRunner {
     internal constructor(
         referenceClass: Class<*>, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
-    ) : this(TestGenerator(referenceClass), submissionClass, cdaResult, testRunnerArgs)
+    ) : this(TestGenerator(referenceClass), submissionClass, cdaResult, testRunnerArgs, TypeArena(null))
 
     private val solutionName = testGenerator.solutionName
 
@@ -230,7 +244,7 @@ class PassedClassDesignRunner internal constructor(
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
-    private val mirrorToStudentClass = mkGeneratorMirrorClass(referenceClass, submissionClass)
+    private val mirrorToStudentClass = mkGeneratorMirrorClass(referenceClass, submissionClass, typeArena)
 
     private val referenceEdgeCases = testGenerator.edgeCases
     private val referenceSimpleCases = testGenerator.simpleCases

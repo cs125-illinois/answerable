@@ -1,6 +1,7 @@
 package edu.illinois.cs.cs125.answerable.typeManagement
 
 import edu.illinois.cs.cs125.answerable.*
+import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
 import org.apache.bcel.Const
@@ -19,7 +20,7 @@ import java.util.*
 
 private val objenesis = ObjenesisStd()
 
-private class BytesClassLoader : ClassLoader() {
+private class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLoader(parentLoader ?: getSystemClassLoader()) {
     fun loadBytes(name: String, bytes: ByteArray): Class<*> {
         val clazz = defineClass(name, bytes, 0, bytes.size)
         resolveClass(clazz)
@@ -113,10 +114,12 @@ private fun Class<*>.slashName() = name.replace('.', '/')
  * Creates a mirror class containing only enough of the reference class to generate submission classes.
  * @param referenceClass the reference class containing methods to mirror
  * @param targetClass the class the generator should make instances of
+ * @param arena the type arena to get bytecode from
  * @return a mirror class suitable only for generation
  */
-internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
-    return mkGeneratorMirrorClass(referenceClass, referenceClass, targetClass, "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), BytesClassLoader())
+internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>, arena: TypeArena = TypeArena(null)): Class<*> {
+    return mkGeneratorMirrorClass(referenceClass, referenceClass, targetClass,
+            "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), arena)
 }
 
 /**
@@ -126,10 +129,11 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
  * @param targetClass the original, outermost submission class (to generate instances of)
  * @param mirrorName the desired fully-qualified dot name of the mirror class
  * @param mirrorsMade the map of names to finished mirrors
- * @param loader the class loader to load the mirror
+ * @param arena the type arena to get bytecode from
  * @return the mirrored class
  */
-private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String, mirrorsMade: MutableMap<String, Class<*>>, loader: BytesClassLoader): Class<*> {
+private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String,
+                                   mirrorsMade: MutableMap<String, Class<*>>, arena: TypeArena): Class<*> {
     mirrorsMade[mirrorName]?.let { return it }
 
     val refLName = "L${referenceClass.slashName()};"
@@ -153,7 +157,7 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
     }
     val atVerifyName = baseClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
-    val classGen = ClassGen(Repository.lookupClass(baseClass))
+    val classGen = ClassGen(arena.getBcelClassForClass(baseClass))
     Repository.clearCache() // Otherwise future mirrorings will fail
 
     val constantPoolGen = classGen.constantPool
@@ -202,8 +206,8 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
         } else if (constant is ConstantClass) {
             val name = constant.getBytes(constantPool)
             if (name.startsWith("${baseClass.slashName()}\$")) {
-                val inner = Class.forName(name.replace('/', '.'))
-                val innerMirror = mkGeneratorMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade, loader)
+                val inner = arena.classForName(name.replace('/', '.'))
+                val innerMirror = mkGeneratorMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade, arena)
                 constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(innerMirror.slashName()))
             } else if (name.startsWith("${referenceClass.slashName()}\$")) {
                 // Shouldn't merge this with the above condition because of possible mutual reference (infinite recursion)
@@ -259,25 +263,26 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
     }
 
     // classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
-    return loader.loadBytes(mirrorName, classGen.javaClass.bytes).also { mirrorsMade[mirrorName] = it }
+    return arena.loadBytes(mirrorName, classGen.javaClass)
 }
 
 /**
  * Creates a mirror of an outer class with `final` members removed from classes and methods.
  * @param clazz an outer class
+ * @param arena the type arena to get bytecode from and load classes into
  * @return a non-final version of the class with non-final members/classes
  */
-internal fun mkOpenMirrorClass(clazz: Class<*>): Class<*> {
+internal fun mkOpenMirrorClass(clazz: Class<*>, arena: TypeArena): Class<*> {
     return mkOpenMirrorClass(clazz, clazz, "answerablemirror.o" + UUID.randomUUID().toString().replace("-", ""),
-            mutableSetOf(), BytesClassLoader())!!
+            mutableListOf(), arena)!!
 }
 
-private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: String, alreadyDone: MutableSet<String>, loader: BytesClassLoader): Class<*>? {
+private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: String, alreadyDone: MutableList<String>, arena: TypeArena): Class<*>? {
     if (alreadyDone.contains(newName)) return null
     alreadyDone.add(newName)
 
     // Get a mutable ClassGen, initialized as a copy of the existing class
-    val classGen = ClassGen(Repository.lookupClass(clazz))
+    val classGen = ClassGen(arena.getBcelClassForClass(clazz))
     Repository.clearCache()
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
@@ -294,7 +299,8 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
         val innerName = (constantPool.getConstant(innerClass.innerClassIndex) as? ConstantClass)?.getBytes(constantPool) ?: return@forEach
         if (innerName.startsWith(baseClass.slashName() + "$")) {
             val innerPath = innerName.split('$', limit = 2)[1]
-            mkOpenMirrorClass(Class.forName(innerName.replace('/', '.')), baseClass, "$newBase\$$innerPath", alreadyDone, loader)
+            mkOpenMirrorClass(arena.classForName(innerName.replace('/', '.')), baseClass,
+                    "$newBase\$$innerPath", alreadyDone, arena)
         }
     }
 
@@ -328,16 +334,17 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
     }
 
     // Create and load the modified class
-    // classGen.javaClass.dump("Opened${alreadyDone.size}.class") // Uncomment for debugging
-    return loader.loadBytes(newName, classGen.javaClass.bytes)
+    // classGen.javaClass.dump("Opened${alreadyDone.indexOf(newName)}.class") // Uncomment for debugging
+    return arena.loadBytes(newName, classGen.javaClass)
 }
 
 /**
  * Throws AnswerableBytecodeVerificationException if a mirror of the given generator class would fail with an illegal or absent member access.
  * @param referenceClass the original, non-mirrored reference class
+ * @param arena the type arena to get bytecode from
  */
-internal fun verifyMemberAccess(referenceClass: Class<*>) {
-    verifyMemberAccess(referenceClass, referenceClass, mutableSetOf(), mapOf())
+internal fun verifyMemberAccess(referenceClass: Class<*>, arena: TypeArena = TypeArena(null)) {
+    verifyMemberAccess(referenceClass, referenceClass, mutableSetOf(), mapOf(), arena)
 }
 
 /**
@@ -346,12 +353,14 @@ internal fun verifyMemberAccess(referenceClass: Class<*>) {
  * @param referenceClass the original, outermost reference class
  * @param checked the collection of classes already verified
  * @param dangerousAccessors members whose access will cause the given problem
+ * @param arena the type arena to get bytecode from
  */
-private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>, checked: MutableSet<Class<*>>, dangerousAccessors: Map<String, AnswerableBytecodeVerificationException>) {
+private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>, checked: MutableSet<Class<*>>,
+                               dangerousAccessors: Map<String, AnswerableBytecodeVerificationException>, arena: TypeArena) {
     if (checked.contains(currentClass)) return
     checked.add(currentClass)
 
-    val toCheck = Repository.lookupClass(currentClass)
+    val toCheck = arena.getBcelClassForClass(currentClass)
     val methodsToCheck = if (currentClass == referenceClass) {
         toCheck.methods.filter { it.annotationEntries.any {
             ae -> ae.annotationType in setOf(Generator::class.java.name, Next::class.java.name, Helper::class.java.name).map { t -> ObjectType(t).signature }
@@ -412,7 +421,7 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
             } else if (checkInner) {
                 val classConstant = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
                 if (innerClassIndexes.contains(instr.index)) {
-                    verifyMemberAccess(Class.forName(classConstant.getBytes(constantPool).replace('/', '.')), referenceClass, checked, dangersToInnerClasses)
+                    verifyMemberAccess(arena.classForName(classConstant.getBytes(constantPool).replace('/', '.')), referenceClass, checked, dangersToInnerClasses, arena)
                 }
             }
         }
@@ -454,4 +463,32 @@ internal class AnswerableBytecodeVerificationException(val blameMethod: String, 
         initCause(fromInner)
     }
 
+}
+
+internal class TypeArena(private val bytecodeProvider: BytecodeProvider?, private val parent: TypeArena? = null) {
+    private val bcelClasses = mutableMapOf<Class<*>, JavaClass>()
+    private val loader: BytesClassLoader = BytesClassLoader(parent?.loader)
+    fun getBcelClassForClass(clazz: Class<*>): JavaClass {
+        try {
+            return parent!!.getBcelClassForClass(clazz)
+        } catch (e: Exception) {
+            // Ignored - parent couldn't find it
+        }
+        return try {
+            Repository.lookupClass(clazz).also { Repository.clearCache() }
+        } catch (e: Exception) {
+            bcelClasses[clazz] ?: run {
+                if (bytecodeProvider == null) throw NoClassDefFoundError("Could not find bytecode for $clazz")
+                val bytecode = bytecodeProvider.getBytecode(clazz)
+                val parser = ClassParser(bytecode.inputStream(), "")
+                parser.parse()!!.also { bcelClasses[clazz] = it }
+            }
+        }
+    }
+    fun loadBytes(name: String, bcelClass: JavaClass): Class<*> {
+        return loader.loadBytes(name, bcelClass.bytes).also { bcelClasses[it] = bcelClass }
+    }
+    fun classForName(name: String): Class<*> {
+        return Class.forName(name, true, loader)
+    }
 }
