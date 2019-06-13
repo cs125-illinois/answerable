@@ -4,9 +4,26 @@ import edu.illinois.cs.cs125.answerable.*
 import java.lang.IllegalStateException
 import java.util.*
 
+/**
+ * Allows use of Answerable as a service. Stores a map from question names to [TestGenerator]s.
+ */
 class Answerable {
-    val existingQuestions: MutableMap<String, TestGenerator> = mutableMapOf()
+    private val existingQuestions: MutableMap<String, TestGenerator> = mutableMapOf()
 
+    /**
+     * Load a new question into the Answerable service.
+     *
+     * Throws [AnswerableMisuseException]s and [AnswerableVerificationException] if issues are found with the [referenceClass].
+     * It is recommended to wrap calls to [loadNewQuestion] in a try-catch block.
+     *
+     * @throws [AnswerableMisuseException]
+     * @throws [AnswerableVerificationException]
+     *
+     * @param questionName the name to save this question under.
+     * @param solutionName the name of the @[Solution] or standalone @[Verify] method to use in this question.
+     * @param referenceClass the reference class for this question.
+     * @param testRunnerArgs the default arguments to [TestRunner]s produced by this question.
+     */
     fun loadNewQuestion(
         questionName: String,
         solutionName: String = "",
@@ -43,6 +60,13 @@ class Answerable {
         referenceClass: Class<*>
     ) = loadNewQuestion(questionName, "", referenceClass, defaultArgs)
 
+    /**
+     * Make a submission to a question. Returns a [TestRunner] which can run tests on demand.
+     *
+     * @param questionName the name of the question being submitted to
+     * @param submissionClass the class being submitted
+     * @param testRunnerArgs arguments to override the question's defaults, if any
+     */
     fun submit(
         questionName: String,
         submissionClass: Class<*>,
@@ -55,6 +79,9 @@ class Answerable {
         submissionClass: Class<*>
     ) = submit(questionName, submissionClass, defaultArgs)
 
+    /**
+     * [submit] a question and also execute the [TestRunner] with the given [seed].
+     */
     fun submitAndTest(
         questionName: String,
         submissionClass: Class<*>,

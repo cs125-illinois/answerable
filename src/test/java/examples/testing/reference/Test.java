@@ -12,8 +12,9 @@ public class Test {
     private static int test = 0;
 
     @Solution
+    @Timeout(timeout = 1000)
     public static int test(List<Integer> ss) {
-        return test++;
+        return test;
     }
 
     @Verify
@@ -30,11 +31,6 @@ public class Test {
     @Generator
     public static List<Integer> genInt(int complexity, Random r) {
         return List.of(r.nextInt());
-    }
-
-    @Generator
-    public static List<Character> genInt2(int complexity, Random r) {
-        return List.of('a');
     }
 
 }

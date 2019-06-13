@@ -8,10 +8,21 @@ import java.lang.IllegalStateException
 import java.lang.reflect.Type
 import java.util.*
 
+/**
+ * An interface for Answerable-internal objects which have default JSON serialization methods.
+ */
 interface DefaultSerializable {
+    /**
+     * Convert this object to a non-pretty-printed JSON string.
+     *
+     * No guarantees are made about the formatting other than that the string is valid JSON.
+     */
     fun toJson(): String
 }
 
+/**
+ * Convert a [List] of [DefaultSerializable] objects to a [String] representing a JSON list.
+ */
 fun <E : DefaultSerializable> List<E>.toJson(): String =
         this.joinToString(prefix = "[", postfix = "]", transform = DefaultSerializable::toJson)
 

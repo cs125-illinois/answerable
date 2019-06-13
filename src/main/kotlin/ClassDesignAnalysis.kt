@@ -2,6 +2,7 @@ package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
+import edu.illinois.cs.cs125.answerable.api.toErrorMsg
 import edu.illinois.cs.cs125.answerable.typeManagement.simpleSourceName
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.IllegalStateException

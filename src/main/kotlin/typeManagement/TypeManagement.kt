@@ -44,7 +44,7 @@ private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?
  * @param forward an instance of childClass to which method calls will be forwarded
  * @return an instance (the proxy) of a subclass of superClass
  */
-fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
+internal fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
     return mkProxy(superClass, superClass, childClass, childClass, forward)
 }
 
@@ -361,7 +361,7 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
     methodsToCheck.forEach { checkMethod(it, true) }
 }
 
-class AnswerableBytecodeVerificationException(val blameMethod: String, val blameClass: Class<*>, val member: Member) : AnswerableVerificationException("Bytecode error not specified. Please report a bug.") {
+internal class AnswerableBytecodeVerificationException(val blameMethod: String, val blameClass: Class<*>, val member: Member) : AnswerableVerificationException("Bytecode error not specified. Please report a bug.") {
 
     override val message: String?
         get() {

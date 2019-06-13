@@ -25,11 +25,29 @@ import java.util.concurrent.TimeoutException
 import kotlin.random.asKotlinRandom
 import java.lang.reflect.Array as ReflectArray
 
+/**
+ * A generator for testing runs.
+ *
+ * Each [TestGenerator] is bound to a particular [solutionName] on a particular [referenceClass]. Whenever a
+ * class is 'submitted' to the [TestGenerator], the [TestGenerator] will produce a [TestRunner] which can execute
+ * a random test suite given a seed. Given the same seed, the [TestRunner] will always run the same test cases.
+ *
+ * You can also provide [TestRunnerArgs] which will be used as defaults for [TestRunner]s produced by this
+ * [TestGenerator]. [TestRunnerArgs] can also be supplied when testing is initiated. If none are provided,
+ * Answerable will use a set of [defaultArgs].
+ *
+ * @constructor Creates a [TestGenerator] for the [referenceClass] @[Solution] method named [solutionName],
+ * which creates [TestRunner]s which default to using [testRunnerArgs].
+ */
 class TestGenerator(
     val referenceClass: Class<*>,
     val solutionName: String = "",
     private val testRunnerArgs: TestRunnerArgs = defaultArgs
 ) {
+    /**
+     * A secondary constructor which uses Answerable's [defaultArgs].
+     */
+    constructor(referenceClass: Class<*>, solutionName: String) : this(referenceClass, solutionName, defaultArgs)
     init {
         verifyStaticSignatures(referenceClass)
     }
@@ -112,7 +130,7 @@ class TestGenerator(
         return mapOf(*types.map { it to all[it] }.toTypedArray())
     }
 
-    internal fun verifySafety() {
+    private fun verifySafety() {
         verifyMemberAccess(referenceClass)
 
         val dryRun = { loadSubmission(referenceClass).runTests(0x0403) }
@@ -143,6 +161,17 @@ class TestGenerator(
         }
     }
 
+    /**
+     * Load a submission class to the problem represented by this [TestGenerator].
+     *
+     * The submission class will be run through Class Design Analysis against the reference solution.
+     * The results of class design analysis will be included in the output of every test run by the [TestRunner] returned.
+     * If class design analysis fails, the returned [TestRunner] will never execute any tests, as doing so
+     * would be unsafe and cause nasty errors.
+     *
+     * @param submissionClass the class to be tested against the reference
+     * @param testRunnerArgs the arguments that the [TestRunner] returned should default to.
+     */
     fun loadSubmission(
         submissionClass: Class<*>,
         testRunnerArgs: TestRunnerArgs = this.testRunnerArgs
@@ -164,18 +193,27 @@ class TestGenerator(
 
 }
 
+/**
+ * Represents a class that can execute tests.
+ */
 interface TestRunner {
     fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs): TestRunOutput
     fun runTests(seed: Long): TestRunOutput
 }
 
-open class PassedClassDesignRunner internal constructor(
+/**
+ * The primary [TestRunner] subclass which tests classes that have passed Class Design Analysis.
+ *
+ * The only publicly-exposed way to create a [PassedClassDesignRunner] is to invoke
+ * [TestGenerator.loadSubmission] on an existing [TestGenerator].
+ */
+class PassedClassDesignRunner internal constructor(
     testGenerator: TestGenerator,
     private val submissionClass: Class<*>,
     private val cachedClassDesignAnalysisResult: List<AnalysisOutput> = listOf(),
     private val testRunnerArgs: TestRunnerArgs
 ) : TestRunner {
-    constructor(
+    internal constructor(
         referenceClass: Class<*>, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
     ) : this(TestGenerator(referenceClass), submissionClass, cdaResult, testRunnerArgs)
 
@@ -474,6 +512,14 @@ open class PassedClassDesignRunner internal constructor(
         )
     }
 
+    /**
+     * [TestRunner.runTests] override which accepts [TestRunnerArgs]. Executes a test suite.
+     *
+     * If the method under test has a timeout, [runTests] will run as many tests as it can before the timeout
+     * is reached, and record the results.
+     *
+     * When called with the same [seed], [runTests] will always produce the same result.
+     */
     override fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs): TestRunOutput {
         val numTests = testRunnerArgs.numTests
 
@@ -647,12 +693,21 @@ open class PassedClassDesignRunner internal constructor(
             testSteps = testStepList
         )
     }
+
+    /**
+     * [TestRunner.runTests] overload which uses the [TestRunnerArgs] that this [PassedClassDesignRunner] was constructed with.
+     */
     override fun runTests(seed: Long) = runTests(seed, this.testRunnerArgs) // to expose the overload to Java
-
-
 
 }
 
+/**
+ * The secondary [TestRunner] subclass representing a [submissionClass] which failed Class Design Analysis
+ * against the [referenceClass].
+ *
+ * [runTests] will always execute 0 tests and produce an empty [TestRunOutput.testSteps].
+ * The class design analysis results will be contained in the output.
+ */
 class FailedClassDesignTestRunner(
     private val referenceClass: Class<*>,
     private val solutionName: String,
@@ -740,16 +795,6 @@ private class GeneratorMapBuilder(goalTypes: Collection<Type>, private val rando
         )
     }
 }
-
-data class TestRunnerArgs(
-    val numTests: Int = 1024,
-    val maxOnlyEdgeCaseTests: Int = numTests/16,
-    val maxOnlySimpleCaseTests: Int = numTests/16,
-    val numSimpleEdgeMixedTests: Int = numTests/16,
-    val numAllGeneratedTests: Int = numTests/2,
-    val maxComplexity: Int = 100
-)
-val defaultArgs = TestRunnerArgs()
 
 internal class GenWrapper<T>(val gen: Gen<T>, private val random: Random) {
     operator fun invoke(complexity: Int) = gen.generate(complexity, random)
@@ -1086,18 +1131,23 @@ internal class DefaultListGen<T>(private val tGen: Gen<T>) : Gen<List<T>> {
  * A wrapper class used to pass data to custom verification methods.
  */
 data class TestOutput<T>(
+    /**
+     * An enum describing whether the method returned or threw an exception.
+     *
+     * If the test uses a standalone @[Verify] method, this will be [Behavior.VERIFY_ONLY].
+     */
     val typeOfBehavior: Behavior,
     /** The object that the method was called on. Null if the method is static. */
     val receiver: T?,
     /** The arguments the method was called with */
     val args: Array<Any?>,
-    /** The return value of the method. If 'threw' is not null, 'output' is always null. */
+    /** The return value of the method. If [threw] is not null, [output] is always null. */
     val output: Any?,
     /** The throwable (if any) thrown by the method. Null if nothing was thrown. */
     val threw: Throwable?,
-    /** The log of stdOut during the method invocation. Only non-null if the method is static and void. */
+    /** The log of stdOut during the method invocation. Only non-null if [Solution.prints] is true. */
     val stdOut: String?,
-    /** The log of stdErr during the method invocation. Only non-null if the method is static and void. */
+    /** The log of stdErr during the method invocation. Only non-null if [Solution.prints] is true. */
     val stdErr: String?
 ) : DefaultSerializable {
     override fun toJson() = defaultToJson()
@@ -1136,7 +1186,7 @@ internal fun verifyStaticSignatures(referenceClass: Class<*>) {
     verifyNexts(referenceClass, allMethods)
     verifyVerifiers(allMethods)
     verifyCaseMethods(allMethods)
-    verifyCaseFields(referenceClass.declaredFields)
+    verifyCaseFields(referenceClass, referenceClass.declaredFields)
 }
 
 private val generatorPTypes = arrayOf(Int::class.java, java.util.Random::class.java)
@@ -1238,7 +1288,7 @@ private fun verifyCaseMethods(methods: Array<Method>) {
     }
 }
 
-private fun verifyCaseFields(fields: Array<Field>) {
+private fun verifyCaseFields(clazz: Class<*>, fields: Array<Field>) {
     val cases = fields.filter { field -> caseAnnotations.any { field.isAnnotationPresent(it) } }
 
     cases.forEach { field ->
@@ -1247,48 +1297,86 @@ private fun verifyCaseFields(fields: Array<Field>) {
         if (!Modifier.isStatic(field.modifiers)) {
             throw AnswerableMisuseException("""
                 $caseString fields must be static.
-                While verifying $caseString method `$field'.
+                While verifying $caseString field `$field'.
             """.trimIndent())
         }
 
         if (!field.type.isArray) {
             throw AnswerableMisuseException("""
-                $caseString methods must return an array.
-                While verifying $caseString method `$field'.
+                $caseString fields must store an array.
+                While verifying $caseString field `$field'.
+            """.trimIndent())
+        }
+
+        if (field.type == clazz) {
+            throw AnswerableMisuseException("""
+                $caseString cases for the reference class must be represented by a function.
+                While verifying $caseString field `$field'.
             """.trimIndent())
         }
     }
 }
 
+/**
+ * The types of behaviors that methods under test can have.
+ */
 enum class Behavior { RETURNED, THREW, VERIFY_ONLY }
 
+/**
+ * Represents a single iteration of the main testing loop.
+ */
 data class TestStep(
+    /** The number of the test represented by this [TestStep]. */
     val testNumber: Int,
+    /** The receiver object passed to the reference solution. */
     val refReceiver: Any?,
+    /** The receiver object passed to the submission. */
     val subReceiver: Any?,
+    /** Whether or not the test case succeeded. */
     val succeeded: Boolean,
+    /** The return value of the reference solution. */
     val refOutput: TestOutput<Any?>,
+    /** The return value of the submission. */
     val subOutput: TestOutput<Any?>,
+    /** The assertion error thrown, if any, by the verifier. */
     val assertErr: Throwable?
 ) : DefaultSerializable {
     override fun toJson() = defaultToJson()
 }
 
+/**
+ * Represents the output of an entire testing run.
+ */
 data class TestRunOutput(
+    /** The seed that this testing run used. */
     val seed: Long,
+    /** The reference class for this testing run. */
     val referenceClass: Class<*>,
+    /** The submission class for this testing run. */
     val testedClass: Class<*>,
+    /** The [Solution.name] of the @[Solution] annotation that this test used. */
     val solutionName: String,
+    /** The time (in ms since epoch) that this test run started. Only the main testing loop is considered. */
     val startTime: Long,
+    /** The time (in ms since epoch) that this test run ended. Only the main testing loop is considered. */
     val endTime: Long,
+    /** Whether or not this test run ended in a time-out. */
     val timedOut: Boolean,
+    /** The number of tests which were executed. */
     val numTests: Int,
+    /** The number of tests which contained only edge cases. */
     val numEdgeCaseTests: Int,
+    /** The number of tests which contained only simple cases. */
     val numSimpleCaseTests: Int,
+    /** The number of tests which contained a mix of simple and edge cases. */
     val numSimpleAndEdgeCaseTests: Int,
+    /** The number of tests which contained a mix of edge, simple, and generated cases. */
     val numMixedTests: Int,
+    /** The number of tests which contained purely generated inputs. */
     val numAllGeneratedTests: Int,
+    /** The results of class design analysis between the [referenceClass] and [testedClass]. */
     val classDesignAnalysisResult: List<AnalysisOutput>,
+    /** The list of [TestStep]s that were performed during this test run. */
     val testSteps: List<TestStep>
 ) : DefaultSerializable {
     override fun toJson() = defaultToJson()

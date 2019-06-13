@@ -1,7 +1,9 @@
 package examples.testing;
 
+import java.util.List;
+
 public class Test {
-    public static boolean test(int[][] is) {
-        return false;
+    public static int test(List<Integer> ss) {
+        return 1;
     }
 }
