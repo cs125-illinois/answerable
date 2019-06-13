@@ -116,7 +116,7 @@ private fun Class<*>.slashName() = name.replace('.', '/')
  * @return a mirror class suitable only for generation
  */
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
-    return mkMirrorClass(referenceClass, referenceClass, targetClass, "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), BytesClassLoader())
+    return mkGeneratorMirrorClass(referenceClass, referenceClass, targetClass, "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), BytesClassLoader())
 }
 
 /**
@@ -129,7 +129,7 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
  * @param loader the class loader to load the mirror
  * @return the mirrored class
  */
-private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String, mirrorsMade: MutableMap<String, Class<*>>, loader: BytesClassLoader): Class<*> {
+private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String, mirrorsMade: MutableMap<String, Class<*>>, loader: BytesClassLoader): Class<*> {
     mirrorsMade[mirrorName]?.let { return it }
 
     val refLName = "L${referenceClass.slashName()};"
@@ -203,7 +203,7 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
             val name = constant.getBytes(constantPool)
             if (name.startsWith("${baseClass.slashName()}\$")) {
                 val inner = Class.forName(name.replace('/', '.'))
-                val innerMirror = mkMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade, loader)
+                val innerMirror = mkGeneratorMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade, loader)
                 constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(innerMirror.slashName()))
             } else if (name.startsWith("${referenceClass.slashName()}\$")) {
                 // Shouldn't merge this with the above condition because of possible mutual reference (infinite recursion)
@@ -260,6 +260,76 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
 
     // classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
     return loader.loadBytes(mirrorName, classGen.javaClass.bytes).also { mirrorsMade[mirrorName] = it }
+}
+
+/**
+ * Creates a mirror of an outer class with `final` members removed from classes and methods.
+ * @param clazz an outer class
+ * @return a non-final version of the class with non-final members/classes
+ */
+internal fun mkOpenMirrorClass(clazz: Class<*>): Class<*> {
+    return mkOpenMirrorClass(clazz, clazz, "answerablemirror.o" + UUID.randomUUID().toString().replace("-", ""),
+            mutableSetOf(), BytesClassLoader())!!
+}
+
+private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: String, alreadyDone: MutableSet<String>, loader: BytesClassLoader): Class<*>? {
+    if (alreadyDone.contains(newName)) return null
+    alreadyDone.add(newName)
+
+    // Get a mutable ClassGen, initialized as a copy of the existing class
+    val classGen = ClassGen(Repository.lookupClass(clazz))
+    Repository.clearCache()
+    val constantPoolGen = classGen.constantPool
+    val constantPool = constantPoolGen.constantPool
+
+    // Strip `final` off the class and its methods
+    if (Modifier.isFinal(classGen.modifiers)) classGen.modifiers -= Modifier.FINAL
+    classGen.methods.forEach { method ->
+        if (Modifier.isFinal(method.modifiers)) method.modifiers -= Modifier.FINAL
+    }
+
+    // Recursively mirror inner classes
+    val newBase = newName.split('$', limit = 2)[0]
+    classGen.attributes.filterIsInstance(InnerClasses::class.java).firstOrNull()?.innerClasses?.forEach { innerClass ->
+        val innerName = (constantPool.getConstant(innerClass.innerClassIndex) as? ConstantClass)?.getBytes(constantPool) ?: return@forEach
+        if (innerName.startsWith(baseClass.slashName() + "$")) {
+            val innerPath = innerName.split('$', limit = 2)[1]
+            mkOpenMirrorClass(Class.forName(innerName.replace('/', '.')), baseClass, "$newBase\$$innerPath", alreadyDone, loader)
+        }
+    }
+
+    // Rename the class by changing all strings used by class or signature constants
+    val newSlashBase = newBase.replace('.', '/')
+    fun fixSignature(signature: String): String {
+        return signature.replace("L${baseClass.slashName()};", "L$newSlashBase;")
+                .replace("L${baseClass.slashName()}$", "L$newSlashBase$")
+    }
+    (1 until constantPool.length).forEach { idx ->
+        val constant = constantPool.getConstant(idx)
+        if (constant is ConstantClass) {
+            val className = constant.getBytes(constantPool)
+            val classNameParts = className.split('$', limit = 2)
+            val newConstantValue = if (classNameParts[0] == baseClass.slashName()) {
+                 if (classNameParts.size > 1) "$newSlashBase\$${classNameParts[1]}" else newSlashBase
+            } else if (className.contains(';')) {
+                fixSignature(className)
+            } else {
+                className
+            }
+            constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(newConstantValue))
+        } else if (constant is ConstantNameAndType) {
+            val signature = constant.getSignature(constantPool)
+            constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(fixSignature(signature)))
+        }
+    }
+    classGen.methods.map { it.signatureIndex }.forEach { sigIdx ->
+        val signature = (constantPool.getConstant(sigIdx) as ConstantUtf8).bytes
+        constantPoolGen.setConstant(sigIdx, ConstantUtf8(fixSignature(signature)))
+    }
+
+    // Create and load the modified class
+    // classGen.javaClass.dump("Opened${alreadyDone.size}.class") // Uncomment for debugging
+    return loader.loadBytes(newName, classGen.javaClass.bytes)
 }
 
 /**
