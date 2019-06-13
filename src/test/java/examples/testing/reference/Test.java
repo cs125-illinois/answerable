@@ -36,4 +36,5 @@ public class Test {
     public static List<Character> genInt2(int complexity, Random r) {
         return List.of('a');
     }
+
 }

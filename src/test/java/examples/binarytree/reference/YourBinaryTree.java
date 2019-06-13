@@ -8,6 +8,7 @@ import java.util.Random;
 public class YourBinaryTree extends BinaryTree {
 
     @Solution(name = "size")
+    @Timeout(timeout = 1000)
     public int size() {
         return size(root);
     }
@@ -20,6 +21,7 @@ public class YourBinaryTree extends BinaryTree {
     }
 
     @Solution(name = "sum")
+    @Timeout(timeout = 1000)
     public int sum() { return sum(root); }
     private int sum(Node current) {
         if (current == null) {

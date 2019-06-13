@@ -9,11 +9,12 @@ internal class AdHoc {
     fun test() {
         val answerable = Answerable()
 
-        assertThrows<AnswerableVerificationException> {
+        val msg = assertThrows<AnswerableVerificationException> {
             answerable.loadNewQuestion("test", examples.testing.reference.Test::class.java)
 
             answerable.submitAndTest("test", examples.testing.reference.Test::class.java)
-        }
+        }.message!!
 
+        println(msg)
     }
 }

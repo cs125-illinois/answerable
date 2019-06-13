@@ -31,6 +31,25 @@ internal val Type.sourceName: String
         else -> this.toString()
     }
 
+internal val Type.simpleSourceName: String
+    get() = when (this) {
+        is Class<*> -> this.simpleName
+        is GenericArrayType -> "${this.genericComponentType.simpleSourceName}[]"
+        is ParameterizedType ->
+            "${this.rawType.simpleSourceName}${this.actualTypeArguments.let {
+                if (it.isEmpty()) "" else it.joinToString(prefix = "<", postfix = ">", transform = Type::simpleSourceName)
+            }}"
+        is WildcardType -> {
+            when {
+                this.lowerBounds.isNotEmpty() -> "? super ${lowerBounds[0].simpleSourceName}"
+                this.upperBounds.isNotEmpty() ->
+                    "? extends ${upperBounds.joinToString(separator = " & ", transform = Type::simpleSourceName)}"
+                else -> "?"
+            }
+        }
+        else -> this.toString()
+    }
+
 internal fun wrapArray(arr: Any?): ArrayWrapper = when (arr) {
     null -> throw IllegalStateException()
     is IntArray -> IntArrayWrapper(arr)

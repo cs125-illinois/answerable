@@ -2,6 +2,8 @@ package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
+import edu.illinois.cs.cs125.answerable.typeManagement.simpleSourceName
+import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.IllegalStateException
 import java.lang.reflect.*
 import java.util.*
@@ -199,12 +201,12 @@ class MethodData(
                         prefix = "<",
                         separator = ", ",
                         postfix = "> ",
-                        transform = { it.simpleName() })
+                        transform = { it.simpleSourceName })
                 )
             }
 
             if (method is Method) {
-                sb.append(returnType.simpleName()).append(" ")
+                sb.append(returnType.simpleSourceName).append(" ")
             }
             sb.append(name)
 
@@ -212,7 +214,7 @@ class MethodData(
             val sj = StringJoiner(", ")
             val params = paramTypes
             for (j in params.indices) {
-                var param = params[j].simpleName()
+                var param = params[j].simpleSourceName
                 if (method.isVarArgs && j == params.size - 1)
                 // replace T[] with T...
                     param = param.replaceFirst("\\[]$".toRegex(), "...")
@@ -227,7 +229,7 @@ class MethodData(
                     exceptionTypes.joinToString(
                         separator = ", ",
                         prefix = " throws ",
-                        transform = { it.simpleName() })
+                        transform = { it.simpleSourceName })
                 )
             }
             return sb.toString()

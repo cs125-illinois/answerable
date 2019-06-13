@@ -46,7 +46,7 @@ annotation class Timeout(
  * (2) an int representing the number of tests which have run, and
  * (3) a [java.util.Random] instance to be used if randomness is required.
  * The method visibility and name do not matter. The method will be ignored in class design analysis, even if it is public.
- * If the method has the wrong signature, an AnswerableMisuseException will be thrown.
+ * If the method has the wrong signature, an [AnswerableMisuseException] will be thrown.
  *
  * The method will be called twice during each testing loop; once to create a receiver object for the reference
  * solution, and once to create a receiver object for the submitted class. Answerable will automatically manage
