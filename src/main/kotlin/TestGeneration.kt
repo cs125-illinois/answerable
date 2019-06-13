@@ -646,7 +646,7 @@ class PassedClassDesignRunner internal constructor(
 
                     else ->
                         throw IllegalStateException(
-                            "Main test loop index not within bounds of any main testing block. Please report a bug."
+                            "Answerable somehow lost proper track of test block counts. Please report a bug."
                         )
                 }
 
