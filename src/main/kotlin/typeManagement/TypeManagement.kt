@@ -479,6 +479,7 @@ internal class TypeArena(private val bytecodeProvider: BytecodeProvider?, privat
         } catch (e: Exception) {
             // Ignored - parent couldn't find it
         }
+        // TODO: See if we can cache this more
         val old = bcelClasses[clazz] ?: localGetBcelClassForClass(clazz).also { bcelClasses[clazz] = it }
         return ClassParser(old.bytes.inputStream(), old.className).parse()
     }

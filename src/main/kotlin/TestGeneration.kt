@@ -716,6 +716,8 @@ class PassedClassDesignRunner internal constructor(
             classDesignAnalysisResult = cachedClassDesignAnalysisResult,
             testSteps = testStepList
         )
+
+        // TODO: Save and restore reference static variables
     }
 
     /**
