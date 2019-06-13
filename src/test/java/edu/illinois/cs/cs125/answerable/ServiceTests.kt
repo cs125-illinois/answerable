@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 fun TestRunOutput.assertAllSucceeded() {
+    println(this.toJson())
+    this.classDesignAnalysisResult.forEach{ assertTrue(it.result is Matched) }
     this.testSteps.forEach {
         assertNull(it.assertErr)
         assertTrue(it.succeeded)
@@ -76,5 +78,11 @@ internal class ServiceTests {
     fun testYourBinaryTreeSize() {
         answerableService.loadNewQuestion("YourBinaryTree size", "size", ReferenceYBT::class.java)
         answerableService.submitAndTest("YourBinaryTree size", YourBinaryTree::class.java).assertAllSucceeded()
+    }
+    @Test
+    fun testYourBinaryTreeSum() {
+        answerableService.loadNewQuestion("YourBinaryTree sum", "sum", ReferenceYBT::class.java)
+        answerableService.submitAndTest("YourBinaryTree sum", examples.binarytree.sum.YourBinaryTree::class.java)
+            .assertAllSucceeded()
     }
 }

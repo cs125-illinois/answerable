@@ -80,6 +80,7 @@ internal class TestGeneratorTest {
             .runTests(Random.nextLong())
 
         out.assertAllSucceeded()
+
     }
 
     @Test

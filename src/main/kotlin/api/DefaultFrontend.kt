@@ -69,6 +69,7 @@ internal fun TestRunOutput.defaultToJson(): String =
     """
         |{
         |  seed: $seed,
+        |  referenceClass: "${referenceClass.canonicalName}",
         |  testedClass: "${testedClass.canonicalName}",
         |  solutionName: "$solutionName",
         |  startTime: $startTime,
@@ -90,7 +91,7 @@ internal fun <T> AnalysisResult<T>.defaultToJson() = when (this) {
         |{
         |  matched: true,
         |  found: ${found.showExpectedOrFound()}
-        | }
+        |}
     """.trimMargin()
     is Mismatched -> """
         |{

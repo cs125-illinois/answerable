@@ -145,10 +145,15 @@ class TestGenerator(
         val cda = ClassDesignAnalysis(solutionName, referenceClass, submissionClass).runSuite()
         val cdaPassed = cda.all { ao -> ao.result is Matched }
 
+        // when testing the reference against itself, we fully expect that public methods and fields
+        // won't match, particularly @Generators, @Verifies, @EdgeCases etc.
+        // We can't just exclude them from class design analysis in the submission because then real submissions
+        // could subvert the system. On the other hand, it's impossible for the reference class to be unsafe against itself.
+        // So we simply allow testing to continue if the reference and submission classes are the same class.
         return if (cdaPassed || referenceClass == submissionClass) {
             PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs)
         } else {
-            FailedClassDesignTestRunner(solutionName, submissionClass, cda)
+            FailedClassDesignTestRunner(referenceClass, solutionName, submissionClass, cda)
         }
     }
 
@@ -621,7 +626,8 @@ open class PassedClassDesignRunner internal constructor(
 
         return TestRunOutput(
             seed = seed,
-            testedClass = referenceClass,
+            referenceClass = referenceClass,
+            testedClass = submissionClass,
             solutionName = solutionName,
             startTime = startTime,
             endTime = endTime,
@@ -643,6 +649,7 @@ open class PassedClassDesignRunner internal constructor(
 }
 
 class FailedClassDesignTestRunner(
+    private val referenceClass: Class<*>,
     private val solutionName: String,
     private val submissionClass: Class<*>,
     private val failedCDAResult: List<AnalysisOutput>
@@ -650,6 +657,7 @@ class FailedClassDesignTestRunner(
     override fun runTests(seed: Long): TestRunOutput =
             TestRunOutput(
                 seed = seed,
+                referenceClass = referenceClass,
                 testedClass = submissionClass,
                 solutionName = solutionName,
                 startTime = System.currentTimeMillis(),
@@ -1132,6 +1140,7 @@ data class TestStep(
 
 data class TestRunOutput(
     val seed: Long,
+    val referenceClass: Class<*>,
     val testedClass: Class<*>,
     val solutionName: String,
     val startTime: Long,
