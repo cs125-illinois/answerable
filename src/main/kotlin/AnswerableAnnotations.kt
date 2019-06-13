@@ -155,7 +155,8 @@ annotation class SimpleCase(
  *
  * A precondition method must take the same arguments as the @[Solution] annotation to which it corresponds.
  * @[Precondition] method must be static if the corresponding @[Solution] is static. Precondition methods should return a boolean,
- * true if the precondition is satisfied and false otherwise.
+ * true if the precondition is satisfied and false otherwise. Answerable will inspect @[Precondition] method signatures
+ * and throw an [AnswerableMisuseException] if any are incorrect.
  *
  * Preconditions will be only called on the arguments (and receiver) that will be supplied to the reference solution.
  * If a precondition fails, the test case will be "discarded." This is reflected in the [TestStep]. If too many

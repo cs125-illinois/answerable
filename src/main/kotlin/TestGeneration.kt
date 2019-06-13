@@ -1203,6 +1203,7 @@ internal fun verifyStaticSignatures(referenceClass: Class<*>) {
     verifyGenerators(allMethods)
     verifyNexts(referenceClass, allMethods)
     verifyVerifiers(allMethods)
+    verifyPreconditions(allMethods)
     verifyCaseMethods(allMethods)
     verifyCaseFields(referenceClass, referenceClass.declaredFields)
 }
@@ -1271,6 +1272,37 @@ private fun verifyVerifiers(methods: Array<Method>) {
             throw AnswerableMisuseException("""
                 @Verify methods should be void. Throw an exception if verification fails.
                 While verifying @Verify method `${MethodData(method)}'.
+            """.trimIndent())
+        }
+    }
+}
+
+private fun verifyPreconditions(methods: Array<Method>) {
+    val preconditions = methods.filter { it.isAnnotationPresent(Precondition::class.java) }
+
+    preconditions.forEach { method ->
+        if (method.returnType != Boolean::class.java) {
+            throw AnswerableMisuseException("""
+                @Precondition methods must return a boolean.
+                While verifying @Precondition method `${MethodData(method)}'.
+            """.trimIndent())
+        }
+
+        val solution = methods.find {
+            it.getAnnotation(Solution::class.java)?.name?.equals(method.getAnnotation(Precondition::class.java)?.name)
+                ?: false } ?: return@forEach // nothing to compare to
+
+        if (Modifier.isStatic(solution.modifiers) && !Modifier.isStatic(method.modifiers)) {
+            throw AnswerableMisuseException("""
+                @Precondition methods must be static if the corresponding @Solution is static.
+                While verifying @Precondition method `${MethodData(method)}'.
+            """.trimIndent())
+        }
+
+        if (!solution.genericParameterTypes!!.contentEquals(method.genericParameterTypes)) {
+            throw AnswerableMisuseException("""
+                @Precondition methods must have the same parameter types as the corresponding @Solution.
+                While verifying @Precondition method `${MethodData(method)}'.
             """.trimIndent())
         }
     }
