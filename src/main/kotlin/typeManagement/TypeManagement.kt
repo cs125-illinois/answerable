@@ -309,10 +309,14 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
         if (constant is ConstantClass) {
             val className = constant.getBytes(constantPool)
             val classNameParts = className.split('$', limit = 2)
-            if (classNameParts[0] == baseClass.slashName()) {
-                val newConstantValue = if (classNameParts.size > 1) "$newSlashBase\$${classNameParts[1]}" else newSlashBase
-                constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(newConstantValue))
+            val newConstantValue = if (classNameParts[0] == baseClass.slashName()) {
+                 if (classNameParts.size > 1) "$newSlashBase\$${classNameParts[1]}" else newSlashBase
+            } else if (className.contains(';')) {
+                fixSignature(className)
+            } else {
+                className
             }
+            constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(newConstantValue))
         } else if (constant is ConstantNameAndType) {
             val signature = constant.getSignature(constantPool)
             constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(fixSignature(signature)))
