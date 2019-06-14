@@ -683,8 +683,13 @@ class PassedClassDesignRunner internal constructor(
 
         setOf(randomForReference, randomForSubmission, testRunnerRandom).forEach { it.setSeed(seed) }
 
-        var timedOut = false
+        // Store reference class static field values so that the next run against this solution doesn't break
+        val refStaticFieldValues = referenceClass.declaredFields.filter { Modifier.isStatic(it.modifiers) }.map {
+            it.isAccessible = true
+            it to it.get(null)
+        }
 
+        var timedOut = false
         val startTime: Long = System.currentTimeMillis()
 
         if (timeout == 0L) {
@@ -698,6 +703,9 @@ class PassedClassDesignRunner internal constructor(
         }
 
         val endTime: Long = System.currentTimeMillis()
+
+        // Restore reference class static field values
+        refStaticFieldValues.forEach { (field, value) -> field.set(null, value) }
 
         return TestRunOutput(
             seed = seed,
@@ -716,8 +724,6 @@ class PassedClassDesignRunner internal constructor(
             classDesignAnalysisResult = cachedClassDesignAnalysisResult,
             testSteps = testStepList
         )
-
-        // TODO: Save and restore reference static variables
     }
 
     /**

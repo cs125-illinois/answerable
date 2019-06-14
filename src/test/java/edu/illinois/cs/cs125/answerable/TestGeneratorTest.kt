@@ -97,10 +97,11 @@ internal class TestGeneratorTest {
 
     @Test
     fun testMutatedStaticField() {
-        val out = TestGenerator(examples.testgeneration.mutatestaticfield.reference.Counter::class.java, "")
-                .loadSubmission(examples.testgeneration.mutatestaticfield.Counter::class.java)
-                .runTests(0x0403)
-        out.assertAllSucceeded(showOutput = false)
+        val generator = TestGenerator(examples.testgeneration.mutatestaticfield.reference.Counter::class.java, "")
+        val firstOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.Counter::class.java).runTests(0x0403)
+        firstOut.assertAllSucceeded(showOutput = false)
+        val secondOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.another.Counter::class.java).runTests(403)
+        secondOut.assertAllSucceeded(showOutput = false)
     }
 
 }
