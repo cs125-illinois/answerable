@@ -2,9 +2,7 @@ package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
-import edu.illinois.cs.cs125.answerable.api.toErrorMsg
 import edu.illinois.cs.cs125.answerable.typeManagement.simpleSourceName
-import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.IllegalStateException
 import java.lang.reflect.*
 import java.util.*
@@ -95,6 +93,7 @@ class ClassDesignAnalysis(private val solutionName: String, private val referenc
         Next::class.java,
         EdgeCase::class.java,
         SimpleCase::class.java,
+        Precondition::class.java,
         Helper::class.java,
         Ignore::class.java
     )

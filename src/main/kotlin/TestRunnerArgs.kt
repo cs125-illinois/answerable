@@ -7,6 +7,8 @@ package edu.illinois.cs.cs125.answerable
 data class TestRunnerArgs(
     /** The total number of tests to execute. */
     val numTests: Int = 1024,
+    /** The maximum number of tests which can be discarded before Answerable gives up. */
+    val maxDiscards: Int = 1024,
     /** The maximum number of edge-case only tests to execute. */
     val maxOnlyEdgeCaseTests: Int = numTests/16,
     /** The maximum number of simple-case only tests to execute. */
@@ -22,6 +24,6 @@ data class TestRunnerArgs(
 /**
  * Answerable's default [TestRunnerArgs].
  *
- * Created with <tt>TestRunnerArgs(1024, 64, 64, 64, 512, 100)</tt>.
+ * Created with <tt>TestRunnerArgs(1024, 1024, 64, 64, 64, 512, 100)</tt>.
  */
 val defaultArgs = TestRunnerArgs()

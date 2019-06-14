@@ -14,8 +14,10 @@ fun TestRunOutput.assertAllSucceeded(showOutput: Boolean = true) {
     if (showOutput) println(this.toJson())
     this.classDesignAnalysisResult.forEach{ assertTrue(it.result is Matched) }
     this.testSteps.forEach {
-        assertNull(it.assertErr)
-        assertTrue(it.succeeded)
+        if (it is ExecutedTestStep) {
+            assertNull(it.assertErr)
+            assertTrue(it.succeeded)
+        }
     }
 }
 

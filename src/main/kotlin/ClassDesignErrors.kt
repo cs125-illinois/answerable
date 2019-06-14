@@ -1,10 +1,6 @@
 @file: Suppress("UNCHECKED_CAST")
-package edu.illinois.cs.cs125.answerable.api
+package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.AnalysisOutput
-import edu.illinois.cs.cs125.answerable.AnalysisTag
-import edu.illinois.cs.cs125.answerable.Matched
-import edu.illinois.cs.cs125.answerable.Mismatched
 import java.lang.IllegalStateException
 import java.lang.reflect.Type
 

@@ -10,8 +10,10 @@ internal class ProxyingTest {
 
     fun assertAllSucceeded(results: TestRunOutput) {
         results.testSteps.forEach {
-            Assertions.assertNull(it.assertErr)
-            Assertions.assertTrue(it.succeeded)
+            if (it is ExecutedTestStep) {
+                Assertions.assertNull(it.assertErr)
+                Assertions.assertTrue(it.succeeded)
+            }
         }
     }
 
