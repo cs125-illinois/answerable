@@ -315,7 +315,7 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
     }
 
     // Create and load the modified class
-    classGen.javaClass.dump("Opened${alreadyDone.indexOf(newName)}.class") // Uncomment for debugging
+    // classGen.javaClass.dump("Opened${alreadyDone.indexOf(newName)}.class") // Uncomment for debugging
     return arena.loadBytes(newName, classGen.javaClass)
 }
 
