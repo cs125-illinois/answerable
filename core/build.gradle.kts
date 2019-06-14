@@ -1,5 +1,6 @@
 buildscript {
-    val kotlinVersion = "1.3.31"
+    val kotlinVersion: String by extra
+    
     repositories {
         jcenter()
     }
@@ -9,9 +10,10 @@ buildscript {
         classpath("org.jetbrains.dokka:dokka-gradle-plugin:0.9.18")
     }
 }
+
 plugins {
     java
-    kotlin("jvm") version "1.3.31"
+    kotlin("jvm") version "1.3.31" // keep updated!
     id("org.jetbrains.dokka") version "0.9.18"
     id("com.github.ben-manes.versions") version "0.21.0"
 }
