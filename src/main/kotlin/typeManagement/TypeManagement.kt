@@ -1,6 +1,7 @@
 package edu.illinois.cs.cs125.answerable.typeManagement
 
 import edu.illinois.cs.cs125.answerable.*
+import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
 import org.apache.bcel.Const
@@ -19,7 +20,7 @@ import java.util.*
 
 private val objenesis = ObjenesisStd()
 
-private class BytesClassLoader : ClassLoader() {
+private class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLoader(parentLoader ?: getSystemClassLoader()) {
     fun loadBytes(name: String, bytes: ByteArray): Class<*> {
         val clazz = defineClass(name, bytes, 0, bytes.size)
         resolveClass(clazz)
@@ -27,25 +28,16 @@ private class BytesClassLoader : ClassLoader() {
     }
 }
 
-/*
- * For performance reasons, we want to re-use instantiators as much as possible.
- * A map is used for future-safety so that as many proxy instantiators as are needed can be created safely,
- * even if using only one is the most common use case.
- *
- * We map from 'superClass' instead of directly from 'proxyClass' as we won't have access to
- * the same reference to 'proxyClass' on future calls.
- */
-private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
-
 /**
  * Creates a proxy to allow treating an object as an instance of a similarly-shaped class.
  * @param superClass the class that the object needs to appear as (be an instance of)
  * @param childClass the original class
  * @param forward an instance of childClass to which method calls will be forwarded
+ * @param arena the type arena to look for classes in
  * @return an instance (the proxy) of a subclass of superClass
  */
-internal fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any): Any {
-    return mkProxy(superClass, superClass, childClass, childClass, forward)
+internal fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any, arena: TypeArena): Any {
+    return mkProxy(superClass, superClass, childClass, childClass, forward, arena)
 }
 
 private data class TypeMap(
@@ -57,45 +49,36 @@ private data class TypeMap(
  * Determines what an inner class should be proxied to, if any.
  * @param outermostSuperClass the outer class a proxy is being made an instance of
  * @param childClass an inner class of the real/original class
+ * @param arena type arena to look for classes in
  * @return a TypeMap that determines what classes to map fields and method between, or null if no proxy is needed
  */
-private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?): TypeMap? {
+private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?, arena: TypeArena): TypeMap? {
     if (childClass == null) return null
     if (childClass.enclosingClass == null) return null
     val innerPath = childClass.name.split('$', limit = 2)[1]
     val correspondingSuper = "${outermostSuperClass.name}\$$innerPath"
     try {
-        return TypeMap(to = Class.forName(correspondingSuper), from = childClass)
+        return TypeMap(to = arena.classForName(correspondingSuper), from = childClass)
     } catch (e: ClassNotFoundException) {
-        return mostDerivedProxyableClass(outermostSuperClass, childClass.superclass)
+        return mostDerivedProxyableClass(outermostSuperClass, childClass.superclass, arena)
     }
 }
 
-private fun mkProxy(superClass: Class<*>, outermostSuperClass: Class<*>, childClass: Class<*>, outermostChildClass: Class<*>, forward: Any): Any {
+private fun mkProxy(superClass: Class<*>, outermostSuperClass: Class<*>, childClass: Class<*>, outermostChildClass: Class<*>,
+                    forward: Any, arena: TypeArena): Any {
     if (superClass == childClass) return forward
 
-    // if we don't have an instantiator for this proxy class, make a new one
-    val instantiator = proxyInstantiators[superClass] ?: run {
-        val factory = ProxyFactory()
-
-        factory.superclass = superClass
-        factory.setFilter { it.name != "finalize" }
-        val proxyClass = factory.createClass()
-
-        objenesis.getInstantiatorOf(proxyClass).also { proxyInstantiators[superClass] = it }
-    }
-    val subProxy = instantiator.newInstance()
-
+    val subProxy = arena.getProxyInstantiator(superClass).newInstance()
     (subProxy as Proxy).setHandler { self, method, _, args ->
         childClass.getPublicFields().forEach { it.set(forward, self.javaClass.getField(it.name).get(self)) }
         val result = childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
         childClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(forward)) }
         if (result != null && result.javaClass.enclosingClass != null && result.javaClass.name.startsWith("${outermostChildClass.name}$")) {
-            val innerMap = mostDerivedProxyableClass(outermostSuperClass, result.javaClass)
+            val innerMap = mostDerivedProxyableClass(outermostSuperClass, result.javaClass, arena)
             if (innerMap == null) {
                 result
             } else {
-                val innerProxy = mkProxy(innerMap.to, outermostSuperClass, innerMap.from, outermostChildClass, result)
+                val innerProxy = mkProxy(innerMap.to, outermostSuperClass, innerMap.from, outermostChildClass, result, arena)
                 innerMap.from.getPublicFields().forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
                 innerProxy
             }
@@ -113,10 +96,12 @@ private fun Class<*>.slashName() = name.replace('.', '/')
  * Creates a mirror class containing only enough of the reference class to generate submission classes.
  * @param referenceClass the reference class containing methods to mirror
  * @param targetClass the class the generator should make instances of
+ * @param arena the type arena to get bytecode from
  * @return a mirror class suitable only for generation
  */
-internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>): Class<*> {
-    return mkMirrorClass(referenceClass, referenceClass, targetClass, "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), BytesClassLoader())
+internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>, arena: TypeArena = TypeArena(null)): Class<*> {
+    return mkGeneratorMirrorClass(referenceClass, referenceClass, targetClass,
+            "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), arena)
 }
 
 /**
@@ -126,10 +111,11 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
  * @param targetClass the original, outermost submission class (to generate instances of)
  * @param mirrorName the desired fully-qualified dot name of the mirror class
  * @param mirrorsMade the map of names to finished mirrors
- * @param loader the class loader to load the mirror
+ * @param arena the type arena to get bytecode from
  * @return the mirrored class
  */
-private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String, mirrorsMade: MutableMap<String, Class<*>>, loader: BytesClassLoader): Class<*> {
+private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String,
+                                   mirrorsMade: MutableMap<String, Class<*>>, arena: TypeArena): Class<*> {
     mirrorsMade[mirrorName]?.let { return it }
 
     val refLName = "L${referenceClass.slashName()};"
@@ -153,8 +139,7 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
     }
     val atVerifyName = baseClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
-    val classGen = ClassGen(Repository.lookupClass(baseClass))
-    Repository.clearCache() // Otherwise future mirrorings will fail
+    val classGen = ClassGen(arena.getBcelClassForClass(baseClass))
 
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
@@ -202,8 +187,8 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
         } else if (constant is ConstantClass) {
             val name = constant.getBytes(constantPool)
             if (name.startsWith("${baseClass.slashName()}\$")) {
-                val inner = Class.forName(name.replace('/', '.'))
-                val innerMirror = mkMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade, loader)
+                val inner = arena.classForName(name.replace('/', '.'))
+                val innerMirror = mkGeneratorMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade, arena)
                 constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(innerMirror.slashName()))
             } else if (name.startsWith("${referenceClass.slashName()}\$")) {
                 // Shouldn't merge this with the above condition because of possible mutual reference (infinite recursion)
@@ -259,15 +244,88 @@ private fun mkMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetC
     }
 
     // classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
-    return loader.loadBytes(mirrorName, classGen.javaClass.bytes).also { mirrorsMade[mirrorName] = it }
+    return arena.loadBytes(mirrorName, classGen.javaClass)
+}
+
+/**
+ * Creates a mirror of an outer class with `final` members removed from classes and methods.
+ * @param clazz an outer class
+ * @param arena the type arena to get bytecode from and load classes into
+ * @return a non-final version of the class with non-final members/classes
+ */
+internal fun mkOpenMirrorClass(clazz: Class<*>, arena: TypeArena): Class<*> {
+    return mkOpenMirrorClass(clazz, clazz, "answerablemirror.o" + UUID.randomUUID().toString().replace("-", ""),
+            mutableListOf(), arena)!!
+}
+
+private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: String, alreadyDone: MutableList<String>, arena: TypeArena): Class<*>? {
+    if (alreadyDone.contains(newName)) return null
+    alreadyDone.add(newName)
+
+    // Get a mutable ClassGen, initialized as a copy of the existing class
+    val classGen = ClassGen(arena.getBcelClassForClass(clazz))
+    val constantPoolGen = classGen.constantPool
+    val constantPool = constantPoolGen.constantPool
+
+    // Strip `final` off the class and its methods
+    if (Modifier.isFinal(classGen.modifiers)) classGen.modifiers -= Modifier.FINAL
+    classGen.methods.forEach { method ->
+        if (Modifier.isFinal(method.modifiers)) method.modifiers -= Modifier.FINAL
+    }
+
+    // Recursively mirror inner classes
+    val newBase = newName.split('$', limit = 2)[0]
+    classGen.attributes.filterIsInstance(InnerClasses::class.java).firstOrNull()?.innerClasses?.forEach { innerClass ->
+        val innerName = (constantPool.getConstant(innerClass.innerClassIndex) as? ConstantClass)?.getBytes(constantPool) ?: return@forEach
+        if (innerName.startsWith(baseClass.slashName() + "$")) {
+            if (Modifier.isFinal(innerClass.innerAccessFlags)) innerClass.innerAccessFlags -= Modifier.FINAL
+            val innerPath = innerName.split('$', limit = 2)[1]
+            mkOpenMirrorClass(arena.classForName(innerName.replace('/', '.')), baseClass,
+                    "$newBase\$$innerPath", alreadyDone, arena)
+        }
+    }
+
+    // Rename the class by changing all strings used by class or signature constants
+    val newSlashBase = newBase.replace('.', '/')
+    fun fixSignature(signature: String): String {
+        return signature.replace("L${baseClass.slashName()};", "L$newSlashBase;")
+                .replace("L${baseClass.slashName()}$", "L$newSlashBase$")
+    }
+    (1 until constantPool.length).forEach { idx ->
+        val constant = constantPool.getConstant(idx)
+        if (constant is ConstantClass) {
+            val className = constant.getBytes(constantPool)
+            val classNameParts = className.split('$', limit = 2)
+            val newConstantValue = if (classNameParts[0] == baseClass.slashName()) {
+                 if (classNameParts.size > 1) "$newSlashBase\$${classNameParts[1]}" else newSlashBase
+            } else if (className.contains(';')) {
+                fixSignature(className)
+            } else {
+                className
+            }
+            constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(newConstantValue))
+        } else if (constant is ConstantNameAndType) {
+            val signature = constant.getSignature(constantPool)
+            constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(fixSignature(signature)))
+        }
+    }
+    classGen.methods.map { it.signatureIndex }.forEach { sigIdx ->
+        val signature = (constantPool.getConstant(sigIdx) as ConstantUtf8).bytes
+        constantPoolGen.setConstant(sigIdx, ConstantUtf8(fixSignature(signature)))
+    }
+
+    // Create and load the modified class
+    classGen.javaClass.dump("Opened${alreadyDone.indexOf(newName)}.class") // Uncomment for debugging
+    return arena.loadBytes(newName, classGen.javaClass)
 }
 
 /**
  * Throws AnswerableBytecodeVerificationException if a mirror of the given generator class would fail with an illegal or absent member access.
  * @param referenceClass the original, non-mirrored reference class
+ * @param arena the type arena to get bytecode from
  */
-internal fun verifyMemberAccess(referenceClass: Class<*>) {
-    verifyMemberAccess(referenceClass, referenceClass, mutableSetOf(), mapOf())
+internal fun verifyMemberAccess(referenceClass: Class<*>, arena: TypeArena = TypeArena(null)) {
+    verifyMemberAccess(referenceClass, referenceClass, mutableSetOf(), mapOf(), arena)
 }
 
 /**
@@ -276,12 +334,14 @@ internal fun verifyMemberAccess(referenceClass: Class<*>) {
  * @param referenceClass the original, outermost reference class
  * @param checked the collection of classes already verified
  * @param dangerousAccessors members whose access will cause the given problem
+ * @param arena the type arena to get bytecode from
  */
-private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>, checked: MutableSet<Class<*>>, dangerousAccessors: Map<String, AnswerableBytecodeVerificationException>) {
+private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>, checked: MutableSet<Class<*>>,
+                               dangerousAccessors: Map<String, AnswerableBytecodeVerificationException>, arena: TypeArena) {
     if (checked.contains(currentClass)) return
     checked.add(currentClass)
 
-    val toCheck = Repository.lookupClass(currentClass)
+    val toCheck = arena.getBcelClassForClass(currentClass)
     val methodsToCheck = if (currentClass == referenceClass) {
         toCheck.methods.filter { it.annotationEntries.any {
             ae -> ae.annotationType in setOf(Generator::class.java.name, Next::class.java.name, Helper::class.java.name).map { t -> ObjectType(t).signature }
@@ -342,7 +402,7 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
             } else if (checkInner) {
                 val classConstant = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
                 if (innerClassIndexes.contains(instr.index)) {
-                    verifyMemberAccess(Class.forName(classConstant.getBytes(constantPool).replace('/', '.')), referenceClass, checked, dangersToInnerClasses)
+                    verifyMemberAccess(arena.classForName(classConstant.getBytes(constantPool).replace('/', '.')), referenceClass, checked, dangersToInnerClasses, arena)
                 }
             }
         }
@@ -382,6 +442,71 @@ internal class AnswerableBytecodeVerificationException(val blameMethod: String, 
 
     constructor(fromInner: AnswerableBytecodeVerificationException, blameMethod: String, blameClass: Class<*>) : this(blameMethod, blameClass, fromInner.member) {
         initCause(fromInner)
+    }
+
+}
+
+internal class TypeArena(private val bytecodeProvider: BytecodeProvider?, private val parent: TypeArena? = null) {
+
+    /*
+     * For performance reasons, we want to re-use instantiators as much as possible.
+     * A map is used for future-safety so that as many proxy instantiators as are needed can be created safely,
+     * even if using only one is the most common use case.
+     *
+     * We map from 'superClass' instead of directly from 'proxyClass' as we won't have access to
+     * the same reference to 'proxyClass' on future calls.
+     */
+    private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
+
+    private val bcelClasses = mutableMapOf<Class<*>, JavaClass>()
+    private val loader: BytesClassLoader = BytesClassLoader(parent?.loader)
+
+    fun getBcelClassForClass(clazz: Class<*>): JavaClass {
+        try {
+            return parent!!.getBcelClassForClass(clazz)
+        } catch (e: Exception) {
+            // Ignored - parent couldn't find it
+        }
+        // BCEL doesn't play nicely with any caching
+        val old = bcelClasses[clazz] ?: localGetBcelClassForClass(clazz).also { bcelClasses[clazz] = it }
+        return ClassParser(old.bytes.inputStream(), old.className).parse()
+    }
+
+    private fun localGetBcelClassForClass(clazz: Class<*>): JavaClass {
+        return try {
+            Repository.lookupClass(clazz).also { Repository.clearCache() }
+        } catch (e: Exception) { // BECL couldn't find it
+            if (bytecodeProvider == null) throw NoClassDefFoundError("Could not find bytecode for $clazz, no BytecodeProvider specified")
+            val bytecode = bytecodeProvider.getBytecode(clazz)
+            val parser = ClassParser(bytecode.inputStream(), clazz.name)
+            parser.parse()
+        }
+    }
+
+    fun loadBytes(name: String, bcelClass: JavaClass): Class<*> {
+        return loader.loadBytes(name, bcelClass.bytes).also { bcelClasses[it] = bcelClass }
+    }
+
+    fun classForName(name: String): Class<*> {
+        return Class.forName(name, true, loader)
+    }
+
+    fun getProxyInstantiator(superClass: Class<*>): ObjectInstantiator<out Any> {
+        return proxyInstantiators[superClass] ?: run {
+            val oldLoaderProvider = ProxyFactory.classLoaderProvider
+            ProxyFactory.classLoaderProvider = ProxyFactory.ClassLoaderProvider { loader }
+
+            val factory = ProxyFactory()
+
+            factory.superclass = superClass
+            factory.setFilter { it.name != "finalize" }
+            val proxyClass = factory.createClass()
+
+            // Restore the ClassLoaderProvider in case anything else in the process uses Javassist
+            ProxyFactory.classLoaderProvider = oldLoaderProvider
+
+            objenesis.getInstantiatorOf(proxyClass).also { proxyInstantiators[superClass] = it }
+        }
     }
 
 }

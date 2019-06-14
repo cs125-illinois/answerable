@@ -1,7 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.TestGenerator.ReceiverGenStrategy.*
-import edu.illinois.cs.cs125.answerable.api.Answerable
+import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.typeManagement.*
@@ -37,27 +37,38 @@ import java.lang.reflect.Array as ReflectArray
  * Answerable will use a set of [defaultArgs].
  *
  * @constructor Creates a [TestGenerator] for the [referenceClass] @[Solution] method named [solutionName],
- * which creates [TestRunner]s which default to using [testRunnerArgs].
+ * which creates [TestRunner]s which default to using [testRunnerArgs]. If [referenceClass] was loaded dynamically,
+ * a [BytecodeProvider] must be specified that can determine its bytecode.
  */
 class TestGenerator(
     val referenceClass: Class<*>,
     val solutionName: String = "",
-    private val testRunnerArgs: TestRunnerArgs = defaultArgs
+    private val testRunnerArgs: TestRunnerArgs = defaultArgs,
+    private val bytecodeProvider: BytecodeProvider? = null
 ) {
     /**
-     * A secondary constructor which uses Answerable's [defaultArgs].
+     * A secondary constructor which uses Answerable's [defaultArgs] and no custom bytecode provider.
      */
     constructor(referenceClass: Class<*>, solutionName: String) : this(referenceClass, solutionName, defaultArgs)
     init {
         verifyStaticSignatures(referenceClass)
     }
 
-    internal val referenceMethod: Method? = referenceClass.getReferenceSolutionMethod(solutionName)
+    // "Usable" members are from the opened (un-final-ified) mirror of the original reference class.
+    // The original members are used for certain checks so a nice class name can be displayed.
+
+    internal val typeArena = TypeArena(bytecodeProvider)
+    internal val usableReferenceClass = mkOpenMirrorClass(referenceClass, typeArena)
+    internal val usableReferenceMethod = usableReferenceClass.getReferenceSolutionMethod(solutionName)
+
+    private val referenceMethod: Method? = referenceClass.getReferenceSolutionMethod(solutionName)
     internal val enabledNames: Array<String> =
         referenceMethod?.getAnnotation(Solution::class.java)?.enabled ?: arrayOf()
 
     internal val precondition: Method? = referenceClass.getPrecondition(solutionName)
-    internal val customVerifier: Method? = referenceClass.getCustomVerifier(solutionName)
+    private val customVerifier: Method? = referenceClass.getCustomVerifier(solutionName)
+    internal val usableCustomVerifier: Method? = usableReferenceClass.getCustomVerifier(solutionName)
+
     init {
         if (referenceMethod == null) {
             if (customVerifier == null) {
@@ -68,25 +79,25 @@ class TestGenerator(
             }
         }
     }
-    internal val atNextMethod: Method? = referenceClass.getAtNext(enabledNames)
+    internal val atNextMethod: Method? = usableReferenceClass.getAtNext(enabledNames)
 
     internal val isStatic = referenceMethod?.let { Modifier.isStatic(it.modifiers) } ?: false
-    internal val paramTypes: Array<Type> = referenceMethod?.genericParameterTypes ?: arrayOf()
-    internal val paramTypesWithReceiver: Array<Type> = arrayOf(referenceClass, *paramTypes)
+    internal val paramTypes: Array<Type> = usableReferenceMethod?.genericParameterTypes ?: arrayOf()
+    internal val paramTypesWithReceiver: Array<Type> = arrayOf(usableReferenceClass, *paramTypes)
 
     internal val random: Random = Random(0)
     internal val generators: Map<Type, GenWrapper<*>> = buildGeneratorMap(random)
-    internal val edgeCases: Map<Type, ArrayWrapper?> = getEdgeCases(referenceClass, paramTypesWithReceiver)
-    internal val simpleCases: Map<Type, ArrayWrapper?> = getSimpleCases(referenceClass, paramTypesWithReceiver)
+    internal val edgeCases: Map<Type, ArrayWrapper?> = getEdgeCases(usableReferenceClass, paramTypesWithReceiver)
+    internal val simpleCases: Map<Type, ArrayWrapper?> = getSimpleCases(usableReferenceClass, paramTypesWithReceiver)
 
     internal val timeout = referenceMethod?.getAnnotation(Timeout::class.java)?.timeout
         ?: (customVerifier?.getAnnotation(Timeout::class.java)?.timeout ?: 0)
 
     internal enum class ReceiverGenStrategy { GENERATOR, NEXT, NONE }
     internal val receiverGenStrategy: ReceiverGenStrategy = when {
-        atNextMethod != null              -> NEXT
-        referenceClass in generators.keys -> GENERATOR
-        isStatic                          -> NONE
+        atNextMethod != null                  -> NEXT
+        usableReferenceClass in generators.keys -> GENERATOR
+        isStatic                              -> NONE
         else -> throw AnswerableMisuseException("The reference solution must provide either an @Generator or an @Next method if @Solution is not static.")
     }
 
@@ -97,14 +108,14 @@ class TestGenerator(
     internal fun buildGeneratorMap(random: Random, submittedClassGenerator: Method? = null): Map<Type, GenWrapper<*>> {
         val types = paramTypes.toSet().let {
             if (!isStatic && atNextMethod == null) {
-                it + referenceClass
+                it + usableReferenceClass
             } else it
         }
 
         val generatorMapBuilder = GeneratorMapBuilder(types, random)
 
-        val userGens = referenceClass.getEnabledGenerators(enabledNames).map {
-            return@map if (it.returnType == referenceClass && submittedClassGenerator != null) {
+        val userGens = usableReferenceClass.getEnabledGenerators(enabledNames).map {
+            return@map if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
                 Pair(it.genericReturnType, CustomGen(submittedClassGenerator))
             } else {
                 Pair(it.genericReturnType, CustomGen(it))
@@ -132,9 +143,9 @@ class TestGenerator(
     }
 
     private fun verifySafety() {
-        verifyMemberAccess(referenceClass)
+        verifyMemberAccess(referenceClass, typeArena)
 
-        val dryRun = { loadSubmission(referenceClass).runTests(0x0403) }
+        val dryRun = { loadSubmission(mkOpenMirrorClass(referenceClass, typeArena), runClassDesign = false).runTests(0x0403) }
         val dryRunOutput: TestRunOutput
 
         try {
@@ -174,10 +185,21 @@ class TestGenerator(
      *
      * @param submissionClass the class to be tested against the reference
      * @param testRunnerArgs the arguments that the [TestRunner] returned should default to.
+     * @param bytecodeProvider provider of bytecode for the submission class(es), or null if not loaded dynamically
      */
     fun loadSubmission(
+            submissionClass: Class<*>,
+            testRunnerArgs: TestRunnerArgs = this.testRunnerArgs,
+            bytecodeProvider: BytecodeProvider? = null
+    ): TestRunner {
+        return loadSubmission(submissionClass, testRunnerArgs, bytecodeProvider, true)
+    }
+
+    private fun loadSubmission(
         submissionClass: Class<*>,
-        testRunnerArgs: TestRunnerArgs = this.testRunnerArgs
+        testRunnerArgs: TestRunnerArgs = this.testRunnerArgs,
+        bytecodeProvider: BytecodeProvider? = null,
+        runClassDesign: Boolean = true
     ): TestRunner {
         val cda = ClassDesignAnalysis(solutionName, referenceClass, submissionClass).runSuite()
         val cdaPassed = cda.all { ao -> ao.result is Matched }
@@ -187,8 +209,9 @@ class TestGenerator(
         // We can't just exclude them from class design analysis in the submission because then real submissions
         // could subvert the system. On the other hand, it's impossible for the reference class to be unsafe against itself.
         // So we simply allow testing to continue if the reference and submission classes are the same class.
-        return if (cdaPassed || referenceClass == submissionClass) {
-            PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs)
+        return if (cdaPassed || !runClassDesign) {
+            val subArena = TypeArena(bytecodeProvider, typeArena)
+            PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs, subArena)
         } else {
             FailedClassDesignTestRunner(referenceClass, solutionName, submissionClass, cda)
         }
@@ -214,17 +237,23 @@ class PassedClassDesignRunner internal constructor(
     testGenerator: TestGenerator,
     private val submissionClass: Class<*>,
     private val cachedClassDesignAnalysisResult: List<AnalysisOutput> = listOf(),
-    private val testRunnerArgs: TestRunnerArgs
+    private val testRunnerArgs: TestRunnerArgs,
+    private val typeArena: TypeArena
 ) : TestRunner {
+
+    internal constructor(
+        testGenerator: TestGenerator, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
+    ) : this(testGenerator, submissionClass, cdaResult, testRunnerArgs, TypeArena(null, testGenerator.typeArena))
+
     internal constructor(
         referenceClass: Class<*>, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
     ) : this(TestGenerator(referenceClass), submissionClass, cdaResult, testRunnerArgs)
 
     private val solutionName = testGenerator.solutionName
 
-    private val referenceClass = testGenerator.referenceClass
-    private val referenceMethod = testGenerator.referenceMethod
-    private val customVerifier = testGenerator.customVerifier
+    private val referenceClass = testGenerator.usableReferenceClass
+    private val referenceMethod = testGenerator.usableReferenceMethod
+    private val customVerifier = testGenerator.usableCustomVerifier
     private val submissionMethod = submissionClass.findSolutionAttemptMethod(referenceMethod)
     private val paramTypes = testGenerator.paramTypes
     private val paramTypesWithReceiver = testGenerator.paramTypesWithReceiver
@@ -235,7 +264,7 @@ class PassedClassDesignRunner internal constructor(
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
-    private val mirrorToStudentClass = mkGeneratorMirrorClass(referenceClass, submissionClass)
+    private val mirrorToStudentClass = mkGeneratorMirrorClass(referenceClass, submissionClass, typeArena)
 
     private val referenceEdgeCases = testGenerator.edgeCases
     private val referenceSimpleCases = testGenerator.simpleCases
@@ -407,7 +436,7 @@ class PassedClassDesignRunner internal constructor(
         var subProxy: Any? = null
 
         if (!isStatic) {
-            subProxy = mkProxy(referenceClass, submissionClass, subReceiver!!)
+            subProxy = mkProxy(referenceClass, submissionClass, subReceiver!!, typeArena)
         }
 
         return test(iteration, refReceiver, subReceiver, subProxy, refMethodArgs, subMethodArgs)
@@ -675,8 +704,13 @@ class PassedClassDesignRunner internal constructor(
 
         setOf(randomForReference, randomForSubmission, testRunnerRandom).forEach { it.setSeed(seed) }
 
-        var timedOut = false
+        // Store reference class static field values so that the next run against this solution doesn't break
+        val refStaticFieldValues = referenceClass.declaredFields.filter { Modifier.isStatic(it.modifiers) }.map {
+            it.isAccessible = true
+            it to it.get(null)
+        }
 
+        var timedOut = false
         val startTime: Long = System.currentTimeMillis()
 
         if (timeout == 0L) {
@@ -690,6 +724,9 @@ class PassedClassDesignRunner internal constructor(
         }
 
         val endTime: Long = System.currentTimeMillis()
+
+        // Restore reference class static field values
+        refStaticFieldValues.forEach { (field, value) -> field.set(null, value) }
 
         return TestRunOutput(
             seed = seed,
