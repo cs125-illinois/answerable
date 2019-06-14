@@ -28,17 +28,6 @@ private class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLoader(
     }
 }
 
-/*
- * For performance reasons, we want to re-use instantiators as much as possible.
- * A map is used for future-safety so that as many proxy instantiators as are needed can be created safely,
- * even if using only one is the most common use case.
- *
- * We map from 'superClass' instead of directly from 'proxyClass' as we won't have access to
- * the same reference to 'proxyClass' on future calls.
- */
-// TODO: Put this in an arena so unneeded instantiators can be GC'd
-private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
-
 /**
  * Creates a proxy to allow treating an object as an instance of a similarly-shaped class.
  * @param superClass the class that the object needs to appear as (be an instance of)
@@ -79,18 +68,7 @@ private fun mkProxy(superClass: Class<*>, outermostSuperClass: Class<*>, childCl
                     forward: Any, arena: TypeArena): Any {
     if (superClass == childClass) return forward
 
-    // if we don't have an instantiator for this proxy class, make a new one
-    val instantiator = proxyInstantiators[superClass] ?: run {
-        val factory = ProxyFactory()
-
-        factory.superclass = superClass
-        factory.setFilter { it.name != "finalize" }
-        val proxyClass = factory.createClass()
-
-        objenesis.getInstantiatorOf(proxyClass).also { proxyInstantiators[superClass] = it }
-    }
-    val subProxy = instantiator.newInstance()
-
+    val subProxy = arena.getProxyInstantiator(superClass).newInstance()
     (subProxy as Proxy).setHandler { self, method, _, args ->
         childClass.getPublicFields().forEach { it.set(forward, self.javaClass.getField(it.name).get(self)) }
         val result = childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
@@ -470,6 +448,16 @@ internal class AnswerableBytecodeVerificationException(val blameMethod: String, 
 
 internal class TypeArena(private val bytecodeProvider: BytecodeProvider?, private val parent: TypeArena? = null) {
 
+    /*
+     * For performance reasons, we want to re-use instantiators as much as possible.
+     * A map is used for future-safety so that as many proxy instantiators as are needed can be created safely,
+     * even if using only one is the most common use case.
+     *
+     * We map from 'superClass' instead of directly from 'proxyClass' as we won't have access to
+     * the same reference to 'proxyClass' on future calls.
+     */
+    private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
+
     private val bcelClasses = mutableMapOf<Class<*>, JavaClass>()
     private val loader: BytesClassLoader = BytesClassLoader(parent?.loader)
 
@@ -501,6 +489,24 @@ internal class TypeArena(private val bytecodeProvider: BytecodeProvider?, privat
 
     fun classForName(name: String): Class<*> {
         return Class.forName(name, true, loader)
+    }
+
+    fun getProxyInstantiator(superClass: Class<*>): ObjectInstantiator<out Any> {
+        return proxyInstantiators[superClass] ?: run {
+            val oldLoaderProvider = ProxyFactory.classLoaderProvider
+            ProxyFactory.classLoaderProvider = ProxyFactory.ClassLoaderProvider { loader }
+
+            val factory = ProxyFactory()
+
+            factory.superclass = superClass
+            factory.setFilter { it.name != "finalize" }
+            val proxyClass = factory.createClass()
+
+            // Restore the ClassLoaderProvider in case anything else in the process uses Javassist
+            ProxyFactory.classLoaderProvider = oldLoaderProvider
+
+            objenesis.getInstantiatorOf(proxyClass).also { proxyInstantiators[superClass] = it }
+        }
     }
 
 }
