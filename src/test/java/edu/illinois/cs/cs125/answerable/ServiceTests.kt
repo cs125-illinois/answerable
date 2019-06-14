@@ -10,8 +10,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-fun TestRunOutput.assertAllSucceeded() {
-    println(this.toJson())
+fun TestRunOutput.assertAllSucceeded(showOutput: Boolean = true) {
+    if (showOutput) println(this.toJson())
     this.classDesignAnalysisResult.forEach{ assertTrue(it.result is Matched) }
     this.testSteps.forEach {
         assertNull(it.assertErr)

@@ -94,4 +94,13 @@ internal class TestGeneratorTest {
         assertTrue(out.testSteps.any { it.succeeded && it.refOutput.output == true })
 
     }
+
+    @Test
+    fun testMutatedStaticField() {
+        val out = TestGenerator(examples.testgeneration.mutatestaticfield.reference.Counter::class.java, "")
+                .loadSubmission(examples.testgeneration.mutatestaticfield.Counter::class.java)
+                .runTests(0x0403)
+        out.assertAllSucceeded(showOutput = false)
+    }
+
 }
