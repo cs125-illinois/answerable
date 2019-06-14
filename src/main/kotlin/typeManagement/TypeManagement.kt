@@ -479,7 +479,7 @@ internal class TypeArena(private val bytecodeProvider: BytecodeProvider?, privat
         } catch (e: Exception) {
             // Ignored - parent couldn't find it
         }
-        // TODO: See if we can cache this more
+        // BCEL doesn't play nicely with any caching
         val old = bcelClasses[clazz] ?: localGetBcelClassForClass(clazz).also { bcelClasses[clazz] = it }
         return ClassParser(old.bytes.inputStream(), old.className).parse()
     }
@@ -488,7 +488,7 @@ internal class TypeArena(private val bytecodeProvider: BytecodeProvider?, privat
         return try {
             Repository.lookupClass(clazz).also { Repository.clearCache() }
         } catch (e: Exception) { // BECL couldn't find it
-            if (bytecodeProvider == null) throw NoClassDefFoundError("Could not find bytecode for $clazz")
+            if (bytecodeProvider == null) throw NoClassDefFoundError("Could not find bytecode for $clazz, no BytecodeProvider specified")
             val bytecode = bytecodeProvider.getBytecode(clazz)
             val parser = ClassParser(bytecode.inputStream(), clazz.name)
             parser.parse()
