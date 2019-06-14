@@ -6,10 +6,6 @@
 *.class
 *.swp
 *.swo
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/uiDesigner.xml
-.idea/.name
-.idea/modules/test-output/
-.idea/libraries/
+.idea/
 *.iml
+.env

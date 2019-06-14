@@ -1,6 +1,5 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.api.toErrorMsg
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 

@@ -65,7 +65,7 @@ class TestGenerator(
     internal val enabledNames: Array<String> =
         referenceMethod?.getAnnotation(Solution::class.java)?.enabled ?: arrayOf()
 
-    internal val precondition: Method? = referenceClass.getPrecondition(solutionName)
+    internal val usablePrecondition: Method? = usableReferenceClass.getPrecondition(solutionName)
     private val customVerifier: Method? = referenceClass.getCustomVerifier(solutionName)
     internal val usableCustomVerifier: Method? = usableReferenceClass.getCustomVerifier(solutionName)
 
@@ -258,7 +258,7 @@ class PassedClassDesignRunner internal constructor(
     private val paramTypes = testGenerator.paramTypes
     private val paramTypesWithReceiver = testGenerator.paramTypesWithReceiver
 
-    private val precondition = testGenerator.precondition
+    private val precondition = testGenerator.usablePrecondition
 
     private val testRunnerRandom = Random(0)
     private val randomForReference = testGenerator.random
