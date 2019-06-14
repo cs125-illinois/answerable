@@ -37,13 +37,14 @@ import java.lang.reflect.Array as ReflectArray
  * Answerable will use a set of [defaultArgs].
  *
  * @constructor Creates a [TestGenerator] for the [referenceClass] @[Solution] method named [solutionName],
- * which creates [TestRunner]s which default to using [testRunnerArgs].
+ * which creates [TestRunner]s which default to using [testRunnerArgs]. If [referenceClass] was loaded dynamically,
+ * a [BytecodeProvider] must be specified that can determine its bytecode.
  */
 class TestGenerator(
     val referenceClass: Class<*>,
     val solutionName: String = "",
     private val testRunnerArgs: TestRunnerArgs = defaultArgs,
-    private val bytecodeProvider: BytecodeProvider? = null // TODO: Document
+    private val bytecodeProvider: BytecodeProvider? = null
 ) {
     /**
      * A secondary constructor which uses Answerable's [defaultArgs] and no custom bytecode provider.
@@ -180,17 +181,20 @@ class TestGenerator(
      *
      * @param submissionClass the class to be tested against the reference
      * @param testRunnerArgs the arguments that the [TestRunner] returned should default to.
+     * @param bytecodeProvider provider of bytecode for the submission class(es), or null if not loaded dynamically
      */
     fun loadSubmission(
             submissionClass: Class<*>,
-            testRunnerArgs: TestRunnerArgs = this.testRunnerArgs
+            testRunnerArgs: TestRunnerArgs = this.testRunnerArgs,
+            bytecodeProvider: BytecodeProvider? = null
     ): TestRunner {
-        return loadSubmission(submissionClass, testRunnerArgs, true)
+        return loadSubmission(submissionClass, testRunnerArgs, bytecodeProvider, true)
     }
 
     private fun loadSubmission(
         submissionClass: Class<*>,
         testRunnerArgs: TestRunnerArgs = this.testRunnerArgs,
+        bytecodeProvider: BytecodeProvider? = null,
         runClassDesign: Boolean = true
     ): TestRunner {
         val cda = ClassDesignAnalysis(solutionName, referenceClass, submissionClass).runSuite()
@@ -202,7 +206,7 @@ class TestGenerator(
         // could subvert the system. On the other hand, it's impossible for the reference class to be unsafe against itself.
         // So we simply allow testing to continue if the reference and submission classes are the same class.
         return if (cdaPassed || !runClassDesign) {
-            val subArena = TypeArena(null, typeArena)
+            val subArena = TypeArena(bytecodeProvider, typeArena)
             PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs, subArena)
         } else {
             FailedClassDesignTestRunner(referenceClass, solutionName, submissionClass, cda)

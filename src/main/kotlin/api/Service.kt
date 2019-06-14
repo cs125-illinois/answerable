@@ -4,6 +4,8 @@ import edu.illinois.cs.cs125.answerable.*
 import java.lang.IllegalStateException
 import java.util.*
 
+// TODO: Accept classloaders and bytecode providers
+
 /**
  * Allows use of Answerable as a service. Stores a map from question names to [TestGenerator]s.
  */
