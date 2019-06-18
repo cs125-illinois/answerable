@@ -4,8 +4,6 @@ import edu.illinois.cs.cs125.answerable.*
 import java.lang.IllegalStateException
 import java.util.*
 
-// TODO: Accept classloaders and bytecode providers
-
 /**
  * Allows use of Answerable as a service. Stores a map from question names to [TestGenerator]s.
  */
@@ -22,19 +20,24 @@ class Answerable {
      * @throws [AnswerableVerificationException]
      *
      * @param questionName the name to save this question under.
-     * @param solutionName the name of the @[Solution] or standalone @[Verify] method to use in this question.
      * @param referenceClass the reference class for this question.
+     * @param solutionName the name of the @[Solution] or standalone @[Verify] method to use in this question.
      * @param testRunnerArgs the default arguments to [TestRunner]s produced by this question.
+     * @param bytecodeProvider bytecode provider for reference solution class(es).
+     * @param commonLoader the loader of dynamically loaded classes used by both the reference and submission.
      */
+    @JvmOverloads
     fun loadNewQuestion(
         questionName: String,
-        solutionName: String = "",
         referenceClass: Class<*>,
-        testRunnerArgs: TestRunnerArgs = defaultArgs
+        solutionName: String = "",
+        testRunnerArgs: TestRunnerArgs = defaultArgs,
+        bytecodeProvider: BytecodeProvider? = null,
+        commonLoader: ClassLoader? = null
     ) {
         val testgen: TestGenerator
         try {
-            testgen = TestGenerator(referenceClass, solutionName, testRunnerArgs)
+            testgen = TestGenerator(referenceClass, solutionName, testRunnerArgs, bytecodeProvider, commonLoader)
         } catch (ame: AnswerableMisuseException) {
             throw AnswerableMisuseException("${ame.message?.trim()}\nWhile trying to load new question: $questionName.")
                 .initCause(ame)
@@ -46,21 +49,15 @@ class Answerable {
         existingQuestions[questionName] = testgen
     }
 
-    // NOTE: [Overloads] In order for our overloads to properly reach the Java side, we have to declare them manually:
+    // NOTE: [Overloads] @JvmOverloads will only remove optional parameters from the end, so we need to declare other overloads manually:
+    @JvmOverloads
     fun loadNewQuestion(
         questionName: String,
         referenceClass: Class<*>,
-        testRunnerArgs: TestRunnerArgs
-    ) = loadNewQuestion(questionName, "", referenceClass, testRunnerArgs)
-    fun loadNewQuestion(
-        questionName: String,
-        solutionName: String,
-        referenceClass: Class<*>
-    ) = loadNewQuestion(questionName, solutionName, referenceClass, defaultArgs)
-    fun loadNewQuestion(
-        questionName: String,
-        referenceClass: Class<*>
-    ) = loadNewQuestion(questionName, "", referenceClass, defaultArgs)
+        testRunnerArgs: TestRunnerArgs,
+        bytecodeProvider: BytecodeProvider? = null,
+        commonLoader: ClassLoader? = null
+    ) = loadNewQuestion(questionName, referenceClass, "", testRunnerArgs, bytecodeProvider, commonLoader)
 
     /**
      * Make a submission to a question. Returns a [TestRunner] which can run tests on demand.
@@ -68,18 +65,23 @@ class Answerable {
      * @param questionName the name of the question being submitted to
      * @param submissionClass the class being submitted
      * @param testRunnerArgs arguments to override the question's defaults, if any
+     * @param bytecodeProvider bytecode provider for submission class(es)
      */
+    @JvmOverloads
     fun submit(
         questionName: String,
         submissionClass: Class<*>,
-        testRunnerArgs: TestRunnerArgs = defaultArgs
+        testRunnerArgs: TestRunnerArgs = defaultArgs,
+        bytecodeProvider: BytecodeProvider? = null
     ): TestRunner =
         (existingQuestions[questionName] ?: throw IllegalStateException("No question with name `$questionName' is currently loaded."))
-            .loadSubmission(submissionClass, testRunnerArgs)
+            .loadSubmission(submissionClass, testRunnerArgs, bytecodeProvider)
+
     fun submit(
         questionName: String,
-        submissionClass: Class<*>
-    ) = submit(questionName, submissionClass, defaultArgs)
+        submissionClass: Class<*>,
+        bytecodeProvider: BytecodeProvider?
+    ) = submit(questionName, submissionClass, defaultArgs, bytecodeProvider)
 
     /**
      * [submit] a question and also execute the [TestRunner] with the given [seed].
