@@ -446,7 +446,7 @@ internal class AnswerableBytecodeVerificationException(val blameMethod: String, 
 
 }
 
-internal class TypeArena(private val bytecodeProvider: BytecodeProvider?, private val parent: TypeArena? = null) {
+internal class TypeArena(private val bytecodeProvider: BytecodeProvider?) {
 
     /*
      * For performance reasons, we want to re-use instantiators as much as possible.
@@ -458,8 +458,17 @@ internal class TypeArena(private val bytecodeProvider: BytecodeProvider?, privat
      */
     private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
 
+    private var parent: TypeArena? = null
+    private var loader: BytesClassLoader = BytesClassLoader()
     private val bcelClasses = mutableMapOf<Class<*>, JavaClass>()
-    private val loader: BytesClassLoader = BytesClassLoader(parent?.loader)
+
+    constructor(bytecodeProvider: BytecodeProvider?, parentArena: TypeArena?): this(bytecodeProvider) {
+        parent = parentArena
+        loader = BytesClassLoader(parent?.loader)
+    }
+    constructor(bytecodeProvider: BytecodeProvider?, commonLoader: ClassLoader) : this(bytecodeProvider) {
+        loader = BytesClassLoader(commonLoader)
+    }
 
     fun getBcelClassForClass(clazz: Class<*>): JavaClass {
         try {
