@@ -1,10 +1,6 @@
 package examples.proxy.reference;
 
-import edu.illinois.cs.cs125.answerable.api.Generator;
-import edu.illinois.cs.cs125.answerable.api.Helper;
-import edu.illinois.cs.cs125.answerable.api.Solution;
-import edu.illinois.cs.cs125.answerable.api.Verify;
-import edu.illinois.cs.cs125.answerable.*;
+import edu.illinois.cs.cs125.answerable.api.*;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.Random;

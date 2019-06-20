@@ -1,10 +1,6 @@
 package examples.testgeneration.reference;
 
-import edu.illinois.cs.cs125.answerable.api.Generator;
-import edu.illinois.cs.cs125.answerable.api.Precondition;
-import edu.illinois.cs.cs125.answerable.api.Solution;
-import edu.illinois.cs.cs125.answerable.api.Verify;
-import edu.illinois.cs.cs125.answerable.*;
+import edu.illinois.cs.cs125.answerable.api.*;
 
 import java.util.Random;
 

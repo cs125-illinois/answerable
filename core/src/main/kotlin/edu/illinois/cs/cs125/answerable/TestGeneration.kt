@@ -2,7 +2,6 @@ package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.TestGenerator.ReceiverGenStrategy.*
 import edu.illinois.cs.cs125.answerable.api.*
-import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.typeManagement.*
 import org.junit.jupiter.api.Assertions.*
 import org.opentest4j.AssertionFailedError
@@ -249,10 +248,11 @@ class PassedClassDesignRunner internal constructor(
 
     private val solutionName = testGenerator.solutionName
 
-    private val referenceClass = testGenerator.usableReferenceClass
-    private val referenceMethod = testGenerator.usableReferenceMethod
-    private val customVerifier = testGenerator.usableCustomVerifier
-    private val submissionMethod = submissionClass.findSolutionAttemptMethod(referenceMethod)
+    private val referenceClass = testGenerator.referenceClass
+    private val usableReferenceClass = testGenerator.usableReferenceClass
+    private val usableReferenceMethod = testGenerator.usableReferenceMethod
+    private val usableCustomVerifier = testGenerator.usableCustomVerifier
+    private val submissionMethod = submissionClass.findSolutionAttemptMethod(usableReferenceMethod)
     private val paramTypes = testGenerator.paramTypes
     private val paramTypesWithReceiver = testGenerator.paramTypesWithReceiver
 
@@ -262,7 +262,7 @@ class PassedClassDesignRunner internal constructor(
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
-    private val mirrorToStudentClass = mkGeneratorMirrorClass(referenceClass, submissionClass, typeArena)
+    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableReferenceClass, submissionClass, typeArena)
 
     private val referenceEdgeCases = testGenerator.edgeCases
     private val referenceSimpleCases = testGenerator.simpleCases
@@ -271,7 +271,7 @@ class PassedClassDesignRunner internal constructor(
         // the idea is that each map takes `paramTypes` to the correct generator/cases
         .toMutableMap().apply {
             replace(
-                referenceClass,
+                usableReferenceClass,
                 mirrorToStudentClass.getEnabledEdgeCases(testGenerator.enabledNames)[submissionClass]
             )
         }
@@ -279,7 +279,7 @@ class PassedClassDesignRunner internal constructor(
         // replace reference class cases with mirrored cases
         .toMutableMap().apply {
             replace(
-                referenceClass,
+                usableReferenceClass,
                 mirrorToStudentClass.getEnabledSimpleCases(testGenerator.enabledNames)[submissionClass]
             )
         }
@@ -296,7 +296,7 @@ class PassedClassDesignRunner internal constructor(
     private val submissionAtNext = mirrorToStudentClass.getAtNext(testGenerator.enabledNames)
 
     private val receiverGenStrategy = testGenerator.receiverGenStrategy
-    private val capturePrint = referenceMethod?.getAnnotation(Solution::class.java)?.prints ?: false
+    private val capturePrint = usableReferenceMethod?.getAnnotation(Solution::class.java)?.prints ?: false
     private val isStatic = testGenerator.isStatic
     private val timeout = testGenerator.timeout
 
@@ -434,7 +434,7 @@ class PassedClassDesignRunner internal constructor(
         var subProxy: Any? = null
 
         if (!isStatic) {
-            subProxy = mkProxy(referenceClass, submissionClass, subReceiver!!, typeArena)
+            subProxy = mkProxy(usableReferenceClass, submissionClass, subReceiver!!, typeArena)
         }
 
         return test(iteration, refReceiver, subReceiver, subProxy, refMethodArgs, subMethodArgs)
@@ -443,14 +443,14 @@ class PassedClassDesignRunner internal constructor(
     private fun mkRefReceiver(iteration: Int, complexity: Int, prevRefReceiver: Any?): Any? =
         when (receiverGenStrategy) {
             NONE -> null
-            GENERATOR -> referenceGens[referenceClass]?.generate(complexity)
+            GENERATOR -> referenceGens[usableReferenceClass]?.generate(complexity)
             NEXT -> referenceAtNext?.invoke(null, prevRefReceiver, iteration, randomForReference)
         }
 
     private fun mkSubReceiver(iteration: Int, complexity: Int, prevSubReceiver: Any?): Any? =
         when (receiverGenStrategy) {
             NONE -> null
-            GENERATOR -> submissionGens[referenceClass]?.generate(complexity)
+            GENERATOR -> submissionGens[usableReferenceClass]?.generate(complexity)
             NEXT -> submissionAtNext?.invoke(null, prevSubReceiver, iteration, randomForSubmission)
         }
 
@@ -509,12 +509,12 @@ class PassedClassDesignRunner internal constructor(
             )
         }
 
-        val refBehavior = runOne(refReceiver, refReceiver, referenceMethod, refArgs)
+        val refBehavior = runOne(refReceiver, refReceiver, usableReferenceMethod, refArgs)
         val subBehavior = runOne(subReceiver, subProxy, submissionMethod, subArgs)
 
         var assertErr: Throwable? = null
         try {
-            if (customVerifier == null) {
+            if (usableCustomVerifier == null) {
                 assertEquals(refBehavior.threw?.javaClass, subBehavior.threw?.javaClass)
                 assertEquals(refBehavior.output, subBehavior.output)
                 assertEquals(refBehavior.stdOut, subBehavior.stdOut)
@@ -522,10 +522,10 @@ class PassedClassDesignRunner internal constructor(
             } else {
                 if (subProxy != null) {
                     submissionClass.getPublicFields().forEach {
-                        referenceClass.getField(it.name).set(subProxy, it.get(subReceiver))
+                        usableReferenceClass.getField(it.name).set(subProxy, it.get(subReceiver))
                     }
                 }
-                customVerifier.invoke(null, refBehavior, subBehavior)
+                usableCustomVerifier.invoke(null, refBehavior, subBehavior)
             }
         } catch (ite: InvocationTargetException) {
             assertErr = ite.cause
@@ -703,7 +703,7 @@ class PassedClassDesignRunner internal constructor(
         setOf(randomForReference, randomForSubmission, testRunnerRandom).forEach { it.setSeed(seed) }
 
         // Store reference class static field values so that the next run against this solution doesn't break
-        val refStaticFieldValues = referenceClass.declaredFields.filter { Modifier.isStatic(it.modifiers) }.map {
+        val refStaticFieldValues = usableReferenceClass.declaredFields.filter { Modifier.isStatic(it.modifiers) }.map {
             it.isAccessible = true
             it to it.get(null)
         }
@@ -1177,58 +1177,6 @@ internal class DefaultListGen<T>(private val tGen: Gen<T>) : Gen<List<T>> {
                 listOf(tGen(random.nextInt(complexity + 1), random)) + genList(complexity, length - 1)
             }
         return genList(complexity, random.nextInt(complexity + 1))
-    }
-}
-
-/**
- * A wrapper class used to pass data to custom verification methods.
- */
-data class TestOutput<T>(
-    /**
-     * An enum describing whether the method returned or threw an exception.
-     *
-     * If the test uses a standalone @[Verify] method, this will be [Behavior.VERIFY_ONLY].
-     */
-    val typeOfBehavior: Behavior,
-    /** The object that the method was called on. Null if the method is static. */
-    val receiver: T?,
-    /** The arguments the method was called with */
-    val args: Array<Any?>,
-    /** The return value of the method. If [threw] is not null, [output] is always null. */
-    val output: Any?,
-    /** The throwable (if any) thrown by the method. Null if nothing was thrown. */
-    val threw: Throwable?,
-    /** The log of stdOut during the method invocation. Only non-null if [Solution.prints] is true. */
-    val stdOut: String?,
-    /** The log of stdErr during the method invocation. Only non-null if [Solution.prints] is true. */
-    val stdErr: String?
-) : DefaultSerializable {
-    override fun toJson() = defaultToJson()
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as TestOutput<*>
-
-        if (receiver != other.receiver) return false
-        if (!args.contentEquals(other.args)) return false
-        if (output != other.output) return false
-        if (threw != other.threw) return false
-        if (stdOut != other.stdOut) return false
-        if (stdErr != other.stdErr) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = receiver?.hashCode() ?: 0
-        result = 31 * result + args.contentHashCode()
-        result = 31 * result + (output?.hashCode() ?: 0)
-        result = 31 * result + (threw?.hashCode() ?: 0)
-        result = 31 * result + (stdOut?.hashCode() ?: 0)
-        result = 31 * result + (stdErr?.hashCode() ?: 0)
-        return result
     }
 }
 

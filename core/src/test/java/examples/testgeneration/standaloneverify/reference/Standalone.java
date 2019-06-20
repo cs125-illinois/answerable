@@ -1,9 +1,6 @@
 package examples.testgeneration.standaloneverify.reference;
 
-import edu.illinois.cs.cs125.answerable.api.Generator;
-import edu.illinois.cs.cs125.answerable.TestOutput;
-import edu.illinois.cs.cs125.answerable.api.Verify;
-import edu.illinois.cs.cs125.answerable.api.Generators;
+import edu.illinois.cs.cs125.answerable.api.*;
 
 import java.util.Random;
 

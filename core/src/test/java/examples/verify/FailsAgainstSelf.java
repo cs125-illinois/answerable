@@ -1,9 +1,6 @@
 package examples.verify;
 
-import edu.illinois.cs.cs125.answerable.api.Generator;
-import edu.illinois.cs.cs125.answerable.api.Solution;
-import edu.illinois.cs.cs125.answerable.api.Verify;
-import edu.illinois.cs.cs125.answerable.*;
+import edu.illinois.cs.cs125.answerable.api.*;
 
 import java.util.Random;
 import static org.junit.jupiter.api.Assertions.fail;

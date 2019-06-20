@@ -1,10 +1,7 @@
 package examples.testing.reference;
 
-import edu.illinois.cs.cs125.answerable.api.Generator;
-import edu.illinois.cs.cs125.answerable.api.Solution;
-import edu.illinois.cs.cs125.answerable.api.Timeout;
-import edu.illinois.cs.cs125.answerable.api.Verify;
-import edu.illinois.cs.cs125.answerable.*;
+import edu.illinois.cs.cs125.answerable.api.*;
+import edu.illinois.cs.cs125.answerable.Behavior;
 
 import java.util.List;
 import java.util.Random;
