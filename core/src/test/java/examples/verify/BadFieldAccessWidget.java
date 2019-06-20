@@ -1,11 +1,6 @@
 package examples.verify;
 
-import edu.illinois.cs.cs125.answerable.Generator;
-import edu.illinois.cs.cs125.answerable.Solution;
-import edu.illinois.cs.cs125.answerable.TestOutput;
-import edu.illinois.cs.cs125.answerable.Verify;
-import examples.proxy.reference.GeneratedWidget;
-import org.junit.jupiter.api.Assertions;
+import edu.illinois.cs.cs125.answerable.api.*;
 
 import java.util.Random;
 

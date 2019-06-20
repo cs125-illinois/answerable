@@ -1,7 +1,6 @@
 package examples.classdesign.correct1.reference;
 
-import edu.illinois.cs.cs125.answerable.Next;
-import edu.illinois.cs.cs125.answerable.Solution;
+import edu.illinois.cs.cs125.answerable.api.Next;
 
 import java.util.LinkedList;
 

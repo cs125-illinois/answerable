@@ -1,7 +1,7 @@
 package edu.illinois.cs.cs125.answerable.typeManagement
 
 import edu.illinois.cs.cs125.answerable.*
-import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
+import edu.illinois.cs.cs125.answerable.api.*
 import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
 import org.apache.bcel.Const

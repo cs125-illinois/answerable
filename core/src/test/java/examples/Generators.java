@@ -1,7 +1,7 @@
 package examples;
 
-import edu.illinois.cs.cs125.answerable.Generator;
-import edu.illinois.cs.cs125.answerable.Solution;
+import edu.illinois.cs.cs125.answerable.api.Generator;
+import edu.illinois.cs.cs125.answerable.api.Solution;
 
 public class Generators {
     int a = -10;

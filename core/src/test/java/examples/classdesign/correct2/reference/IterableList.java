@@ -1,6 +1,6 @@
 package examples.classdesign.correct2.reference;
 
-import edu.illinois.cs.cs125.answerable.Next;
+import edu.illinois.cs.cs125.answerable.api.Next;
 
 import java.util.Iterator;
 import java.util.List;

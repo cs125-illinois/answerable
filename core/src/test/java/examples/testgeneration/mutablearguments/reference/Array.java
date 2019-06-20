@@ -1,6 +1,6 @@
 package examples.testgeneration.mutablearguments.reference;
 
-import edu.illinois.cs.cs125.answerable.Solution;
+import edu.illinois.cs.cs125.answerable.api.Solution;
 
 public class Array {
 

@@ -1,8 +1,8 @@
 package examples.testgeneration.reference;
 
-import edu.illinois.cs.cs125.answerable.EdgeCase;
-import edu.illinois.cs.cs125.answerable.Generator;
-import edu.illinois.cs.cs125.answerable.Solution;
+import edu.illinois.cs.cs125.answerable.api.EdgeCase;
+import edu.illinois.cs.cs125.answerable.api.Generator;
+import edu.illinois.cs.cs125.answerable.api.Solution;
 
 import java.util.Random;
 

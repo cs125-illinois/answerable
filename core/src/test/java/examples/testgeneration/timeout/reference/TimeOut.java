@@ -1,7 +1,7 @@
 package examples.testgeneration.timeout.reference;
 
-import edu.illinois.cs.cs125.answerable.Solution;
-import edu.illinois.cs.cs125.answerable.Timeout;
+import edu.illinois.cs.cs125.answerable.api.Solution;
+import edu.illinois.cs.cs125.answerable.api.Timeout;
 
 public class TimeOut {
     @Solution

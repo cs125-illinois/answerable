@@ -1,6 +1,6 @@
 package examples.testgeneration.generators.defaults.reference;
 
-import edu.illinois.cs.cs125.answerable.Solution;
+import edu.illinois.cs.cs125.answerable.api.Solution;
 
 import java.util.Arrays;
 

@@ -1,4 +1,4 @@
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.api
 
 /**
  * Annotation to mark a method as the reference solution for Answerable.
