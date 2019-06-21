@@ -18,7 +18,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-jackson:$ktorVersion")
-    implementation("com.github.cs125-illinois:jeed:-SNAPSHOT")
+    implementation("com.github.cs125-illinois:jeed:master-SNAPSHOT")
     implementation("io.github.cdimascio:java-dotenv:5.0.1")
 }
 

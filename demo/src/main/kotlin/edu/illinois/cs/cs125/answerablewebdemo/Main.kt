@@ -2,11 +2,9 @@ package edu.illinois.cs.cs125.answerablewebdemo
 
 
 import edu.illinois.cs.cs125.answerable.TestGenerator
+import edu.illinois.cs.cs125.answerable.api.Solution
 import edu.illinois.cs.cs125.answerable.api.bytecodeProvider
-import edu.illinois.cs.cs125.jeed.core.CompilationFailed
-import edu.illinois.cs.cs125.jeed.core.JeedClassLoader
-import edu.illinois.cs.cs125.jeed.core.Source
-import edu.illinois.cs.cs125.jeed.core.compile
+import edu.illinois.cs.cs125.jeed.core.*
 import io.ktor.application.*
 import io.ktor.features.ContentNegotiation
 import io.ktor.jackson.jackson
@@ -45,7 +43,10 @@ data class AnswerableDemoPost(
 fun main() {
     val referenceSource = Source(mapOf(
         "Reference" to """
+import edu.illinois.cs.cs125.answerable.api.*;
+
 public class Test {
+    @Solution
     public static int sum(int a, int b) {
         return a + b;
     }
@@ -63,7 +64,7 @@ public class Test {
     ))
 
     val refCL = try {
-        referenceSource.compile()
+        referenceSource.compile(CompilationArguments(parentClassLoader = Solution::class.java.classLoader))
     } catch (e: CompilationFailed) {
         e.errors.forEach { println("${it.location}: ${it.message}\n")}
         throw e
@@ -79,7 +80,7 @@ public class Test {
         TestGenerator(refCL.loadClass("Test"), bytecodeProvider = refCL.bytecodeProvider)
             .loadSubmission(subCL.loadClass("Test"), bytecodeProvider = subCL.bytecodeProvider)
             .runTests(Random.nextLong())
-           .toJson()
+            .toJson()
     )
 }
 
