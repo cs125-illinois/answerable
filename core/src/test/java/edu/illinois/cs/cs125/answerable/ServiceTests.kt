@@ -81,10 +81,17 @@ internal class ServiceTests {
         answerableService.loadNewQuestion("YourBinaryTree size", ReferenceYBT::class.java, "size")
         answerableService.submitAndTest("YourBinaryTree size", YourBinaryTree::class.java).assertAllSucceeded()
     }
+
     @Test
     fun testYourBinaryTreeSum() {
         answerableService.loadNewQuestion("YourBinaryTree sum", ReferenceYBT::class.java, "sum")
         answerableService.submitAndTest("YourBinaryTree sum", examples.binarytree.sum.YourBinaryTree::class.java)
             .assertAllSucceeded()
+    }
+
+    @Test
+    fun testPrintOutput() {
+        answerableService.loadNewQuestion("Printer", examples.printer.correct.reference.Printer::class.java)
+        answerableService.submitAndTest("Printer", examples.printer.correct.Printer::class.java).assertAllSucceeded()
     }
 }

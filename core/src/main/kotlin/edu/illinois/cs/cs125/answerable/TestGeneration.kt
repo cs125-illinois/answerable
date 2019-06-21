@@ -463,43 +463,35 @@ class PassedClassDesignRunner internal constructor(
         subArgs: Array<Any?>
     ): TestStep {
         fun runOne(receiver: Any?, refCompatibleReceiver: Any?, method: Method?, args: Array<Any?>): TestOutput<Any?> {
-            var behavior: Behavior
+            var behavior: Behavior? = null
 
             var threw: Throwable? = null
-            val oldOut = System.out
-            val oldErr = System.err
-            val newOut = ByteArrayOutputStream()
-            val newErr = ByteArrayOutputStream()
             var outText: String? = null
             var errText: String? = null
             var output: Any? = null
-            if (capturePrint) {
-                System.setOut(PrintStream(newOut))
-                System.setErr(PrintStream(newErr))
-            }
             if (method != null) {
-                try {
-                    output = method(receiver, *args)
-
-                    behavior = Behavior.RETURNED
-                } catch (e: Throwable) {
-                    threw = e
-                    behavior = Behavior.THREW
-                } finally {
-                    if (capturePrint) {
-                        System.setOut(oldOut)
-                        System.setErr(oldErr)
-                        outText = newOut.toString(StandardCharsets.UTF_8)
-                        errText = newErr.toString(StandardCharsets.UTF_8)
-                        newOut.close()
-                        newErr.close()
+                val toRun = Runnable {
+                    try {
+                        output = method(receiver, *args)
+                        behavior = Behavior.RETURNED
+                    } catch (e: Throwable) {
+                        threw = e
+                        behavior = Behavior.THREW
                     }
+                }
+                if (capturePrint) {
+                    val capturer = testRunnerArgs.outputCapturer ?: defaultOutputCapturer
+                    capturer.runCapturingOutput(toRun)
+                    outText = capturer.getStandardOut()
+                    errText = capturer.getStandardErr()
+                } else {
+                    toRun.run()
                 }
             } else {
                 behavior = Behavior.VERIFY_ONLY
             }
             return TestOutput(
-                typeOfBehavior = behavior,
+                typeOfBehavior = behavior!!,
                 receiver = refCompatibleReceiver,
                 args = args,
                 output = output,
