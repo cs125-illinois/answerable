@@ -7,25 +7,36 @@ import edu.illinois.cs.cs125.answerable.api.bytecodeProvider
 import edu.illinois.cs.cs125.jeed.core.*
 import io.ktor.application.*
 import io.ktor.features.ContentNegotiation
+import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.request.receive
+import io.ktor.response.header
 import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import java.lang.IllegalStateException
 import kotlin.random.Random
 
-fun main1() {
+fun main() {
 
-    val server = embeddedServer(Netty, System.getenv("ANSWERABLE_DEMO_PORT")?.toInt()
+    val server = embeddedServer(Netty, 8080 /*System.getenv("ANSWERABLE_DEMO_PORT")?.toInt()*/
         ?: throw IllegalStateException("ANSWERABLE_DEMO_PORT not provided.")) {
 
         install(ContentNegotiation) {
             jackson()
         }
         routing {
+            options("/") {
+                call.response.header("Access-Control-Allow-Origin", "*") // don't deploy this
+                call.response.header("Access-Control-Allow-Headers", "Origin, Content-Type, X-Auth-Token")
+                call.response.status(HttpStatusCode.OK)
+            }
+
             post("/") {
+                call.response.header("Access-Control-Allow-Origin", "*") // don't deploy this
                 val received = call.receive<AnswerableDemoPost>()
+                println(received)
+                call.response.status(HttpStatusCode.OK)
             }
         }
     }
@@ -37,10 +48,11 @@ fun main1() {
 data class AnswerableDemoPost(
     val referenceString: String,
     val submissionString: String,
-    val commonString: String
+    val commonString: String,
+    val solutionName: String
 )
 
-fun main() {
+private fun getOutput() {
     val referenceSource = Source(mapOf(
         "Reference" to """
 import edu.illinois.cs.cs125.answerable.api.*;

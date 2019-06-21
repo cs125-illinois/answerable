@@ -1,6 +1,8 @@
 @file: JvmName("Arguments")
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.api.Generator
+
 /**
  * A wrapper class for passing arguments to [TestRunner]s.
  */
