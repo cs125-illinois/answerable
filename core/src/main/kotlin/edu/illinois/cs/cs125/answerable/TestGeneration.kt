@@ -55,7 +55,7 @@ class TestGenerator(
     // The original members are used for certain checks so a nice class name can be displayed.
 
     internal val typeArena = TypeArena(bytecodeProvider, commonClassloader ?: javaClass.classLoader)
-    internal val usableReferenceClass = mkOpenMirrorClass(referenceClass, typeArena)
+    internal val usableReferenceClass = mkOpenMirrorClass(referenceClass, typeArena, "openref_")
     internal val usableReferenceMethod = usableReferenceClass.getReferenceSolutionMethod(solutionName)
 
     private val referenceMethod: Method? = referenceClass.getReferenceSolutionMethod(solutionName)
@@ -142,7 +142,7 @@ class TestGenerator(
     private fun verifySafety() {
         verifyMemberAccess(referenceClass, typeArena)
 
-        val dryRun = { loadSubmission(mkOpenMirrorClass(referenceClass, typeArena), runClassDesign = false).runTests(0x0403) }
+        val dryRun = { loadSubmission(mkOpenMirrorClass(referenceClass, typeArena, "dryrunopenref_"), runClassDesign = false).runTests(0x0403) }
         val dryRunOutput: TestRunOutput
 
         try {
@@ -262,7 +262,7 @@ class PassedClassDesignRunner internal constructor(
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
-    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableReferenceClass, submissionClass, typeArena)
+    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableReferenceClass, submissionClass, typeArena, "genmirror_")
 
     private val referenceEdgeCases = testGenerator.edgeCases
     private val referenceSimpleCases = testGenerator.simpleCases
