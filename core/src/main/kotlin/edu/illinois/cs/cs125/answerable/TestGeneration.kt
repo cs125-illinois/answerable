@@ -5,9 +5,6 @@ import edu.illinois.cs.cs125.answerable.api.*
 import edu.illinois.cs.cs125.answerable.typeManagement.*
 import org.junit.jupiter.api.Assertions.*
 import org.opentest4j.AssertionFailedError
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
-import java.nio.charset.StandardCharsets
 import java.util.*
 import kotlin.math.min
 import java.lang.Character.UnicodeBlock.*
@@ -252,7 +249,11 @@ class PassedClassDesignRunner internal constructor(
     private val usableReferenceClass = testGenerator.usableReferenceClass
     private val usableReferenceMethod = testGenerator.usableReferenceMethod
     private val usableCustomVerifier = testGenerator.usableCustomVerifier
-    private val submissionMethod = submissionClass.findSolutionAttemptMethod(usableReferenceMethod)
+
+    // TODO: Accept a classloader to link the untrusted class's loader to?
+    private val usableSubmissionClass = mkOpenMirrorClass(submissionClass, typeArena, "opensub_")
+    private val usableSubmissionMethod = usableSubmissionClass.findSolutionAttemptMethod(usableReferenceMethod)
+
     private val paramTypes = testGenerator.paramTypes
     private val paramTypesWithReceiver = testGenerator.paramTypesWithReceiver
 
@@ -262,7 +263,7 @@ class PassedClassDesignRunner internal constructor(
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
-    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableReferenceClass, submissionClass, typeArena, "genmirror_")
+    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableReferenceClass, usableSubmissionClass, typeArena, "genmirror_")
 
     private val referenceEdgeCases = testGenerator.edgeCases
     private val referenceSimpleCases = testGenerator.simpleCases
@@ -272,7 +273,7 @@ class PassedClassDesignRunner internal constructor(
         .toMutableMap().apply {
             replace(
                 usableReferenceClass,
-                mirrorToStudentClass.getEnabledEdgeCases(testGenerator.enabledNames)[submissionClass]
+                mirrorToStudentClass.getEnabledEdgeCases(testGenerator.enabledNames)[usableSubmissionClass]
             )
         }
     private val submissionSimpleCases: Map<Type, ArrayWrapper?> = referenceSimpleCases
@@ -280,7 +281,7 @@ class PassedClassDesignRunner internal constructor(
         .toMutableMap().apply {
             replace(
                 usableReferenceClass,
-                mirrorToStudentClass.getEnabledSimpleCases(testGenerator.enabledNames)[submissionClass]
+                mirrorToStudentClass.getEnabledSimpleCases(testGenerator.enabledNames)[usableSubmissionClass]
             )
         }
 
@@ -290,7 +291,7 @@ class PassedClassDesignRunner internal constructor(
     private val referenceGens = testGenerator.generators
     private val submissionGens = mirrorToStudentClass
         .getEnabledGenerators(testGenerator.enabledNames)
-        .find { it.returnType == submissionClass }
+        .find { it.returnType == usableSubmissionClass }
         .let { testGenerator.buildGeneratorMap(randomForSubmission, it) }
     private val referenceAtNext = testGenerator.atNextMethod
     private val submissionAtNext = mirrorToStudentClass.getAtNext(testGenerator.enabledNames)
@@ -434,7 +435,7 @@ class PassedClassDesignRunner internal constructor(
         var subProxy: Any? = null
 
         if (!isStatic) {
-            subProxy = mkProxy(usableReferenceClass, submissionClass, subReceiver!!, typeArena)
+            subProxy = mkProxy(usableReferenceClass, usableSubmissionClass, subReceiver!!, typeArena)
         }
 
         return test(iteration, refReceiver, subReceiver, subProxy, refMethodArgs, subMethodArgs)
@@ -502,7 +503,7 @@ class PassedClassDesignRunner internal constructor(
         }
 
         val refBehavior = runOne(refReceiver, refReceiver, usableReferenceMethod, refArgs)
-        val subBehavior = runOne(subReceiver, subProxy, submissionMethod, subArgs)
+        val subBehavior = runOne(subReceiver, subProxy, usableSubmissionMethod, subArgs)
 
         var assertErr: Throwable? = null
         try {
@@ -513,7 +514,7 @@ class PassedClassDesignRunner internal constructor(
                 assertEquals(refBehavior.stdErr, subBehavior.stdErr)
             } else {
                 if (subProxy != null) {
-                    submissionClass.getPublicFields().forEach {
+                    usableSubmissionClass.getPublicFields().forEach {
                         usableReferenceClass.getField(it.name).set(subProxy, it.get(subReceiver))
                     }
                 }
