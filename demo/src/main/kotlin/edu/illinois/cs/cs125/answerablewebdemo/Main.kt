@@ -17,7 +17,7 @@ import io.ktor.server.netty.*
 import java.lang.IllegalStateException
 import kotlin.random.Random
 
-fun main() {
+fun main1() {
 
     val server = embeddedServer(Netty, 8080 /*System.getenv("ANSWERABLE_DEMO_PORT")?.toInt()*/
         ?: throw IllegalStateException("ANSWERABLE_DEMO_PORT not provided.")) {
@@ -52,7 +52,7 @@ data class AnswerableDemoPost(
     val solutionName: String
 )
 
-private fun getOutput() {
+private fun main() {
     val referenceSource = Source(mapOf(
         "Reference" to """
 import edu.illinois.cs.cs125.answerable.api.*;
@@ -76,7 +76,7 @@ public class Test {
     ))
 
     val refCL = try {
-        referenceSource.compile(CompilationArguments(parentClassLoader = Solution::class.java.classLoader))
+        referenceSource.compile()
     } catch (e: CompilationFailed) {
         e.errors.forEach { println("${it.location}: ${it.message}\n")}
         throw e

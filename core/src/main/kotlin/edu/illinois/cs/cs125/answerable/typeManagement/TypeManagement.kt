@@ -99,9 +99,10 @@ private fun Class<*>.slashName() = name.replace('.', '/')
  * @param arena the type arena to get bytecode from
  * @return a mirror class suitable only for generation
  */
-internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>, arena: TypeArena = TypeArena(null)): Class<*> {
+internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>,
+                                    arena: TypeArena = TypeArena(null), namePrefix: String = "m"): Class<*> {
     return mkGeneratorMirrorClass(referenceClass, referenceClass, targetClass,
-            "answerablemirror.m" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), arena)
+            "answerablemirror.$namePrefix" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), arena)
 }
 
 /**
@@ -253,8 +254,8 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
  * @param arena the type arena to get bytecode from and load classes into
  * @return a non-final version of the class with non-final members/classes
  */
-internal fun mkOpenMirrorClass(clazz: Class<*>, arena: TypeArena): Class<*> {
-    return mkOpenMirrorClass(clazz, clazz, "answerablemirror.o" + UUID.randomUUID().toString().replace("-", ""),
+internal fun mkOpenMirrorClass(clazz: Class<*>, arena: TypeArena, namePrefix: String = "o"): Class<*> {
+    return mkOpenMirrorClass(clazz, clazz, "answerablemirror.$namePrefix" + UUID.randomUUID().toString().replace("-", ""),
             mutableListOf(), arena)!!
 }
 

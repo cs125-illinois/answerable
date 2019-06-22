@@ -1,7 +1,5 @@
 package edu.illinois.cs.cs125.answerable.api
 
-// Written in Java so that Kotlin code can use it as a functional interface
-
 /**
  * An interface that allows Answerable to look up the bytecode for classes under test.
  *
