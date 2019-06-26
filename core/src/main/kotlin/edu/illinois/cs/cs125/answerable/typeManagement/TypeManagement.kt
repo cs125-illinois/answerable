@@ -22,10 +22,7 @@ private val objenesis = ObjenesisStd()
 
 private open class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLoader(parentLoader ?: getSystemClassLoader()) {
     fun loadBytes(name: String, bytes: ByteArray): Class<*> {
-        val clazz = defineClass(name, bytes, 0, bytes.size)
-        resolveClass(clazz)
-        return clazz
-        // TODO: See if the resolveClass call is necessary/desirable
+        return defineClass(name, bytes, 0, bytes.size)
     }
 }
 
