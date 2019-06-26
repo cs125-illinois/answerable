@@ -20,11 +20,28 @@ import java.util.*
 
 private val objenesis = ObjenesisStd()
 
-private class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLoader(parentLoader ?: getSystemClassLoader()) {
+private open class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLoader(parentLoader ?: getSystemClassLoader()) {
     fun loadBytes(name: String, bytes: ByteArray): Class<*> {
         val clazz = defineClass(name, bytes, 0, bytes.size)
         resolveClass(clazz)
         return clazz
+        // TODO: See if the resolveClass call is necessary/desirable
+    }
+}
+
+private class DiamondClassLoader(primaryParent: ClassLoader,
+                                 vararg val otherParents: ClassLoader) : BytesClassLoader(primaryParent) {
+    override fun loadClass(name: String?): Class<*> {
+        try {
+            return super.loadClass(name)
+        } catch (e: ClassNotFoundException) {
+            otherParents.forEach {
+                try {
+                    return it.loadClass(name)
+                } catch (ignored: ClassNotFoundException) { }
+            }
+        }
+        throw ClassNotFoundException(name)
     }
 }
 
@@ -470,6 +487,10 @@ internal class TypeArena(private val bytecodeProvider: BytecodeProvider?) {
     constructor(bytecodeProvider: BytecodeProvider?, commonLoader: ClassLoader) : this(bytecodeProvider) {
         loader = BytesClassLoader(commonLoader)
     }
+    constructor(primaryParent: TypeArena, vararg otherParents: TypeArena) : this(null) {
+        parent = primaryParent
+        loader = DiamondClassLoader(primaryParent.loader, *otherParents.map { it.loader }.toTypedArray())
+    }
 
     fun getBcelClassForClass(clazz: Class<*>): JavaClass {
         try {
@@ -516,6 +537,14 @@ internal class TypeArena(private val bytecodeProvider: BytecodeProvider?) {
             ProxyFactory.classLoaderProvider = oldLoaderProvider
 
             objenesis.getInstantiatorOf(proxyClass).also { proxyInstantiators[superClass] = it }
+        }
+    }
+
+    fun asBytecodeProvider(): BytecodeProvider {
+        return object : BytecodeProvider {
+            override fun getBytecode(clazz: Class<*>): ByteArray {
+                return bcelClasses[clazz]!!.bytes
+            }
         }
     }
 

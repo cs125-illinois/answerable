@@ -139,7 +139,10 @@ class TestGenerator(
     private fun verifySafety() {
         verifyMemberAccess(referenceClass, typeArena)
 
-        val dryRun = { loadSubmission(mkOpenMirrorClass(referenceClass, typeArena, "dryrunopenref_"), runClassDesign = false).runTests(0x0403) }
+        val dryRun = { loadSubmission(
+                mkOpenMirrorClass(referenceClass, typeArena, "dryrunopenref_"),
+                bytecodeProvider = typeArena.asBytecodeProvider(),
+                runClassDesign = false).runTests(0x0403) }
         val dryRunOutput: TestRunOutput
 
         try {
@@ -204,8 +207,7 @@ class TestGenerator(
         // could subvert the system. On the other hand, it's impossible for the reference class to be unsafe against itself.
         // So we simply allow testing to continue if the reference and submission classes are the same class.
         return if (cdaPassed || !runClassDesign) {
-            val subArena = TypeArena(bytecodeProvider, typeArena)
-            PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs, subArena)
+            PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs, bytecodeProvider)
         } else {
             FailedClassDesignTestRunner(referenceClass, solutionName, submissionClass, cda)
         }
@@ -232,12 +234,12 @@ class PassedClassDesignRunner internal constructor(
     private val submissionClass: Class<*>,
     private val cachedClassDesignAnalysisResult: List<AnalysisOutput> = listOf(),
     private val testRunnerArgs: TestRunnerArgs,
-    private val typeArena: TypeArena
+    private val bytecodeProvider: BytecodeProvider?
 ) : TestRunner {
 
     internal constructor(
         testGenerator: TestGenerator, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
-    ) : this(testGenerator, submissionClass, cdaResult, testRunnerArgs, TypeArena(null, testGenerator.typeArena))
+    ) : this(testGenerator, submissionClass, cdaResult, testRunnerArgs, null)
 
     internal constructor(
         referenceClass: Class<*>, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
@@ -250,8 +252,9 @@ class PassedClassDesignRunner internal constructor(
     private val usableReferenceMethod = testGenerator.usableReferenceMethod
     private val usableCustomVerifier = testGenerator.usableCustomVerifier
 
-    // TODO: Accept a classloader to link the untrusted class's loader to?
-    private val usableSubmissionClass = mkOpenMirrorClass(submissionClass, typeArena, "opensub_")
+    private val subArena = TypeArena(bytecodeProvider, submissionClass.classLoader)
+    private val adapterArena = TypeArena(testGenerator.typeArena, subArena)
+    private val usableSubmissionClass = mkOpenMirrorClass(submissionClass, subArena, "opensub_")
     private val usableSubmissionMethod = usableSubmissionClass.findSolutionAttemptMethod(usableReferenceMethod)
 
     private val paramTypes = testGenerator.paramTypes
@@ -263,7 +266,7 @@ class PassedClassDesignRunner internal constructor(
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
-    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableReferenceClass, usableSubmissionClass, typeArena, "genmirror_")
+    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableReferenceClass, usableSubmissionClass, adapterArena, "genmirror_")
 
     private val referenceEdgeCases = testGenerator.edgeCases
     private val referenceSimpleCases = testGenerator.simpleCases
@@ -435,7 +438,7 @@ class PassedClassDesignRunner internal constructor(
         var subProxy: Any? = null
 
         if (!isStatic) {
-            subProxy = mkProxy(usableReferenceClass, usableSubmissionClass, subReceiver!!, typeArena)
+            subProxy = mkProxy(usableReferenceClass, usableSubmissionClass, subReceiver!!, adapterArena)
         }
 
         return test(iteration, refReceiver, subReceiver, subProxy, refMethodArgs, subMethodArgs)
