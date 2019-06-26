@@ -20,9 +20,16 @@ import java.util.*
 
 private val objenesis = ObjenesisStd()
 
-private open class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLoader(parentLoader ?: getSystemClassLoader()) {
+private open class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLoader(parentLoader ?: getSystemClassLoader()), EnumerableBytecodeProvidingClassLoader {
+    private val bytecodeLoaded = mutableMapOf<Class<*>, ByteArray>()
     fun loadBytes(name: String, bytes: ByteArray): Class<*> {
-        return defineClass(name, bytes, 0, bytes.size)
+        return defineClass(name, bytes, 0, bytes.size).also { bytecodeLoaded[it] = bytes }
+    }
+    override fun getBytecode(clazz: Class<*>): ByteArray {
+        return bytecodeLoaded[clazz] ?: throw ClassNotFoundException("This BytesClassLoader is not responsible for $clazz")
+    }
+    override fun getAllBytecode(): Map<String, ByteArray> {
+        return bytecodeLoaded.map { (key, value) -> key.name to value }.toMap()
     }
 }
 
@@ -535,12 +542,8 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
         }
     }
 
-    fun asBytecodeProvider(): BytecodeProvider {
-        return object : BytecodeProvider {
-            override fun getBytecode(clazz: Class<*>): ByteArray {
-                return bytecode[clazz]!!
-            }
-        }
+    fun getLoader(): EnumerableBytecodeProvidingClassLoader {
+        return loader
     }
 
 }

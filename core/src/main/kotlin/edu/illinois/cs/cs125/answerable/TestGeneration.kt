@@ -141,7 +141,7 @@ class TestGenerator(
 
         val dryRun = { loadSubmission(
                 mkOpenMirrorClass(referenceClass, typePool, "dryrunopenref_"),
-                bytecodeProvider = typePool.asBytecodeProvider(),
+                bytecodeProvider = typePool.getLoader(),
                 runClassDesign = false).runTests(0x0403) }
         val dryRunOutput: TestRunOutput
 
@@ -230,24 +230,76 @@ interface TestRunner {
  * [TestGenerator.loadSubmission] on an existing [TestGenerator].
  */
 class PassedClassDesignRunner internal constructor(
-    testGenerator: TestGenerator,
-    private val submissionClass: Class<*>,
-    private val cachedClassDesignAnalysisResult: List<AnalysisOutput> = listOf(),
-    private val testRunnerArgs: TestRunnerArgs,
-    private val bytecodeProvider: BytecodeProvider?
+        private val testGenerator: TestGenerator,
+        private val submissionClass: Class<*>,
+        private val cachedClassDesignAnalysisResult: List<AnalysisOutput> = listOf(),
+        private val testRunnerArgs: TestRunnerArgs,
+        private val bytecodeProvider: BytecodeProvider?
 ) : TestRunner {
 
     internal constructor(
-        testGenerator: TestGenerator, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
+            testGenerator: TestGenerator, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
     ) : this(testGenerator, submissionClass, cdaResult, testRunnerArgs, null)
 
     internal constructor(
-        referenceClass: Class<*>, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
+            referenceClass: Class<*>, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
     ) : this(TestGenerator(referenceClass), submissionClass, cdaResult, testRunnerArgs)
 
-    private val solutionName = testGenerator.solutionName
+    /**
+     * [TestRunner.runTests] override which accepts [TestRunnerArgs]. Executes a test suite.
+     *
+     * If the method under test has a timeout, [runTests] will run as many tests as it can before the timeout
+     * is reached, and record the results.
+     *
+     * When called with the same [seed], [runTests] will always produce the same result.
+     */
+    override fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs): TestRunOutput {
+        val submissionTypePool = TypePool(bytecodeProvider, submissionClass.classLoader)
+        val untrustedSubMirror = mkOpenMirrorClass(submissionClass, submissionTypePool, "opensub_")
+        val sandbox = testRunnerArgs.sandbox ?: defaultSandbox
+        val testSteps = mutableListOf<TestStep>()
+        val testingBlockCounts = TestingBlockCounts()
+        val startTime = System.currentTimeMillis()
+        val timedOut = !sandbox.runInSandbox(submissionTypePool.getLoader(), testGenerator.timeout, object : SandboxedRunner {
+            override fun invoke(sandboxedLoader: ClassLoader, sandboxedBytecodeProvider: BytecodeProvider) {
+                val sandboxedSubMirror = Class.forName(untrustedSubMirror.name, false, sandboxedLoader)
+                val worker = TestRunWorker(testGenerator, sandboxedSubMirror, testRunnerArgs, sandboxedBytecodeProvider)
+                worker.runTests(seed, testRunnerArgs, testSteps, testingBlockCounts)
+            }
+        })
+        val endTime = System.currentTimeMillis()
+        return TestRunOutput(
+                seed = seed,
+                referenceClass = testGenerator.referenceClass,
+                testedClass = submissionClass,
+                solutionName = testGenerator.solutionName,
+                startTime = startTime,
+                endTime = endTime,
+                timedOut = timedOut,
+                numDiscardedTests = testingBlockCounts.discardedTests,
+                numTests = testingBlockCounts.numTests,
+                numEdgeCaseTests = testingBlockCounts.edgeTests,
+                numSimpleCaseTests = testingBlockCounts.simpleTests,
+                numSimpleAndEdgeCaseTests = testingBlockCounts.simpleEdgeMixedTests,
+                numMixedTests = testingBlockCounts.generatedMixedTests,
+                numAllGeneratedTests = testingBlockCounts.allGeneratedTests,
+                classDesignAnalysisResult = cachedClassDesignAnalysisResult,
+                testSteps = testSteps
+        )
+    }
 
-    private val referenceClass = testGenerator.referenceClass
+    /**
+     * [TestRunner.runTests] overload which uses the [TestRunnerArgs] that this [PassedClassDesignRunner] was constructed with.
+     */
+    override fun runTests(seed: Long) = runTests(seed, this.testRunnerArgs) // to expose the overload to Java
+}
+
+class TestRunWorker internal constructor(
+    testGenerator: TestGenerator,
+    private val submissionClass: Class<*>,
+    private val testRunnerArgs: TestRunnerArgs,
+    private val bytecodeProvider: BytecodeProvider?
+) {
     private val usableReferenceClass = testGenerator.usableReferenceClass
     private val usableReferenceMethod = testGenerator.usableReferenceMethod
     private val usableCustomVerifier = testGenerator.usableCustomVerifier
@@ -540,15 +592,7 @@ class PassedClassDesignRunner internal constructor(
         )
     }
 
-    /**
-     * [TestRunner.runTests] override which accepts [TestRunnerArgs]. Executes a test suite.
-     *
-     * If the method under test has a timeout, [runTests] will run as many tests as it can before the timeout
-     * is reached, and record the results.
-     *
-     * When called with the same [seed], [runTests] will always produce the same result.
-     */
-    override fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs): TestRunOutput {
+    fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs, testStepList: MutableList<TestStep>, testingBlockCounts: TestingBlockCounts) {
         val numTests = testRunnerArgs.numTests
 
         val numEdgeCaseTests = if (referenceEdgeCases.values.all { it.isNullOrEmpty() }) 0 else min(
@@ -567,134 +611,11 @@ class PassedClassDesignRunner internal constructor(
         val simpleCaseUpperBound = numEdgeCaseTests + numSimpleCaseTests
         val simpleEdgeMixedUpperBound = simpleCaseUpperBound + numSimpleEdgeMixedTests
 
-        val testStepList: MutableList<TestStep> = mutableListOf()
-        val testingBlockCounts = object {
-            var discardedTests: Int = 0
-            var edgeTests: Int = 0
-            var simpleTests: Int = 0
-            var simpleEdgeMixedTests: Int = 0
-            var generatedMixedTests: Int = 0
-            var allGeneratedTests: Int = 0
-
-            val numTests: Int
-                get() = edgeTests + simpleTests + simpleEdgeMixedTests + generatedMixedTests + allGeneratedTests
-        }
-
         val numGeneratedMixedTests: Int
                 by lazy { numTests -
                         numAllGeneratedTests -
                         testingBlockCounts.let { it.edgeTests + it.simpleTests + it.simpleEdgeMixedTests }
                 }
-
-        fun timedTestingPortion() {
-            var refReceiver: Any? = null
-            var subReceiver: Any? = null
-
-            var block: Int
-            var generatedMixedIdx = 0
-            var allGeneratedIdx = 0
-
-            var i = 0
-            while (testingBlockCounts.numTests < testRunnerArgs.numTests) {
-                val refMethodArgs: Array<Any?>
-                val subMethodArgs: Array<Any?>
-                when {
-                    i in 1 .. numEdgeCaseTests -> {
-                        block = 0
-
-                        // if we can't exhaust the cases, duplicates are less impactful
-                        val idx = if (edgeExhaustive) (i - 1) else testRunnerRandom.nextInt(numEdgeCombinations)
-
-                        val refCase = calculateCase(idx, numEdgeCombinations, referenceEdgeCases, referenceGens)
-                        val subCase = calculateCase(idx, numEdgeCombinations, submissionEdgeCases, submissionGens)
-
-                        refMethodArgs = refCase.slice(1..refCase.indices.last).toTypedArray()
-                        subMethodArgs = subCase.slice(1..subCase.indices.last).toTypedArray()
-
-                        refReceiver = if (refCase[0] != null) refCase[0] else mkRefReceiver(i, 0, refReceiver)
-                        subReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, subReceiver)
-
-                    }
-                    i in (numEdgeCaseTests + 1) .. simpleCaseUpperBound -> {
-                        block = 1
-
-                        val idxInSegment = i - numEdgeCaseTests - 1
-                        val idx = if (simpleExhaustive) idxInSegment else testRunnerRandom.nextInt(numSimpleCombinations)
-
-                        val refCase = calculateCase(idx, numSimpleCombinations, referenceSimpleCases, referenceGens)
-                        val subCase = calculateCase(idx, numSimpleCombinations, submissionSimpleCases, submissionGens)
-
-                        refMethodArgs = refCase.slice(1..refCase.indices.last).toTypedArray()
-                        subMethodArgs = subCase.slice(1..subCase.indices.last).toTypedArray()
-
-                        refReceiver = if (refCase[0] != null) refCase[0] else mkRefReceiver(i, 0, refReceiver)
-                        subReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, subReceiver)
-
-                    }
-                    i in (simpleCaseUpperBound + 1) .. simpleEdgeMixedUpperBound -> {
-                        block = 2
-
-                        refReceiver = mkRefReceiver(i, 2, refReceiver)
-                        subReceiver = mkSubReceiver(i, 2, subReceiver)
-
-                        refMethodArgs = mkSimpleEdgeMixedCase(referenceEdgeCases, referenceSimpleCases, referenceGens, randomForReference)
-                        subMethodArgs = mkSimpleEdgeMixedCase(submissionEdgeCases, submissionSimpleCases, submissionGens, randomForSubmission)
-                    }
-                    testingBlockCounts.allGeneratedTests < numAllGeneratedTests -> {
-                        block = 3
-
-                        val comp = min((testRunnerArgs.maxComplexity * allGeneratedIdx) / numAllGeneratedTests, testRunnerArgs.maxComplexity)
-
-                        refReceiver = mkRefReceiver(i, comp, refReceiver)
-                        subReceiver = mkSubReceiver(i, comp, subReceiver)
-
-                        refMethodArgs = paramTypes.map { referenceGens[it]?.generate(comp) }.toTypedArray()
-                        subMethodArgs = paramTypes.map { submissionGens[it]?.generate(comp) }.toTypedArray()
-
-                        allGeneratedIdx++
-                    }
-                    testingBlockCounts.numTests < numTests -> {
-                        block = 4
-
-                        val comp = min((testRunnerArgs.maxComplexity * generatedMixedIdx) / numGeneratedMixedTests, testRunnerArgs.maxComplexity)
-
-                        refReceiver = mkRefReceiver(i, comp, refReceiver)
-                        subReceiver = mkSubReceiver(i, comp, subReceiver)
-
-                        refMethodArgs = mkGeneratedMixedCase(referenceEdgeCases, referenceSimpleCases, referenceGens, comp, randomForReference)
-                        subMethodArgs = mkGeneratedMixedCase(submissionEdgeCases, submissionSimpleCases, submissionGens, comp, randomForSubmission)
-
-                        generatedMixedIdx++
-                    }
-
-                    else ->
-                        throw IllegalStateException(
-                            "Answerable somehow lost proper track of test block counts. Please report a bug."
-                        )
-                }
-
-                val preconditionMet: Boolean = (precondition?.invoke(refReceiver, *refMethodArgs) ?: true) as Boolean
-
-                val result: TestStep
-                if (preconditionMet) {
-                    result = testWith(i, refReceiver, subReceiver, refMethodArgs, subMethodArgs)
-                    when (block) {
-                        0 -> testingBlockCounts.edgeTests++
-                        1 -> testingBlockCounts.simpleTests++
-                        2 -> testingBlockCounts.simpleEdgeMixedTests++
-                        3 -> testingBlockCounts.allGeneratedTests++
-                        4 -> testingBlockCounts.generatedMixedTests++
-                    }
-                } else {
-                    result = DiscardedTestStep(i, refReceiver, refMethodArgs)
-                    testingBlockCounts.discardedTests++
-                }
-                testStepList.add(result)
-
-                if (testingBlockCounts.discardedTests >= testRunnerArgs.maxDiscards) break
-                i++
-            }
-        }
 
         setOf(randomForReference, randomForSubmission, testRunnerRandom).forEach { it.setSeed(seed) }
 
@@ -704,48 +625,117 @@ class PassedClassDesignRunner internal constructor(
             it to it.get(null)
         }
 
-        var timedOut = false
-        val startTime: Long = System.currentTimeMillis()
+        var refReceiver: Any? = null
+        var subReceiver: Any? = null
 
-        if (timeout == 0L) {
-            timedTestingPortion()
-        } else {
-            try {
-                Executors.newSingleThreadExecutor().submit(::timedTestingPortion)[timeout, TimeUnit.MILLISECONDS]
-            } catch (e: TimeoutException) {
-                timedOut = true
+        var block: Int
+        var generatedMixedIdx = 0
+        var allGeneratedIdx = 0
+
+        var i = 0
+        while (testingBlockCounts.numTests < testRunnerArgs.numTests) {
+            val refMethodArgs: Array<Any?>
+            val subMethodArgs: Array<Any?>
+            when {
+                i in 1 .. numEdgeCaseTests -> {
+                    block = 0
+
+                    // if we can't exhaust the cases, duplicates are less impactful
+                    val idx = if (edgeExhaustive) (i - 1) else testRunnerRandom.nextInt(numEdgeCombinations)
+
+                    val refCase = calculateCase(idx, numEdgeCombinations, referenceEdgeCases, referenceGens)
+                    val subCase = calculateCase(idx, numEdgeCombinations, submissionEdgeCases, submissionGens)
+
+                    refMethodArgs = refCase.slice(1..refCase.indices.last).toTypedArray()
+                    subMethodArgs = subCase.slice(1..subCase.indices.last).toTypedArray()
+
+                    refReceiver = if (refCase[0] != null) refCase[0] else mkRefReceiver(i, 0, refReceiver)
+                    subReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, subReceiver)
+
+                }
+                i in (numEdgeCaseTests + 1) .. simpleCaseUpperBound -> {
+                    block = 1
+
+                    val idxInSegment = i - numEdgeCaseTests - 1
+                    val idx = if (simpleExhaustive) idxInSegment else testRunnerRandom.nextInt(numSimpleCombinations)
+
+                    val refCase = calculateCase(idx, numSimpleCombinations, referenceSimpleCases, referenceGens)
+                    val subCase = calculateCase(idx, numSimpleCombinations, submissionSimpleCases, submissionGens)
+
+                    refMethodArgs = refCase.slice(1..refCase.indices.last).toTypedArray()
+                    subMethodArgs = subCase.slice(1..subCase.indices.last).toTypedArray()
+
+                    refReceiver = if (refCase[0] != null) refCase[0] else mkRefReceiver(i, 0, refReceiver)
+                    subReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, subReceiver)
+
+                }
+                i in (simpleCaseUpperBound + 1) .. simpleEdgeMixedUpperBound -> {
+                    block = 2
+
+                    refReceiver = mkRefReceiver(i, 2, refReceiver)
+                    subReceiver = mkSubReceiver(i, 2, subReceiver)
+
+                    refMethodArgs = mkSimpleEdgeMixedCase(referenceEdgeCases, referenceSimpleCases, referenceGens, randomForReference)
+                    subMethodArgs = mkSimpleEdgeMixedCase(submissionEdgeCases, submissionSimpleCases, submissionGens, randomForSubmission)
+                }
+                testingBlockCounts.allGeneratedTests < numAllGeneratedTests -> {
+                    block = 3
+
+                    val comp = min((testRunnerArgs.maxComplexity * allGeneratedIdx) / numAllGeneratedTests, testRunnerArgs.maxComplexity)
+
+                    refReceiver = mkRefReceiver(i, comp, refReceiver)
+                    subReceiver = mkSubReceiver(i, comp, subReceiver)
+
+                    refMethodArgs = paramTypes.map { referenceGens[it]?.generate(comp) }.toTypedArray()
+                    subMethodArgs = paramTypes.map { submissionGens[it]?.generate(comp) }.toTypedArray()
+
+                    allGeneratedIdx++
+                }
+                testingBlockCounts.numTests < numTests -> {
+                    block = 4
+
+                    val comp = min((testRunnerArgs.maxComplexity * generatedMixedIdx) / numGeneratedMixedTests, testRunnerArgs.maxComplexity)
+
+                    refReceiver = mkRefReceiver(i, comp, refReceiver)
+                    subReceiver = mkSubReceiver(i, comp, subReceiver)
+
+                    refMethodArgs = mkGeneratedMixedCase(referenceEdgeCases, referenceSimpleCases, referenceGens, comp, randomForReference)
+                    subMethodArgs = mkGeneratedMixedCase(submissionEdgeCases, submissionSimpleCases, submissionGens, comp, randomForSubmission)
+
+                    generatedMixedIdx++
+                }
+
+                else ->
+                    throw IllegalStateException(
+                            "Answerable somehow lost proper track of test block counts. Please report a bug."
+                    )
             }
-        }
 
-        val endTime: Long = System.currentTimeMillis()
+            val preconditionMet: Boolean = (precondition?.invoke(refReceiver, *refMethodArgs) ?: true) as Boolean
+
+            val result: TestStep
+            if (preconditionMet) {
+                result = testWith(i, refReceiver, subReceiver, refMethodArgs, subMethodArgs)
+                when (block) {
+                    0 -> testingBlockCounts.edgeTests++
+                    1 -> testingBlockCounts.simpleTests++
+                    2 -> testingBlockCounts.simpleEdgeMixedTests++
+                    3 -> testingBlockCounts.allGeneratedTests++
+                    4 -> testingBlockCounts.generatedMixedTests++
+                }
+            } else {
+                result = DiscardedTestStep(i, refReceiver, refMethodArgs)
+                testingBlockCounts.discardedTests++
+            }
+            testStepList.add(result)
+
+            if (testingBlockCounts.discardedTests >= testRunnerArgs.maxDiscards) break
+            i++
+        }
 
         // Restore reference class static field values
         refStaticFieldValues.forEach { (field, value) -> field.set(null, value) }
-
-        return TestRunOutput(
-            seed = seed,
-            referenceClass = referenceClass,
-            testedClass = submissionClass,
-            solutionName = solutionName,
-            startTime = startTime,
-            endTime = endTime,
-            timedOut = timedOut,
-            numDiscardedTests = testingBlockCounts.discardedTests,
-            numTests = testingBlockCounts.numTests,
-            numEdgeCaseTests = testingBlockCounts.edgeTests,
-            numSimpleCaseTests = testingBlockCounts.simpleTests,
-            numSimpleAndEdgeCaseTests = testingBlockCounts.simpleEdgeMixedTests,
-            numMixedTests = testingBlockCounts.generatedMixedTests,
-            numAllGeneratedTests = testingBlockCounts.allGeneratedTests,
-            classDesignAnalysisResult = cachedClassDesignAnalysisResult,
-            testSteps = testStepList
-        )
     }
-
-    /**
-     * [TestRunner.runTests] overload which uses the [TestRunnerArgs] that this [PassedClassDesignRunner] was constructed with.
-     */
-    override fun runTests(seed: Long) = runTests(seed, this.testRunnerArgs) // to expose the overload to Java
 
 }
 
@@ -1451,4 +1441,16 @@ data class TestRunOutput(
     val testSteps: List<TestStep>
 ) : DefaultSerializable {
     override fun toJson() = defaultToJson()
+}
+
+data class TestingBlockCounts(
+    var discardedTests: Int = 0,
+    var edgeTests: Int = 0,
+    var simpleTests: Int = 0,
+    var simpleEdgeMixedTests: Int = 0,
+    var generatedMixedTests: Int = 0,
+    var allGeneratedTests: Int = 0) {
+
+    val numTests: Int
+        get() = edgeTests + simpleTests + simpleEdgeMixedTests + generatedMixedTests + allGeneratedTests
 }

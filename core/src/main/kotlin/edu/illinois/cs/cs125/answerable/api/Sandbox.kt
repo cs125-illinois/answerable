@@ -1,5 +1,9 @@
 package edu.illinois.cs.cs125.answerable.api
 
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+
 /**
  * Represents a secured execution environment for testing untrusted submissions.
  */
@@ -9,8 +13,13 @@ interface Sandbox {
      * Runs a testing task on an untrusted submission. The untrusted classloader may be transformed before
      * being passed to [SandboxedRunner.invoke]. The fully-qualified names of classes in [untrustedLoader]
      * must be preserved.
+     *
+     * @param untrustedLoader [ClassLoader] containing untrusted classes
+     * @param timeout timeout in milliseconds or zero for untimed
+     * @param callback testing task to run in the sandbox
+     * @return whether the task completed in time
      */
-    fun runInSandbox(untrustedLoader: EnumerableBytecodeProvidingClassLoader, callback: SandboxedRunner)
+    fun runInSandbox(untrustedLoader: EnumerableBytecodeProvidingClassLoader, timeout: Long, callback: SandboxedRunner): Boolean
 
 }
 
@@ -50,8 +59,24 @@ interface SandboxedRunner {
 
 }
 
-internal val insecureSandbox = object : Sandbox {
-    override fun runInSandbox(untrustedLoader: EnumerableBytecodeProvidingClassLoader, callback: SandboxedRunner) {
-        callback(untrustedLoader as ClassLoader, untrustedLoader)
+/**
+ * The default (insecure!) sandbox, which can handle timeouts for nice submissions but provides no other security.
+ */
+internal val defaultSandbox = object : Sandbox {
+    override fun runInSandbox(untrustedLoader: EnumerableBytecodeProvidingClassLoader, timeout: Long, callback: SandboxedRunner): Boolean {
+        fun timedTestingPortion() {
+            callback(untrustedLoader as ClassLoader, untrustedLoader)
+        }
+        return if (timeout == 0L) {
+            timedTestingPortion()
+            true
+        } else {
+            try {
+                Executors.newSingleThreadExecutor().submit(::timedTestingPortion)[timeout, TimeUnit.MILLISECONDS]
+                true
+            } catch (e: TimeoutException) {
+                false
+            }
+        }
     }
 }
