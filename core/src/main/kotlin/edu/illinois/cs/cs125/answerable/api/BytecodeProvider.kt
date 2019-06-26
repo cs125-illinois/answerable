@@ -12,11 +12,12 @@ interface BytecodeProvider {
     /**
      * Looks up the bytecode used to create the class with [ClassLoader.defineClass].
      *
-     * If this provider is not responsible for [clazz], this method should throw [NoClassDefFoundError].
+     * If this provider is not responsible for [clazz], this method should throw [ClassNotFoundException].
      *
      * @param clazz a class under test
      * @return a byte array representing the compiled class
      */
+    @Throws(ClassNotFoundException::class)
     fun getBytecode(clazz: Class<*>): ByteArray
 
 }
