@@ -89,9 +89,9 @@ class TestGenerator(
 
     internal enum class ReceiverGenStrategy { GENERATOR, NEXT, NONE }
     internal val receiverGenStrategy: ReceiverGenStrategy = when {
-        atNextMethod != null                    -> NEXT
+        atNextMethod != null                  -> NEXT
         usableReferenceClass in generators.keys -> GENERATOR
-        isStatic                                -> NONE
+        isStatic                              -> NONE
         else -> throw AnswerableMisuseException("The reference solution must provide either an @Generator or an @Next method if @Solution is not static.")
     }
 
@@ -464,35 +464,35 @@ class PassedClassDesignRunner internal constructor(
         subArgs: Array<Any?>
     ): TestStep {
         fun runOne(receiver: Any?, refCompatibleReceiver: Any?, method: Method?, args: Array<Any?>): TestOutput<Any?> {
-            var behavior: Behavior
+            var behavior: Behavior? = null
+
             var threw: Throwable? = null
             var outText: String? = null
             var errText: String? = null
             var output: Any? = null
-
             if (method != null) {
-                val redirector = testRunnerArgs.outputRedirector ?: defaultOutputRedirector
-                if (capturePrint) {
-                    redirector.redirect()
-                }
-                try {
-                    output = method(receiver, *args)
-                    behavior = Behavior.RETURNED
-                } catch (e: Throwable) {
-                    threw = e
-                    behavior = Behavior.THREW
-                } finally {
-                    if (capturePrint) {
-                        redirector.restore()
-                        outText = redirector.getStandardOut()
-                        errText = redirector.getStandardErr()
+                val toRun = Runnable {
+                    try {
+                        output = method(receiver, *args)
+                        behavior = Behavior.RETURNED
+                    } catch (e: Throwable) {
+                        threw = e
+                        behavior = Behavior.THREW
                     }
+                }
+                if (capturePrint) {
+                    val capturer = testRunnerArgs.outputCapturer ?: defaultOutputCapturer
+                    capturer.runCapturingOutput(toRun)
+                    outText = capturer.getStandardOut()
+                    errText = capturer.getStandardErr()
+                } else {
+                    toRun.run()
                 }
             } else {
                 behavior = Behavior.VERIFY_ONLY
             }
             return TestOutput(
-                typeOfBehavior = behavior,
+                typeOfBehavior = behavior!!,
                 receiver = refCompatibleReceiver,
                 args = args,
                 output = output,
