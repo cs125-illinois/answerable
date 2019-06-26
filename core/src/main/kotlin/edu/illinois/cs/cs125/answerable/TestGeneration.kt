@@ -51,8 +51,8 @@ class TestGenerator(
     // "Usable" members are from the opened (un-final-ified) mirror of the original reference class.
     // The original members are used for certain checks so a nice class name can be displayed.
 
-    internal val typeArena = TypeArena(bytecodeProvider, commonClassloader ?: javaClass.classLoader)
-    internal val usableReferenceClass = mkOpenMirrorClass(referenceClass, typeArena, "openref_")
+    internal val typePool = TypePool(bytecodeProvider, commonClassloader ?: javaClass.classLoader)
+    internal val usableReferenceClass = mkOpenMirrorClass(referenceClass, typePool, "openref_")
     internal val usableReferenceMethod = usableReferenceClass.getReferenceSolutionMethod(solutionName)
 
     private val referenceMethod: Method? = referenceClass.getReferenceSolutionMethod(solutionName)
@@ -137,11 +137,11 @@ class TestGenerator(
     }
 
     private fun verifySafety() {
-        verifyMemberAccess(referenceClass, typeArena)
+        verifyMemberAccess(referenceClass, typePool)
 
         val dryRun = { loadSubmission(
-                mkOpenMirrorClass(referenceClass, typeArena, "dryrunopenref_"),
-                bytecodeProvider = typeArena.asBytecodeProvider(),
+                mkOpenMirrorClass(referenceClass, typePool, "dryrunopenref_"),
+                bytecodeProvider = typePool.asBytecodeProvider(),
                 runClassDesign = false).runTests(0x0403) }
         val dryRunOutput: TestRunOutput
 
@@ -252,9 +252,9 @@ class PassedClassDesignRunner internal constructor(
     private val usableReferenceMethod = testGenerator.usableReferenceMethod
     private val usableCustomVerifier = testGenerator.usableCustomVerifier
 
-    private val subArena = TypeArena(bytecodeProvider, submissionClass.classLoader)
-    private val adapterArena = TypeArena(testGenerator.typeArena, subArena)
-    private val usableSubmissionClass = mkOpenMirrorClass(submissionClass, subArena, "opensub_")
+    private val submissionTypePool = TypePool(bytecodeProvider, submissionClass.classLoader)
+    private val adapterTypePool = TypePool(testGenerator.typePool, submissionTypePool)
+    private val usableSubmissionClass = mkOpenMirrorClass(submissionClass, submissionTypePool, "opensub_")
     private val usableSubmissionMethod = usableSubmissionClass.findSolutionAttemptMethod(usableReferenceMethod)
 
     private val paramTypes = testGenerator.paramTypes
@@ -266,7 +266,7 @@ class PassedClassDesignRunner internal constructor(
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
-    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableReferenceClass, usableSubmissionClass, adapterArena, "genmirror_")
+    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableReferenceClass, usableSubmissionClass, adapterTypePool, "genmirror_")
 
     private val referenceEdgeCases = testGenerator.edgeCases
     private val referenceSimpleCases = testGenerator.simpleCases
@@ -438,7 +438,7 @@ class PassedClassDesignRunner internal constructor(
         var subProxy: Any? = null
 
         if (!isStatic) {
-            subProxy = mkProxy(usableReferenceClass, usableSubmissionClass, subReceiver!!, adapterArena)
+            subProxy = mkProxy(usableReferenceClass, usableSubmissionClass, subReceiver!!, adapterTypePool)
         }
 
         return test(iteration, refReceiver, subReceiver, subProxy, refMethodArgs, subMethodArgs)

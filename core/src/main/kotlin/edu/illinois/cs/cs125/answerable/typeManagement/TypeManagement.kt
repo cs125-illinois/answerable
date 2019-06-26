@@ -47,11 +47,11 @@ private class DiamondClassLoader(primaryParent: ClassLoader,
  * @param superClass the class that the object needs to appear as (be an instance of)
  * @param childClass the original class
  * @param forward an instance of childClass to which method calls will be forwarded
- * @param arena the type arena to look for classes in
+ * @param pool the type pool to look for classes in
  * @return an instance (the proxy) of a subclass of superClass
  */
-internal fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any, arena: TypeArena): Any {
-    return mkProxy(superClass, superClass, childClass, childClass, forward, arena)
+internal fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any, pool: TypePool): Any {
+    return mkProxy(superClass, superClass, childClass, childClass, forward, pool)
 }
 
 private data class TypeMap(
@@ -63,36 +63,36 @@ private data class TypeMap(
  * Determines what an inner class should be proxied to, if any.
  * @param outermostSuperClass the outer class a proxy is being made an instance of
  * @param childClass an inner class of the real/original class
- * @param arena type arena to look for classes in
+ * @param pool type pool to look for classes in
  * @return a TypeMap that determines what classes to map fields and method between, or null if no proxy is needed
  */
-private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?, arena: TypeArena): TypeMap? {
+private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?, pool: TypePool): TypeMap? {
     if (childClass == null) return null
     if (childClass.enclosingClass == null) return null
     val innerPath = childClass.name.split('$', limit = 2)[1]
     val correspondingSuper = "${outermostSuperClass.name}\$$innerPath"
     try {
-        return TypeMap(to = arena.classForName(correspondingSuper), from = childClass)
+        return TypeMap(to = pool.classForName(correspondingSuper), from = childClass)
     } catch (e: ClassNotFoundException) {
-        return mostDerivedProxyableClass(outermostSuperClass, childClass.superclass, arena)
+        return mostDerivedProxyableClass(outermostSuperClass, childClass.superclass, pool)
     }
 }
 
 private fun mkProxy(superClass: Class<*>, outermostSuperClass: Class<*>, childClass: Class<*>, outermostChildClass: Class<*>,
-                    forward: Any, arena: TypeArena): Any {
+                    forward: Any, pool: TypePool): Any {
     if (superClass == childClass) return forward
 
-    val subProxy = arena.getProxyInstantiator(superClass).newInstance()
+    val subProxy = pool.getProxyInstantiator(superClass).newInstance()
     (subProxy as Proxy).setHandler { self, method, _, args ->
         childClass.getPublicFields().forEach { it.set(forward, self.javaClass.getField(it.name).get(self)) }
         val result = childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
         childClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(forward)) }
         if (result != null && result.javaClass.enclosingClass != null && result.javaClass.name.startsWith("${outermostChildClass.name}$")) {
-            val innerMap = mostDerivedProxyableClass(outermostSuperClass, result.javaClass, arena)
+            val innerMap = mostDerivedProxyableClass(outermostSuperClass, result.javaClass, pool)
             if (innerMap == null) {
                 result
             } else {
-                val innerProxy = mkProxy(innerMap.to, outermostSuperClass, innerMap.from, outermostChildClass, result, arena)
+                val innerProxy = mkProxy(innerMap.to, outermostSuperClass, innerMap.from, outermostChildClass, result, pool)
                 innerMap.from.getPublicFields().forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
                 innerProxy
             }
@@ -110,13 +110,13 @@ private fun Class<*>.slashName() = name.replace('.', '/')
  * Creates a mirror class containing only enough of the reference class to generate submission classes.
  * @param referenceClass the reference class containing methods to mirror
  * @param targetClass the class the generator should make instances of
- * @param arena the type arena to get bytecode from
+ * @param pool the type pool to get bytecode from
  * @return a mirror class suitable only for generation
  */
 internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>,
-                                    arena: TypeArena = TypeArena(null), namePrefix: String = "m"): Class<*> {
+                                    pool: TypePool = TypePool(null), namePrefix: String = "m"): Class<*> {
     return mkGeneratorMirrorClass(referenceClass, referenceClass, targetClass,
-            "answerablemirror.$namePrefix" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), arena)
+            "answerablemirror.$namePrefix" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), pool)
 }
 
 /**
@@ -126,11 +126,11 @@ internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class
  * @param targetClass the original, outermost submission class (to generate instances of)
  * @param mirrorName the desired fully-qualified dot name of the mirror class
  * @param mirrorsMade the map of names to finished mirrors
- * @param arena the type arena to get bytecode from
+ * @param pool the type pool to get bytecode from
  * @return the mirrored class
  */
 private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String,
-                                   mirrorsMade: MutableMap<String, Class<*>>, arena: TypeArena): Class<*> {
+                                   mirrorsMade: MutableMap<String, Class<*>>, pool: TypePool): Class<*> {
     mirrorsMade[mirrorName]?.let { return it }
 
     val refLName = "L${referenceClass.slashName()};"
@@ -154,7 +154,7 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
     }
     val atVerifyName = baseClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
-    val classGen = ClassGen(arena.getBcelClassForClass(baseClass))
+    val classGen = ClassGen(pool.getBcelClassForClass(baseClass))
 
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
@@ -202,8 +202,8 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
         } else if (constant is ConstantClass) {
             val name = constant.getBytes(constantPool)
             if (name.startsWith("${baseClass.slashName()}\$")) {
-                val inner = arena.classForName(name.replace('/', '.'))
-                val innerMirror = mkGeneratorMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade, arena)
+                val inner = pool.classForName(name.replace('/', '.'))
+                val innerMirror = mkGeneratorMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade, pool)
                 constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(innerMirror.slashName()))
             } else if (name.startsWith("${referenceClass.slashName()}\$")) {
                 // Shouldn't merge this with the above condition because of possible mutual reference (infinite recursion)
@@ -259,26 +259,26 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
     }
 
     // classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
-    return arena.loadBytes(mirrorName, classGen.javaClass)
+    return pool.loadBytes(mirrorName, classGen.javaClass)
 }
 
 /**
  * Creates a mirror of an outer class with `final` members removed from classes and methods.
  * @param clazz an outer class
- * @param arena the type arena to get bytecode from and load classes into
+ * @param pool the type pool to get bytecode from and load classes into
  * @return a non-final version of the class with non-final members/classes
  */
-internal fun mkOpenMirrorClass(clazz: Class<*>, arena: TypeArena, namePrefix: String = "o"): Class<*> {
+internal fun mkOpenMirrorClass(clazz: Class<*>, pool: TypePool, namePrefix: String = "o"): Class<*> {
     return mkOpenMirrorClass(clazz, clazz, "answerablemirror.$namePrefix" + UUID.randomUUID().toString().replace("-", ""),
-            mutableListOf(), arena)!!
+            mutableListOf(), pool)!!
 }
 
-private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: String, alreadyDone: MutableList<String>, arena: TypeArena): Class<*>? {
+private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: String, alreadyDone: MutableList<String>, pool: TypePool): Class<*>? {
     if (alreadyDone.contains(newName)) return null
     alreadyDone.add(newName)
 
     // Get a mutable ClassGen, initialized as a copy of the existing class
-    val classGen = ClassGen(arena.getBcelClassForClass(clazz))
+    val classGen = ClassGen(pool.getBcelClassForClass(clazz))
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
 
@@ -295,8 +295,8 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
         if (innerName.startsWith(baseClass.slashName() + "$")) {
             if (Modifier.isFinal(innerClass.innerAccessFlags)) innerClass.innerAccessFlags -= Modifier.FINAL
             val innerPath = innerName.split('$', limit = 2)[1]
-            mkOpenMirrorClass(arena.classForName(innerName.replace('/', '.')), baseClass,
-                    "$newBase\$$innerPath", alreadyDone, arena)
+            mkOpenMirrorClass(pool.classForName(innerName.replace('/', '.')), baseClass,
+                    "$newBase\$$innerPath", alreadyDone, pool)
         }
     }
 
@@ -331,16 +331,16 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
 
     // Create and load the modified class
     // classGen.javaClass.dump("Opened${alreadyDone.indexOf(newName)}.class") // Uncomment for debugging
-    return arena.loadBytes(newName, classGen.javaClass)
+    return pool.loadBytes(newName, classGen.javaClass)
 }
 
 /**
  * Throws AnswerableBytecodeVerificationException if a mirror of the given generator class would fail with an illegal or absent member access.
  * @param referenceClass the original, non-mirrored reference class
- * @param arena the type arena to get bytecode from
+ * @param pool the type pool to get bytecode from
  */
-internal fun verifyMemberAccess(referenceClass: Class<*>, arena: TypeArena = TypeArena(null)) {
-    verifyMemberAccess(referenceClass, referenceClass, mutableSetOf(), mapOf(), arena)
+internal fun verifyMemberAccess(referenceClass: Class<*>, pool: TypePool = TypePool(null)) {
+    verifyMemberAccess(referenceClass, referenceClass, mutableSetOf(), mapOf(), pool)
 }
 
 /**
@@ -349,14 +349,14 @@ internal fun verifyMemberAccess(referenceClass: Class<*>, arena: TypeArena = Typ
  * @param referenceClass the original, outermost reference class
  * @param checked the collection of classes already verified
  * @param dangerousAccessors members whose access will cause the given problem
- * @param arena the type arena to get bytecode from
+ * @param pool the type pool to get bytecode from
  */
 private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>, checked: MutableSet<Class<*>>,
-                               dangerousAccessors: Map<String, AnswerableBytecodeVerificationException>, arena: TypeArena) {
+                               dangerousAccessors: Map<String, AnswerableBytecodeVerificationException>, pool: TypePool) {
     if (checked.contains(currentClass)) return
     checked.add(currentClass)
 
-    val toCheck = arena.getBcelClassForClass(currentClass)
+    val toCheck = pool.getBcelClassForClass(currentClass)
     val methodsToCheck = if (currentClass == referenceClass) {
         toCheck.methods.filter { it.annotationEntries.any {
             ae -> ae.annotationType in setOf(Generator::class.java.name, Next::class.java.name, Helper::class.java.name).map { t -> ObjectType(t).signature }
@@ -417,7 +417,7 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
             } else if (checkInner) {
                 val classConstant = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
                 if (innerClassIndexes.contains(instr.index)) {
-                    verifyMemberAccess(arena.classForName(classConstant.getBytes(constantPool).replace('/', '.')), referenceClass, checked, dangersToInnerClasses, arena)
+                    verifyMemberAccess(pool.classForName(classConstant.getBytes(constantPool).replace('/', '.')), referenceClass, checked, dangersToInnerClasses, pool)
                 }
             }
         }
@@ -461,7 +461,7 @@ internal class AnswerableBytecodeVerificationException(val blameMethod: String, 
 
 }
 
-internal class TypeArena(private val bytecodeProvider: BytecodeProvider?) {
+internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
 
     /*
      * For performance reasons, we want to re-use instantiators as much as possible.
@@ -473,18 +473,18 @@ internal class TypeArena(private val bytecodeProvider: BytecodeProvider?) {
      */
     private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
 
-    private var parent: TypeArena? = null
+    private var parent: TypePool? = null
     private var loader: BytesClassLoader = BytesClassLoader()
     private val bytecode = mutableMapOf<Class<*>, ByteArray>()
 
-    constructor(bytecodeProvider: BytecodeProvider?, parentArena: TypeArena?): this(bytecodeProvider) {
-        parent = parentArena
+    constructor(bytecodeProvider: BytecodeProvider?, parentPool: TypePool?): this(bytecodeProvider) {
+        parent = parentPool
         loader = BytesClassLoader(parent?.loader)
     }
     constructor(bytecodeProvider: BytecodeProvider?, commonLoader: ClassLoader) : this(bytecodeProvider) {
         loader = BytesClassLoader(commonLoader)
     }
-    constructor(primaryParent: TypeArena, vararg otherParents: TypeArena) : this(null) {
+    constructor(primaryParent: TypePool, vararg otherParents: TypePool) : this(null) {
         parent = primaryParent
         loader = DiamondClassLoader(primaryParent.loader, *otherParents.map { it.loader }.toTypedArray())
     }
