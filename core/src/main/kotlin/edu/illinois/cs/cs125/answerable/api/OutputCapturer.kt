@@ -1,5 +1,9 @@
 package edu.illinois.cs.cs125.answerable.api
 
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
+import java.nio.charset.StandardCharsets
+
 /**
  * An interface that allows Answerable to run a task and capture its printed output.
  *
@@ -27,3 +31,33 @@ interface OutputCapturer {
     fun getStandardErr(): String?
 
 }
+
+internal val defaultOutputCapturer = object : OutputCapturer {
+
+    private var outText: String? = null
+    private var errText: String? = null
+
+    override fun runCapturingOutput(code: Runnable) {
+        val oldOut = System.out
+        val oldErr = System.err
+        val newOut = ByteArrayOutputStream()
+        val newErr = ByteArrayOutputStream()
+        System.setOut(PrintStream(newOut))
+        System.setErr(PrintStream(newErr))
+        try {
+            code.run()
+        } finally {
+            System.setOut(oldOut)
+            System.setErr(oldErr)
+            outText = newOut.toString(StandardCharsets.UTF_8)
+            errText = newErr.toString(StandardCharsets.UTF_8)
+            newOut.close()
+            newErr.close()
+        }
+    }
+
+    override fun getStandardOut() = outText
+    override fun getStandardErr() = errText
+
+}
+
