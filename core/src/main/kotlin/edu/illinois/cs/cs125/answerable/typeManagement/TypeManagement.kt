@@ -448,7 +448,7 @@ internal class AnswerableBytecodeVerificationException(val blameMethod: String, 
                         is java.lang.reflect.Method -> "calls non-public submission method: ${MethodData(member)}"
                         is Field -> "uses non-public submission field: ${member.name}"
                         is Constructor<*> -> "uses non-public submission constructor: ${MethodData(member)}"
-                        else -> throw IllegalStateException("AnswerableBytecodeVerificationException.member must be a Method or Field. Please report a bug.")
+                        else -> throw IllegalStateException("Invalid type of AnswerableBytecodeVerificationException.member. Please report a bug.")
                     }
         }
 
@@ -478,7 +478,7 @@ internal class TypeArena(private val bytecodeProvider: BytecodeProvider?) {
 
     private var parent: TypeArena? = null
     private var loader: BytesClassLoader = BytesClassLoader()
-    private val bcelClasses = mutableMapOf<Class<*>, JavaClass>()
+    private val bytecode = mutableMapOf<Class<*>, ByteArray>()
 
     constructor(bytecodeProvider: BytecodeProvider?, parentArena: TypeArena?): this(bytecodeProvider) {
         parent = parentArena
@@ -498,24 +498,22 @@ internal class TypeArena(private val bytecodeProvider: BytecodeProvider?) {
         } catch (e: Exception) {
             // Ignored - parent couldn't find it
         }
-        // BCEL doesn't play nicely with any caching
-        val old = bcelClasses[clazz] ?: localGetBcelClassForClass(clazz).also { bcelClasses[clazz] = it }
-        return ClassParser(old.bytes.inputStream(), old.className).parse()
+        val bytecode = bytecode[clazz] ?: localGetBytecodeForClass(clazz).also { bytecode[clazz] = it }
+        return ClassParser(bytecode.inputStream(), clazz.name).parse()
     }
 
-    private fun localGetBcelClassForClass(clazz: Class<*>): JavaClass {
+    private fun localGetBytecodeForClass(clazz: Class<*>): ByteArray {
         return try {
-            Repository.lookupClass(clazz).also { Repository.clearCache() }
-        } catch (e: Exception) { // BECL couldn't find it
+            Repository.lookupClass(clazz).also { Repository.clearCache() }.bytes
+        } catch (e: Exception) { // BCEL couldn't find it
             if (bytecodeProvider == null) throw NoClassDefFoundError("Could not find bytecode for $clazz, no BytecodeProvider specified")
-            val bytecode = bytecodeProvider.getBytecode(clazz)
-            val parser = ClassParser(bytecode.inputStream(), clazz.name)
-            parser.parse()
+            bytecodeProvider.getBytecode(clazz)
         }
     }
 
     fun loadBytes(name: String, bcelClass: JavaClass): Class<*> {
-        return loader.loadBytes(name, bcelClass.bytes).also { bcelClasses[it] = bcelClass }
+        val bytes = bcelClass.bytes
+        return loader.loadBytes(name, bytes).also { bytecode[it] = bytes }
     }
 
     fun classForName(name: String): Class<*> {
@@ -543,7 +541,7 @@ internal class TypeArena(private val bytecodeProvider: BytecodeProvider?) {
     fun asBytecodeProvider(): BytecodeProvider {
         return object : BytecodeProvider {
             override fun getBytecode(clazz: Class<*>): ByteArray {
-                return bcelClasses[clazz]!!.bytes
+                return bytecode[clazz]!!
             }
         }
     }
