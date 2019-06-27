@@ -78,7 +78,7 @@ public class Test {
     println(
         TestGenerator(refCL.loadClass("Test"), bytecodeProvider = answerableBytecodeProvider(refCL))
             .loadSubmission(subCL.loadClass("Test"), bytecodeProvider = answerableBytecodeProvider(subCL))
-            .runTests(Random.nextLong(), TestEnvironment(jeedOutputCapturer, jeedSandbox()))
+            .runTests(Random.nextLong(), TestEnvironment(jeedOutputCapturer, jeedSandbox(Sandbox.ClassLoaderConfiguration(blacklistedClasses = setOf()))))
             .toJson()
     )
 

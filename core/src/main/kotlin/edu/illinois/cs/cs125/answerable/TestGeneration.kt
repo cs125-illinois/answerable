@@ -533,7 +533,7 @@ class TestRunWorker internal constructor(
                         output = method(receiver, *args)
                         behavior = Behavior.RETURNED
                     } catch (e: Throwable) {
-                        threw = e
+                        threw = e.cause ?: e
                         behavior = Behavior.THREW
                     }
                 }
