@@ -1,8 +1,11 @@
+import java.net.URI
+
 group = "com.github.cs125-illinois"
 version = "1.0"
 
 repositories {
     mavenCentral()
+    maven { url = URI("https://jitpack.io") }
 }
 
 plugins {

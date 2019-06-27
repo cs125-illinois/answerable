@@ -14,6 +14,7 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.0-M1")
     api(project(":core"))
     api("com.github.cs125-illinois:jeed:master-SNAPSHOT") { isChanging = true }
 }

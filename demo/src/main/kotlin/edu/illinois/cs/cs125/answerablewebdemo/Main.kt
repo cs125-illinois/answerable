@@ -1,9 +1,8 @@
 package edu.illinois.cs.cs125.answerablewebdemo
 
 
-import edu.illinois.cs.cs125.answerable.TestGenerator
+import edu.illinois.cs.cs125.answerable.*
 import edu.illinois.cs.cs125.answerable.api.Solution
-import edu.illinois.cs.cs125.answerable.api.bytecodeProvider
 import edu.illinois.cs.cs125.jeed.core.*
 import io.ktor.application.*
 import io.ktor.features.ContentNegotiation
@@ -77,12 +76,11 @@ public class Test {
     }.classLoader
 
     println(
-        TestGenerator(refCL.loadClass("Test"), bytecodeProvider = refCL.bytecodeProvider)
-            .loadSubmission(subCL.loadClass("Test"), bytecodeProvider = subCL.bytecodeProvider)
-            .runTests(Random.nextLong())
+        TestGenerator(refCL.loadClass("Test"), bytecodeProvider = answerableBytecodeProvider(refCL))
+            .loadSubmission(subCL.loadClass("Test"), bytecodeProvider = answerableBytecodeProvider(subCL))
+            .runTests(Random.nextLong(), TestEnvironment(jeedOutputCapturer, jeedSandbox()))
             .toJson()
     )
-}
 
-val JeedClassLoader.bytecodeProvider
-    get() = bytecodeProvider { this.bytecodeForClass(it.name) }
+    // FIXME: The process doesn't exit, probably because of the Jeed ExecutorService not being shut down.
+}
