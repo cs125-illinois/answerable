@@ -1,9 +1,6 @@
 @file: JvmName("Arguments")
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.api.OutputCapturer
-import edu.illinois.cs.cs125.answerable.api.Sandbox
-
 /**
  * A wrapper class for passing arguments to [TestRunner]s.
  */
@@ -21,16 +18,12 @@ data class TestRunnerArgs(
     /** The total number of all-generated tests to execute. */
     val numAllGeneratedTests: Int = numTests/2,
     /** The upper bound on the 'complexity' @[Generator] parameter for this test run. */
-    val maxComplexity: Int = 100,
-    /** The runner to use for capturing printed output. If null, [System.setOut] and [System.setErr] are used. */
-    val outputCapturer: OutputCapturer? = null,
-    /** The sandbox for executing tests. If null, no security restrictions are applied. */
-    val sandbox: Sandbox? = null
+    val maxComplexity: Int = 100
 )
 
 /**
  * Answerable's default [TestRunnerArgs].
  *
- * Created with <tt>TestRunnerArgs(1024, 1024, 64, 64, 64, 512, 100, null, null)</tt>.
+ * Created with <tt>TestRunnerArgs(1024, 1024, 64, 64, 64, 512, 100)</tt>.
  */
 val defaultArgs = TestRunnerArgs()

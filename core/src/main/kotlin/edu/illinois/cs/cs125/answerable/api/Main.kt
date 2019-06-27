@@ -14,5 +14,5 @@ fun main(args: Array<String>) {
 
     val tg = TestGenerator(reference, solutionName)
     val tr = tg.loadSubmission(submission)
-    println(tr.runTests(Random.nextLong()).toJson())
+    println(tr.runTestsUnsecured(Random.nextLong()).toJson())
 }

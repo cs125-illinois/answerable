@@ -142,7 +142,7 @@ class TestGenerator(
         val dryRun = { loadSubmission(
                 mkOpenMirrorClass(referenceClass, typePool, "dryrunopenref_"),
                 bytecodeProvider = typePool.getLoader(),
-                runClassDesign = false).runTests(0x0403) }
+                runClassDesign = false).runTestsUnsecured(0x0403) }
         val dryRunOutput: TestRunOutput
 
         try {
@@ -219,9 +219,12 @@ class TestGenerator(
  * Represents a class that can execute tests.
  */
 interface TestRunner {
-    fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs): TestRunOutput
-    fun runTests(seed: Long): TestRunOutput
+    fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestRunOutput
+    fun runTests(seed: Long, environment: TestEnvironment): TestRunOutput
 }
+
+fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunnerArgs = defaultArgs)
+        = this.runTests(seed, defaultEnvironment, testRunnerArgs)
 
 /**
  * The primary [TestRunner] subclass which tests classes that have passed Class Design Analysis.
@@ -253,18 +256,17 @@ class PassedClassDesignRunner internal constructor(
      *
      * When called with the same [seed], [runTests] will always produce the same result.
      */
-    override fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs): TestRunOutput {
+    override fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestRunOutput {
         val submissionTypePool = TypePool(bytecodeProvider, submissionClass.classLoader)
         val untrustedSubMirror = mkOpenMirrorClass(submissionClass, submissionTypePool, "opensub_")
-        val sandbox = testRunnerArgs.sandbox ?: defaultSandbox
-        val loader = sandbox.transformLoader(submissionTypePool.getLoader())
+        val loader = environment.sandbox.transformLoader(submissionTypePool.getLoader())
         val sandboxedSubMirror = Class.forName(untrustedSubMirror.name, false, loader.getLoader())
-        val worker = TestRunWorker(testGenerator, sandboxedSubMirror, testRunnerArgs, loader)
+        val worker = TestRunWorker(testGenerator, sandboxedSubMirror, environment, loader)
 
         val testSteps = mutableListOf<TestStep>()
         val testingBlockCounts = TestingBlockCounts()
         val startTime = System.currentTimeMillis()
-        val timedOut = !sandbox.run(if (testGenerator.timeout == 0L) null else testGenerator.timeout, Runnable {
+        val timedOut = !environment.sandbox.run(if (testGenerator.timeout == 0L) null else testGenerator.timeout, Runnable {
             worker.runTests(seed, testRunnerArgs, testSteps, testingBlockCounts)
         })
         val endTime = System.currentTimeMillis()
@@ -292,13 +294,13 @@ class PassedClassDesignRunner internal constructor(
     /**
      * [TestRunner.runTests] overload which uses the [TestRunnerArgs] that this [PassedClassDesignRunner] was constructed with.
      */
-    override fun runTests(seed: Long) = runTests(seed, this.testRunnerArgs) // to expose the overload to Java
+    override fun runTests(seed: Long, environment: TestEnvironment) = runTests(seed, environment, this.testRunnerArgs) // to expose the overload to Java
 }
 
 class TestRunWorker internal constructor(
     testGenerator: TestGenerator,
     private val submissionClass: Class<*>,
-    private val testRunnerArgs: TestRunnerArgs,
+    private val environment: TestEnvironment,
     private val bytecodeProvider: BytecodeProvider?
 ) {
     private val usableReferenceClass = testGenerator.usableReferenceClass
@@ -537,10 +539,9 @@ class TestRunWorker internal constructor(
                     }
                 }
                 if (capturePrint) {
-                    val capturer = testRunnerArgs.outputCapturer ?: defaultOutputCapturer
-                    capturer.runCapturingOutput(toRun)
-                    outText = capturer.getStandardOut()
-                    errText = capturer.getStandardErr()
+                    environment.outputCapturer.runCapturingOutput(toRun)
+                    outText = environment.outputCapturer.getStandardOut()
+                    errText = environment.outputCapturer.getStandardErr()
                 } else {
                     toRun.run()
                 }
@@ -753,7 +754,7 @@ class FailedClassDesignTestRunner(
     private val submissionClass: Class<*>,
     private val failedCDAResult: List<AnalysisOutput>
 ) : TestRunner {
-    override fun runTests(seed: Long): TestRunOutput =
+    override fun runTests(seed: Long, environment: TestEnvironment): TestRunOutput =
             TestRunOutput(
                 seed = seed,
                 referenceClass = referenceClass,
@@ -773,7 +774,7 @@ class FailedClassDesignTestRunner(
                 testSteps = listOf()
             )
 
-    override fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs): TestRunOutput = runTests(seed)
+    override fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestRunOutput = runTests(seed, environment)
 }
 
 private class GeneratorMapBuilder(goalTypes: Collection<Type>, private val random: Random) {
