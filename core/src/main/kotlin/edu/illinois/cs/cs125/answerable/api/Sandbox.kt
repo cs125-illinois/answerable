@@ -10,52 +10,48 @@ import java.util.concurrent.TimeoutException
 interface Sandbox {
 
     /**
-     * Runs a testing task on an untrusted submission. The untrusted classloader may be transformed before
-     * being passed to [SandboxedRunner.invoke]. The fully-qualified names of classes in [untrustedLoader]
-     * must be preserved.
+     * Transforms untrusted classes into a new [ClassLoader]. The fully-qualified names of all classes
+     * in the [loader] must be preserved.
+     */
+    fun transformLoader(loader: EnumerableBytecodeLoader): BytecodeClassProvider
+
+    /**
+     * Runs a testing task on an untrusted submission.
      *
-     * @param untrustedLoader [ClassLoader] containing untrusted classes
-     * @param timeout timeout in milliseconds or zero for untimed
+     * @param timeout timeout in milliseconds or null for untimed
      * @param callback testing task to run in the sandbox
      * @return whether the task completed in time
      */
-    fun runInSandbox(untrustedLoader: EnumerableBytecodeProvidingClassLoader, timeout: Long, callback: SandboxedRunner): Boolean
+    fun run(timeout: Long?, callback: Runnable): Boolean
 
 }
 
 /**
- * Represents a [ClassLoader] that can provide the bytecode of all classes that are loaded into it.
+ * Wraps a [ClassLoader] that can provide the bytecode of all the classes it loaded.
+ */
+interface BytecodeClassProvider : BytecodeProvider {
+
+    /**
+     * Gets the classloader responsible for the classes in this bytecode provider.
+     */
+    fun getLoader(): ClassLoader
+
+}
+
+/**
+ * Allows access to a classloader and the bytecode it loaded.
  *
  * Do not implement this interface. Answerable implements it so that a custom [Sandbox] can access
- * and rewrite the bytecode of untrusted classes. All instances of this interface are also instances
- * of [ClassLoader].
+ * and rewrite the bytecode of untrusted classes.
  */
-interface EnumerableBytecodeProvidingClassLoader : BytecodeProvider {
+interface EnumerableBytecodeLoader : BytecodeClassProvider {
 
     /**
      * Retrieves a map from fully qualified class names to bytecode.
      *
-     * The map contains all classes that have been and will ever be loaded by this classloader.
+     * The map contains all classes that have been and will ever be loaded by the classloader.
      */
     fun getAllBytecode(): Map<String, ByteArray>
-
-}
-
-/**
- * A callback to test an untrusted submission in a sandbox.
- *
- * Do not implement this interface. Answerable implements it so that a custom [Sandbox] can call
- * back into the test runner after untrusted classes have been transformed.
- */
-interface SandboxedRunner {
-
-    /**
-     * Runs the test suite. [sandboxedLoader] can load transformed classes of the same names as the classes
-     * in the loader passed to [Sandbox.runInSandbox]. The original parent of the untrusted classloader must be
-     * somewhere in the classloader hierarchy of the sandboxed classloader. [sandboxedBytecodeProvider] must be
-     * able to provide the bytecode of all untrusted classes in the sandboxed classloader.
-     */
-    operator fun invoke(sandboxedLoader: ClassLoader, sandboxedBytecodeProvider: BytecodeProvider)
 
 }
 
@@ -63,11 +59,16 @@ interface SandboxedRunner {
  * The default (insecure!) sandbox, which can handle timeouts for nice submissions but provides no other security.
  */
 internal val defaultSandbox = object : Sandbox {
-    override fun runInSandbox(untrustedLoader: EnumerableBytecodeProvidingClassLoader, timeout: Long, callback: SandboxedRunner): Boolean {
+
+    override fun transformLoader(loader: EnumerableBytecodeLoader): BytecodeClassProvider {
+        return loader
+    }
+
+    override fun run(timeout: Long?, callback: Runnable): Boolean {
         fun timedTestingPortion() {
-            callback(untrustedLoader as ClassLoader, untrustedLoader)
+            callback.run()
         }
-        return if (timeout == 0L) {
+        return if (timeout == null) {
             timedTestingPortion()
             true
         } else {
@@ -79,4 +80,5 @@ internal val defaultSandbox = object : Sandbox {
             }
         }
     }
+
 }

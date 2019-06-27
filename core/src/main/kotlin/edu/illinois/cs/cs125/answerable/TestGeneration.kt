@@ -257,17 +257,18 @@ class PassedClassDesignRunner internal constructor(
         val submissionTypePool = TypePool(bytecodeProvider, submissionClass.classLoader)
         val untrustedSubMirror = mkOpenMirrorClass(submissionClass, submissionTypePool, "opensub_")
         val sandbox = testRunnerArgs.sandbox ?: defaultSandbox
+        val loader = sandbox.transformLoader(submissionTypePool.getLoader())
+        val sandboxedSubMirror = Class.forName(untrustedSubMirror.name, false, loader.getLoader())
+        val worker = TestRunWorker(testGenerator, sandboxedSubMirror, testRunnerArgs, loader)
+
         val testSteps = mutableListOf<TestStep>()
         val testingBlockCounts = TestingBlockCounts()
         val startTime = System.currentTimeMillis()
-        val timedOut = !sandbox.runInSandbox(submissionTypePool.getLoader(), testGenerator.timeout, object : SandboxedRunner {
-            override fun invoke(sandboxedLoader: ClassLoader, sandboxedBytecodeProvider: BytecodeProvider) {
-                val sandboxedSubMirror = Class.forName(untrustedSubMirror.name, false, sandboxedLoader)
-                val worker = TestRunWorker(testGenerator, sandboxedSubMirror, testRunnerArgs, sandboxedBytecodeProvider)
-                worker.runTests(seed, testRunnerArgs, testSteps, testingBlockCounts)
-            }
+        val timedOut = !sandbox.run(if (testGenerator.timeout == 0L) null else testGenerator.timeout, Runnable {
+            worker.runTests(seed, testRunnerArgs, testSteps, testingBlockCounts)
         })
         val endTime = System.currentTimeMillis()
+
         return TestRunOutput(
                 seed = seed,
                 referenceClass = testGenerator.referenceClass,
