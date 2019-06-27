@@ -14,11 +14,10 @@ repositories {
 
 dependencies {
     val ktorVersion = "1.2.1"
-    implementation(project(":core"))
+    implementation(project(":jeedrunner"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-jackson:$ktorVersion")
-    implementation("com.github.cs125-illinois:jeed:master-SNAPSHOT") { isChanging = true }
     implementation("io.github.cdimascio:java-dotenv:5.0.1")
 }
 
