@@ -1,14 +1,13 @@
 repositories {
     jcenter()
 }
+
 buildscript {
     repositories {
         jcenter()
     }
 }
 
-allprojects {
-    ext {
-        set("kotlinVersion", "1.3.31")
-    }
+plugins {
+    kotlin("jvm") version "1.3.40" apply false
 }

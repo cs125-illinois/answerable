@@ -1,15 +1,12 @@
-import java.net.URI
-
-plugins {
-    kotlin("jvm") version "1.3.31"
-}
-
 group = "com.github.cs125-illinois"
 version = "1.0"
 
 repositories {
     mavenCentral()
-    maven { url = URI("https://jitpack.io") }
+}
+
+plugins {
+    kotlin("jvm")
 }
 
 dependencies {

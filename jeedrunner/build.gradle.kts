@@ -1,13 +1,15 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.net.URI
 
 plugins {
-    kotlin("jvm") version "1.3.40"
+    kotlin("jvm")
 }
 
-version = "unspecified"
+version = "SNAPSHOT"
 
 repositories {
     mavenCentral()
+    maven { url = URI("https://jitpack.io") }
 }
 
 dependencies {
