@@ -299,7 +299,7 @@ class PassedClassDesignRunner internal constructor(
 
 class TestRunWorker internal constructor(
     testGenerator: TestGenerator,
-    private val submissionClass: Class<*>,
+    private val usableSubmissionClass: Class<*>,
     private val environment: TestEnvironment,
     private val bytecodeProvider: BytecodeProvider?
 ) {
@@ -307,9 +307,8 @@ class TestRunWorker internal constructor(
     private val usableReferenceMethod = testGenerator.usableReferenceMethod
     private val usableCustomVerifier = testGenerator.usableCustomVerifier
 
-    private val submissionTypePool = TypePool(bytecodeProvider, submissionClass.classLoader)
+    private val submissionTypePool = TypePool(bytecodeProvider, usableSubmissionClass.classLoader)
     private val adapterTypePool = TypePool(testGenerator.typePool, submissionTypePool)
-    private val usableSubmissionClass = mkOpenMirrorClass(submissionClass, submissionTypePool, "opensub_")
     private val usableSubmissionMethod = usableSubmissionClass.findSolutionAttemptMethod(usableReferenceMethod)
 
     private val paramTypes = testGenerator.paramTypes
