@@ -7,7 +7,7 @@ import java.util.*
 /**
  * Allows use of Answerable as a service. Stores a map from question names to [TestGenerator]s.
  */
-class Answerable {
+class Answerable(private val environment: TestEnvironment) {
     private val existingQuestions: MutableMap<String, TestGenerator> = mutableMapOf()
 
     /**
@@ -91,7 +91,7 @@ class Answerable {
         submissionClass: Class<*>,
         testRunnerArgs: TestRunnerArgs = defaultArgs,
         seed: Long = Random().nextLong()
-    ): TestRunOutput = submit(questionName, submissionClass, testRunnerArgs).runTests(seed)
+    ): TestRunOutput = submit(questionName, submissionClass, testRunnerArgs).runTests(seed, environment)
     fun submitAndTest(
         questionName: String,
         submissionClass: Class<*>,

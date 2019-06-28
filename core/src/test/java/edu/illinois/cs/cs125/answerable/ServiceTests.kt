@@ -23,11 +23,11 @@ fun TestRunOutput.assertAllSucceeded(showOutput: Boolean = true) {
 
 internal class ServiceTests {
 
-    var answerableService: Answerable = Answerable()
+    var answerableService: Answerable = Answerable(defaultEnvironment)
 
     @BeforeEach
     fun setUp() {
-        answerableService = Answerable()
+        answerableService = Answerable(defaultEnvironment)
     }
 
     @Test

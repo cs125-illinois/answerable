@@ -7,7 +7,7 @@ class ServiceJavaIntegrationTest {
 
     @Test
     void testService() {
-        Answerable answerable = new Answerable();
+        Answerable answerable = new Answerable(TestEnvironment.getUnsecuredEnvironment());
 
         answerable.loadNewQuestion("LastTen", examples.lastten.correct.reference.LastTen.class);
 

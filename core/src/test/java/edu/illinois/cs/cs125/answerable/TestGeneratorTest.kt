@@ -9,7 +9,7 @@ internal class TestGeneratorTest {
     @Test
     fun testMutableArguments() {
         val tg = PassedClassDesignRunner(examples.testgeneration.mutablearguments.reference.Array::class.java, examples.testgeneration.mutablearguments.Array::class.java)
-        val output = tg.runTests(0x0403)
+        val output = tg.runTestsUnsecured(0x0403)
         assertTrue(output.testSteps.all { (it as ExecutedTestStep).succeeded } )
     }
 
@@ -19,7 +19,7 @@ internal class TestGeneratorTest {
 
         assertTrue(Array<IntArray>::class.java in tg.generators.keys, "Generators does not contain key `Array<Array<Int>>'.")
 
-        assertTrue(tg.loadSubmission(examples.testgeneration.generators.defaults.MultiDemensionalPrimitiveArrays::class.java).runTests(0x0403)
+        assertTrue(tg.loadSubmission(examples.testgeneration.generators.defaults.MultiDemensionalPrimitiveArrays::class.java).runTestsUnsecured(0x0403)
             .testSteps.all { it as ExecutedTestStep; it.refOutput.threw == null && it.subOutput.threw == null }, "An error was thrown while testing nested primitive array generation")
     }
 
@@ -30,7 +30,7 @@ internal class TestGeneratorTest {
         assertTrue(tg.generators[Array<Array<String>>::class.java]?.gen is CustomGen, "Generators does not contain a CustomGen for `String[][]'.")
         assertEquals(1, tg.generators.size)
 
-        tg.loadSubmission(examples.testgeneration.generators.OverrideDefaultArray::class.java).runTests(0x0403)
+        tg.loadSubmission(examples.testgeneration.generators.OverrideDefaultArray::class.java).runTestsUnsecured(0x0403)
     }
 
     @Test
@@ -67,7 +67,7 @@ internal class TestGeneratorTest {
         val tg = TestGenerator(examples.testgeneration.standaloneverify.reference.Standalone::class.java, "standalone test")
         val tr = tg.loadSubmission(examples.testgeneration.standaloneverify.Standalone::class.java)
 
-        val out = tr.runTests(Random.nextLong())
+        val out = tr.runTestsUnsecured(Random.nextLong())
 
         assertFalse(out.timedOut, "Testing timed out: ")
         assertTrue(out.testSteps.all { it as ExecutedTestStep; it.succeeded && it.refOutput.threw == null })
@@ -77,7 +77,7 @@ internal class TestGeneratorTest {
     fun testEdgeCases() {
         val out = TestGenerator(examples.testgeneration.reference.EdgeCases::class.java, "")
             .loadSubmission(examples.testgeneration.EdgeCases::class.java)
-            .runTests(Random.nextLong())
+            .runTestsUnsecured(Random.nextLong())
 
         out.assertAllSucceeded()
 
@@ -87,7 +87,7 @@ internal class TestGeneratorTest {
     fun testReceiverEdgeCases() {
         val out = TestGenerator(examples.testgeneration.reference.ReceiverEdgeCase::class.java, "")
             .loadSubmission(examples.testgeneration.ReceiverEdgeCase::class.java)
-            .runTests(Random.nextLong())
+            .runTestsUnsecured(Random.nextLong())
 
         out.assertAllSucceeded()
 
@@ -99,7 +99,7 @@ internal class TestGeneratorTest {
     fun testPreconditions() {
         val out = TestGenerator(examples.testgeneration.reference.PreconditionTest::class.java)
             .loadSubmission(examples.testgeneration.PreconditionTest::class.java)
-            .runTests(Random.nextLong())
+            .runTestsUnsecured(Random.nextLong())
 
         println(out.toJson())
 
@@ -114,11 +114,12 @@ internal class TestGeneratorTest {
         )
     }
 
+    @Test
     fun testMutatedStaticField() {
         val generator = TestGenerator(examples.testgeneration.mutatestaticfield.reference.Counter::class.java, "")
-        val firstOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.Counter::class.java).runTests(0x0403)
+        val firstOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.Counter::class.java).runTestsUnsecured(0x0403)
         firstOut.assertAllSucceeded(showOutput = false)
-        val secondOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.another.Counter::class.java).runTests(403)
+        val secondOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.another.Counter::class.java).runTestsUnsecured(403)
         secondOut.assertAllSucceeded(showOutput = false)
     }
 
