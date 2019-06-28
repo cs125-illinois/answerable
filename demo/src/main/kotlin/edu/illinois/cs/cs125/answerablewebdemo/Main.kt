@@ -94,5 +94,5 @@ public class Test {
             .toJson()
     )
 
-    // FIXME: The process doesn't exit, probably because of the Jeed ExecutorService not being shut down.
+    Sandbox.shutdownThreadPool()
 }
