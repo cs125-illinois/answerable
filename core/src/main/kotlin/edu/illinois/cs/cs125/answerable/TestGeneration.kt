@@ -9,7 +9,6 @@ import java.util.*
 import kotlin.math.min
 import java.lang.Character.UnicodeBlock.*
 import java.lang.IllegalStateException
-import java.lang.invoke.MethodHandles
 import java.lang.reflect.*
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
@@ -361,7 +360,7 @@ class TestRunWorker internal constructor(
     private fun calculateNumCases(cases: Map<Type, ArrayWrapper?>): Int =
         paramTypesWithReceiver.foldIndexed(1) { idx, acc, type ->
             cases[type]?.let { cases: ArrayWrapper ->
-                (if (idx == 0) ((cases.arr as? Array<*>)?.filterNotNull()?.size ?: 1) else cases.size).let {
+                (if (idx == 0) ((cases.array as? Array<*>)?.filterNotNull()?.size ?: 1) else cases.size).let {
                     return@foldIndexed acc * it
                 }
             } ?: acc
@@ -386,7 +385,7 @@ class TestRunWorker internal constructor(
                     case[0] = null
                     continue
                 }
-                val typeCasesArr = typeCases.arr as? Array<*> ?: throw IllegalStateException("Answerable thinks a receiver type is primitive. Please report a bug.")
+                val typeCasesArr = typeCases.array as? Array<*> ?: throw IllegalStateException("Answerable thinks a receiver type is primitive. Please report a bug.")
                 val typeCasesLst = typeCasesArr.filterNotNull() // receivers can't be null
 
                 if (typeCasesLst.isEmpty()) {
@@ -983,8 +982,8 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: 
         val vals = genList(complexity, random.nextInt(complexity + 1))
         @Suppress("UNCHECKED_CAST")
         return ReflectArray.newInstance(tClass, vals.size).also {
-            val setterHandle = MethodHandles.arrayElementSetter(it.javaClass).bindTo(it)
-            vals.forEachIndexed { idx, value -> setterHandle.invokeWithArguments(idx, value) }
+            val wrapper = ArrayWrapper(it)
+            vals.forEachIndexed { idx, value -> wrapper[idx] = value }
         }
     }
 }
@@ -998,16 +997,6 @@ internal val defaultFloatArraySimpleCases = arrayOf(floatArrayOf(0f))
 internal val defaultCharArraySimpleCases = arrayOf(charArrayOf(' '))
 internal val defaultStringArraySimpleCases = arrayOf(arrayOf(""))
 
-internal class ArrayWrapper(val arr: Any) {
-    private val itemGetter = MethodHandles.arrayElementGetter(arr.javaClass).bindTo(arr)
-    val size = ReflectArray.getLength(arr)
-    operator fun get(index: Int): Any? {
-        return itemGetter.invokeWithArguments(index)
-    }
-    fun random(random: Random): Any? {
-        return get(random.nextInt(size))
-    }
-}
 internal fun ArrayWrapper?.isNullOrEmpty() = this == null || this.size == 0
 
 internal val defaultEdgeCases = mapOf(
