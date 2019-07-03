@@ -10,13 +10,11 @@ import kotlin.math.min
 import java.lang.Character.UnicodeBlock.*
 import java.lang.IllegalStateException
 import java.lang.invoke.MethodHandles
-import java.lang.invoke.MethodType
 import java.lang.reflect.*
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import kotlin.random.asKotlinRandom
 import java.lang.reflect.Array as ReflectArray
 
 /**
@@ -985,33 +983,8 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: 
         val vals = genList(complexity, random.nextInt(complexity + 1))
         @Suppress("UNCHECKED_CAST")
         return ReflectArray.newInstance(tClass, vals.size).also {
-            when (it::class.java) {
-                IntArray::class.java -> { vals as List<Int>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setInt(it, idx, value) }
-                }
-                ShortArray::class.java -> { vals as List<Short>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setShort(it, idx, value) }
-                }
-                ByteArray::class.java -> { vals as List<Byte>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setByte(it, idx, value) }
-                }
-                LongArray::class.java -> { vals as List<Long>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setLong(it, idx, value) }
-                }
-                DoubleArray::class.java -> { vals as List<Double>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setDouble(it, idx, value) }
-                }
-                FloatArray::class.java -> { vals as List<Float>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setFloat(it, idx, value) }
-                }
-                CharArray::class.java -> { vals as List<Char>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setChar(it, idx, value) }
-                }
-                BooleanArray::class.java -> { vals as List<Boolean>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setBoolean(it, idx, value) }
-                }
-                else -> vals.forEachIndexed { idx, value -> ReflectArray.set(it, idx, value) }
-            }
+            val setterHandle = MethodHandles.arrayElementSetter(it.javaClass).bindTo(it)
+            vals.forEachIndexed { idx, value -> setterHandle.invokeWithArguments(idx, value) }
         }
     }
 }
