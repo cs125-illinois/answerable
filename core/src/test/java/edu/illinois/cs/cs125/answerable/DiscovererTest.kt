@@ -69,6 +69,6 @@ internal class DiscovererTest {
     fun testGetEnabledEdgeCases() {
         val reference = getSolutionClass(correctAdderReference)
 
-        assertEquals(IntArrayWrapper(intArrayOf(-1, 0, 1)), reference.getEnabledEdgeCases(arrayOf())[Int::class.java])
+        assertArrayEquals(intArrayOf(-1, 0, 1), reference.getEnabledEdgeCases(arrayOf())[Int::class.java]!!.arr as IntArray)
     }
 }
