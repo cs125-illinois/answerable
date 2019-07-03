@@ -1016,23 +1016,14 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: 
     }
 }
 
-internal val defaultIntArrayEdgeCases = arrayOf(intArrayOf(), null)
 internal val defaultIntArraySimpleCases = arrayOf(intArrayOf(0))
-internal val defaultByteArrayEdgeCases = arrayOf(byteArrayOf(), null)
 internal val defaultByteArraySimpleCases = arrayOf(byteArrayOf(0))
-internal val defaultShortArrayEdgeCases = arrayOf(shortArrayOf(), null)
 internal val defaultShortArraySimpleCases = arrayOf(shortArrayOf(0))
-internal val defaultLongArrayEdgeCases = arrayOf(longArrayOf(), null)
 internal val defaultLongArraySimpleCases = arrayOf(longArrayOf(0))
-internal val defaultDoubleArrayEdgeCases = arrayOf(doubleArrayOf(), null)
 internal val defaultDoubleArraySimpleCases = arrayOf(doubleArrayOf(0.0))
-internal val defaultFloatArrayEdgeCases = arrayOf(floatArrayOf(), null)
 internal val defaultFloatArraySimpleCases = arrayOf(floatArrayOf(0f))
-internal val defaultCharArrayEdgeCases = arrayOf(charArrayOf(), null)
 internal val defaultCharArraySimpleCases = arrayOf(charArrayOf(' '))
-internal val defaultStringArrayEdgeCases = arrayOf(arrayOf<String>(), null)
 internal val defaultStringArraySimpleCases = arrayOf(arrayOf(""))
-internal val defaultBooleanArrayEdgeCases = arrayOf(booleanArrayOf(), null)
 
 internal class ArrayWrapper(val arr: Any) {
     private val itemGetter = MethodHandles.arrayElementGetter(arr.javaClass).bindTo(arr)
@@ -1055,17 +1046,13 @@ internal val defaultEdgeCases = mapOf(
     Float::class.java to ArrayWrapper(defaultFloatEdgeCases),
     Char::class.java to ArrayWrapper(defaultCharEdgeCases),
     String::class.java to ArrayWrapper(defaultStringEdgeCases),
-
-    IntArray::class.java to ArrayWrapper(defaultIntArrayEdgeCases),
-    ByteArray::class.java to ArrayWrapper(defaultByteArrayEdgeCases),
-    ShortArray::class.java to ArrayWrapper(defaultShortArrayEdgeCases),
-    LongArray::class.java to ArrayWrapper(defaultLongArrayEdgeCases),
-    DoubleArray::class.java to ArrayWrapper(defaultDoubleArrayEdgeCases),
-    FloatArray::class.java to ArrayWrapper(defaultFloatArrayEdgeCases),
-    CharArray::class.java to ArrayWrapper(defaultCharArrayEdgeCases),
-    Array<String>::class.java to ArrayWrapper(defaultStringArrayEdgeCases),
-    BooleanArray::class.java to ArrayWrapper(defaultBooleanArrayEdgeCases)
-)
+    Boolean::class.java to ArrayWrapper(booleanArrayOf())
+).let {
+    it + it.map { (clazz, _) ->
+        val emptyArray = ReflectArray.newInstance(clazz, 0)
+        emptyArray.javaClass to ArrayWrapper(arrayOf(emptyArray, null))
+    }
+}.toMap()
 internal val defaultSimpleCases = mapOf(
     Int::class.java to ArrayWrapper(defaultIntSimpleCases),
     Byte::class.java to ArrayWrapper(defaultByteSimpleCases),
