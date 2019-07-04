@@ -997,6 +997,18 @@ internal val defaultFloatArraySimpleCases = arrayOf(floatArrayOf(0f))
 internal val defaultCharArraySimpleCases = arrayOf(charArrayOf(' '))
 internal val defaultStringArraySimpleCases = arrayOf(arrayOf(""))
 
+internal class ArrayWrapper(val array: Any) {
+    val size = ReflectArray.getLength(array)
+    operator fun get(index: Int): Any? {
+        return ReflectArray.get(array, index)
+    }
+    operator fun set(index: Int, value: Any?) {
+        ReflectArray.set(array, index, value)
+    }
+    fun random(random: Random): Any? {
+        return get(random.nextInt(size))
+    }
+}
 internal fun ArrayWrapper?.isNullOrEmpty() = this == null || this.size == 0
 
 internal val defaultEdgeCases = mapOf(
