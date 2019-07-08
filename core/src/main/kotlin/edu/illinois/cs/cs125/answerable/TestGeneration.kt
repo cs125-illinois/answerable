@@ -108,7 +108,7 @@ class TestGenerator(
             } else it
         }
 
-        val generatorMapBuilder = GeneratorMapBuilder(types, random)
+        val generatorMapBuilder = GeneratorMapBuilder(types, random, typePool)
 
         val enabledGens: List<Pair<Pair<Type, String?>, CustomGen>> = usableReferenceClass.getEnabledGenerators(enabledNames).map {
             return@map if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
@@ -797,7 +797,7 @@ operator fun <T> MutableMap<Pair<Type, String?>, T>.set(type: Type, newVal: T) {
     this[Pair(type, null)] = newVal
 }
 
-private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, private val random: Random) {
+private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, private val random: Random, private val pool: TypePool) {
     private var knownGenerators: MutableMap<Pair<Type, String?>, Lazy<Gen<*>>> = mutableMapOf()
     init {
         defaultGenerators.forEach(this::accept)
@@ -807,11 +807,11 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
     private val requiredGenerators: Set<Pair<Type, String?>> = goalTypes.toSet().also { it.forEach(this::request) }
 
     private fun lazyGenError(type: Type) = AnswerableMisuseException(
-        "A generator for type `${type.sourceName}' was requested, but no generator for that type was found."
+        "A generator for type `${pool.getOriginalClass(type).sourceName}' was requested, but no generator for that type was found."
     )
 
     private fun lazyArrayError(type: Type) = AnswerableMisuseException(
-        "A generator for an array with component type `${type.sourceName}' was requested, but no generator for that type was found."
+        "A generator for an array with component type `${pool.getOriginalClass(type).sourceName}' was requested, but no generator for that type was found."
     )
 
     fun accept(pair: Pair<Pair<Type, String?>, Gen<*>?>) = accept(pair.first, pair.second)

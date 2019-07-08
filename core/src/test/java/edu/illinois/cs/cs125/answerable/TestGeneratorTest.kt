@@ -44,6 +44,17 @@ internal class TestGeneratorTest {
     }
 
     @Test
+    fun testMissingReceiverGeneratorError() {
+        val err = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
+                examples.testgeneration.generators.errors.reference.MissingReceiverGenerator::class.java,
+                examples.testgeneration.generators.errors.MissingReceiverGenerator::class.java
+        ) }
+
+        assertEquals("\nA generator for type `examples.testgeneration.generators.errors.reference.MissingReceiverGenerator' was requested, but no generator for that type was found.",
+                err.message)
+    }
+
+    @Test
     fun testMissingArrayComponentError() {
         val errMsg = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
             examples.testgeneration.generators.errors.reference.MissingArrayComponent::class.java,
@@ -121,6 +132,24 @@ internal class TestGeneratorTest {
         firstOut.assertAllSucceeded(showOutput = false)
         val secondOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.another.Counter::class.java).runTestsUnsecured(403)
         secondOut.assertAllSucceeded(showOutput = false)
+    }
+
+    @Test
+    fun testIntArrayParameter() {
+        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayParameter::class.java, "")
+                .loadSubmission(examples.testgeneration.arrays.IntArrayParameter::class.java)
+                .runTestsUnsecured(Random.nextLong())
+
+        out.assertAllSucceeded()
+    }
+
+    @Test
+    fun testIntArrayArrayParameter() {
+        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayArrayParameter::class.java, "")
+                .loadSubmission(examples.testgeneration.arrays.IntArrayArrayParameter::class.java)
+                .runTestsUnsecured(Random.nextLong())
+
+        out.assertAllSucceeded()
     }
 
 }
