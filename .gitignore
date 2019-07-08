@@ -6,6 +6,7 @@
 *.class
 *.swp
 *.swo
-.idea/
+.idea/*
+!.idea/runConfigurations
 *.iml
 .env
