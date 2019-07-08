@@ -105,6 +105,17 @@ annotation class Generator(
 )
 
 /**
+ * Marks that a method parameter should use a particular generator.
+ *
+ * The selected generator does not need to be explicitly enabled under the @[Solution] annotation.
+ */
+@Target(AnnotationTarget.VALUE_PARAMETER)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class UseGenerator(
+    val name: String
+)
+
+/**
  * Marks a field or function as storing or returning all the 'edge cases' for a type.
  *
  * Answerable provides default edge cases for primitive types, arrays of primitive types, and [String]s.
