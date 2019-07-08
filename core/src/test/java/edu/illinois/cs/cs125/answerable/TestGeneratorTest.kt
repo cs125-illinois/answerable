@@ -17,7 +17,7 @@ internal class TestGeneratorTest {
     fun testDefaultNestedPrimitiveArrayGeneration() {
         val tg = TestGenerator(examples.testgeneration.generators.defaults.reference.MultiDimensionalPrimitiveArrays::class.java)
 
-        assertTrue(Array<IntArray>::class.java in tg.generators.keys, "Generators does not contain key `Array<Array<Int>>'.")
+        assertTrue(Pair(Array<IntArray>::class.java, null) in tg.generators.keys, "Generators does not contain key `Array<Array<Int>>'.")
 
         assertTrue(tg.loadSubmission(examples.testgeneration.generators.defaults.MultiDemensionalPrimitiveArrays::class.java).runTestsUnsecured(0x0403)
             .testSteps.all { it as ExecutedTestStep; it.refOutput.threw == null && it.subOutput.threw == null }, "An error was thrown while testing nested primitive array generation")
@@ -27,7 +27,7 @@ internal class TestGeneratorTest {
     fun testOverrideDefaultArrayGenerator() {
         val tg = TestGenerator(examples.testgeneration.generators.reference.OverrideDefaultArray::class.java)
 
-        assertTrue(tg.generators[Array<Array<String>>::class.java]?.gen is CustomGen, "Generators does not contain a CustomGen for `String[][]'.")
+        assertTrue(tg.generators[Pair(Array<Array<String>>::class.java, null)]?.gen is CustomGen, "Generators does not contain a CustomGen for `String[][]'.")
         assertEquals(1, tg.generators.size)
 
         tg.loadSubmission(examples.testgeneration.generators.OverrideDefaultArray::class.java).runTestsUnsecured(0x0403)

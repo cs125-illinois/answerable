@@ -77,13 +77,13 @@ public class Test {
     val refCL = try {
         referenceSource.compile()
     } catch (e: CompilationFailed) {
-        e.errors.forEach { println("${it.location}: ${it.message}\n")}
+        e.errors.forEach { println("${it.location}: ${it.message}\n") }
         throw e
     }.classLoader
     val subCL = try {
         submissionSource.compile()
     } catch (e: CompilationFailed) {
-        e.errors.forEach { println("${it.location}: ${it.message}\n")}
+        e.errors.forEach { println("${it.location}: ${it.message}\n") }
         throw e
     }.classLoader
 

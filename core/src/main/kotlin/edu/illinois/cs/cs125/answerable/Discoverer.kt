@@ -102,6 +102,9 @@ internal fun Class<*>.getEnabledGenerators(enabledNames: Array<String>): List<Me
             }}
             .map { it.isAccessible = true; it }
 
+internal fun Method.getAnswerableParams(): Array<Pair<Type, String?>> =
+    this.parameters.map { Pair(it.parameterizedType, it.getAnnotation(UseGenerator::class.java)?.name)}.toTypedArray()
+
 internal fun Class<*>.getDefaultAtNext(): Method? =
         this.declaredMethods
             .filter { it.getAnnotation(Next::class.java)?.name?.equals("") ?: false }
