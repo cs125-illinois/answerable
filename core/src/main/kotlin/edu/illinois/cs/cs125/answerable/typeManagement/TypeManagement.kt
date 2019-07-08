@@ -269,7 +269,7 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
     }
 
     // classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
-    return pool.loadBytes(mirrorName, classGen.javaClass)
+    return pool.loadBytes(mirrorName, classGen.javaClass, baseClass)
 }
 
 /**
@@ -341,7 +341,7 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
 
     // Create and load the modified class
     // classGen.javaClass.dump("Opened${alreadyDone.indexOf(newName)}.class") // Uncomment for debugging
-    return pool.loadBytes(newName, classGen.javaClass)
+    return pool.loadBytes(newName, classGen.javaClass, clazz)
 }
 
 /**
@@ -486,6 +486,7 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
     private var parent: TypePool? = null
     private var loader: BytesClassLoader = BytesClassLoader()
     private val bytecode = mutableMapOf<Class<*>, ByteArray>()
+    private val mirrorOriginalTypes = mutableMapOf<Class<*>, Class<*>>()
 
     constructor(bytecodeProvider: BytecodeProvider?, parentPool: TypePool?): this(bytecodeProvider) {
         parent = parentPool
@@ -518,9 +519,12 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
         }
     }
 
-    fun loadBytes(name: String, bcelClass: JavaClass): Class<*> {
+    fun loadBytes(name: String, bcelClass: JavaClass, mirroredFrom: Class<*>): Class<*> {
         val bytes = bcelClass.bytes
-        return loader.loadBytes(name, bytes).also { bytecode[it] = bytes }
+        return loader.loadBytes(name, bytes).also {
+            bytecode[it] = bytes
+            mirrorOriginalTypes[it] = mirroredFrom
+        }
     }
 
     fun classForName(name: String): Class<*> {
@@ -547,6 +551,11 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
 
     fun getLoader(): EnumerableBytecodeLoader {
         return loader
+    }
+
+    fun getOriginalClass(type: java.lang.reflect.Type): java.lang.reflect.Type {
+        if (type !is Class<*>) return type
+        return mirrorOriginalTypes[type] ?: parent?.getOriginalClass(type) ?: type
     }
 
 }

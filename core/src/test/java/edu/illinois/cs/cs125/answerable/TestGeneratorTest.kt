@@ -44,6 +44,17 @@ internal class TestGeneratorTest {
     }
 
     @Test
+    fun testMissingReceiverGeneratorError() {
+        val err = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
+                examples.testgeneration.generators.errors.reference.MissingReceiverGenerator::class.java,
+                examples.testgeneration.generators.errors.MissingReceiverGenerator::class.java
+        ) }
+
+        assertEquals("\nA generator for type `examples.testgeneration.generators.errors.reference.MissingReceiverGenerator' was requested, but no generator for that type was found.",
+                err.message)
+    }
+
+    @Test
     fun testMissingArrayComponentError() {
         val errMsg = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
             examples.testgeneration.generators.errors.reference.MissingArrayComponent::class.java,
