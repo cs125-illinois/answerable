@@ -19,10 +19,6 @@ dependencies {
     api("com.github.cs125-illinois:jeed:master-SNAPSHOT") { isChanging = true }
 }
 
-configurations.all {
-    resolutionStrategy.cacheChangingModulesFor(0, "seconds")
-}
-
 tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
 }

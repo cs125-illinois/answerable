@@ -163,7 +163,7 @@ private class FieldOrMethod(val member: Member) {
             else -> throw IllegalStateException()
         } ?: throw IllegalStateException()
 
-        return wrapArray(value)
+        return ArrayWrapper(value)
     }
 }
 

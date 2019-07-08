@@ -14,7 +14,6 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import kotlin.random.asKotlinRandom
 import java.lang.reflect.Array as ReflectArray
 
 /**
@@ -361,7 +360,7 @@ class TestRunWorker internal constructor(
     private fun calculateNumCases(cases: Map<Type, ArrayWrapper?>): Int =
         paramTypesWithReceiver.foldIndexed(1) { idx, acc, type ->
             cases[type]?.let { cases: ArrayWrapper ->
-                (if (idx == 0) ((cases as? AnyArrayWrapper<*>)?.sizeWithoutNull ?: 1) else cases.size).let {
+                (if (idx == 0) ((cases.array as? Array<*>)?.filterNotNull()?.size ?: 1) else cases.size).let {
                     return@foldIndexed acc * it
                 }
             } ?: acc
@@ -386,9 +385,8 @@ class TestRunWorker internal constructor(
                     case[0] = null
                     continue
                 }
-                typeCases as? AnyArrayWrapper<*> ?: throw IllegalStateException("Answerable thinks a receiver type is primitive. Please report a bug.")
-                val typeCasesArr = typeCases.arr
-                val typeCasesLst = typeCasesArr.filter { it != null } // receivers can't be null
+                val typeCasesArr = typeCases.array as? Array<*> ?: throw IllegalStateException("Answerable thinks a receiver type is primitive. Please report a bug.")
+                val typeCasesLst = typeCasesArr.filterNotNull() // receivers can't be null
 
                 if (typeCasesLst.isEmpty()) {
                     case[0] = null
@@ -984,174 +982,69 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: 
         val vals = genList(complexity, random.nextInt(complexity + 1))
         @Suppress("UNCHECKED_CAST")
         return ReflectArray.newInstance(tClass, vals.size).also {
-            when (it::class.java) {
-                IntArray::class.java -> { vals as List<Int>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setInt(it, idx, value) }
-                }
-                ShortArray::class.java -> { vals as List<Short>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setShort(it, idx, value) }
-                }
-                ByteArray::class.java -> { vals as List<Byte>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setByte(it, idx, value) }
-                }
-                LongArray::class.java -> { vals as List<Long>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setLong(it, idx, value) }
-                }
-                DoubleArray::class.java -> { vals as List<Double>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setDouble(it, idx, value) }
-                }
-                FloatArray::class.java -> { vals as List<Float>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setFloat(it, idx, value) }
-                }
-                CharArray::class.java -> { vals as List<Char>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setChar(it, idx, value) }
-                }
-                BooleanArray::class.java -> { vals as List<Boolean>
-                    vals.forEachIndexed { idx, value -> ReflectArray.setBoolean(it, idx, value) }
-                }
-                else -> vals.forEachIndexed { idx, value -> ReflectArray.set(it, idx, value) }
-            }
+            val wrapper = ArrayWrapper(it)
+            vals.forEachIndexed { idx, value -> wrapper[idx] = value }
         }
     }
 }
 
-internal val defaultIntArrayEdgeCases = arrayOf(intArrayOf(), null)
 internal val defaultIntArraySimpleCases = arrayOf(intArrayOf(0))
-internal val defaultByteArrayEdgeCases = arrayOf(byteArrayOf(), null)
 internal val defaultByteArraySimpleCases = arrayOf(byteArrayOf(0))
-internal val defaultShortArrayEdgeCases = arrayOf(shortArrayOf(), null)
 internal val defaultShortArraySimpleCases = arrayOf(shortArrayOf(0))
-internal val defaultLongArrayEdgeCases = arrayOf(longArrayOf(), null)
 internal val defaultLongArraySimpleCases = arrayOf(longArrayOf(0))
-internal val defaultDoubleArrayEdgeCases = arrayOf(doubleArrayOf(), null)
 internal val defaultDoubleArraySimpleCases = arrayOf(doubleArrayOf(0.0))
-internal val defaultFloatArrayEdgeCases = arrayOf(floatArrayOf(), null)
 internal val defaultFloatArraySimpleCases = arrayOf(floatArrayOf(0f))
-internal val defaultCharArrayEdgeCases = arrayOf(charArrayOf(), null)
 internal val defaultCharArraySimpleCases = arrayOf(charArrayOf(' '))
-internal val defaultStringArrayEdgeCases = arrayOf(arrayOf<String>(), null)
 internal val defaultStringArraySimpleCases = arrayOf(arrayOf(""))
-internal val defaultBooleanArrayEdgeCases = arrayOf(booleanArrayOf(), null)
 
-internal sealed class ArrayWrapper {
-    abstract operator fun get(index: Int): Any?
-    abstract fun random(random: Random): Any?
-    abstract val size: Int
-
-}
-internal class AnyArrayWrapper<T>(val arr: Array<T>) : ArrayWrapper() {
-    override fun get(index: Int) = arr[index]
-    override fun random(random: Random) = arr.random(random.asKotlinRandom())
-    override val size: Int
-        get() = arr.size
-
-    val sizeWithoutNull: Int
-        get() = arr.filter { it != null }.size
-}
-internal class IntArrayWrapper(private val arr: IntArray) : ArrayWrapper() {
-    override fun get(index: Int): Int = arr[index]
-    override fun random(random: Random) = arr.random(random.asKotlinRandom())
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as IntArrayWrapper
-
-        if (!arr.contentEquals(other.arr)) return false
-
-        return true
+internal class ArrayWrapper(val array: Any) {
+    val size = ReflectArray.getLength(array)
+    operator fun get(index: Int): Any? {
+        return ReflectArray.get(array, index)
     }
-
-    override fun hashCode(): Int {
-        return arr.contentHashCode()
+    operator fun set(index: Int, value: Any?) {
+        ReflectArray.set(array, index, value)
     }
-
-    override val size: Int
-        get() = arr.size
-
-}
-internal class ByteArrayWrapper(private val arr: ByteArray) : ArrayWrapper() {
-    override fun get(index: Int): Byte = arr[index]
-    override fun random(random: Random) = arr.random(random.asKotlinRandom())
-    override val size: Int
-        get() = arr.size
-}
-internal class ShortArrayWrapper(private val arr: ShortArray) : ArrayWrapper() {
-    override fun get(index: Int): Short = arr[index]
-    override fun random(random: Random) = arr.random(random.asKotlinRandom())
-    override val size: Int
-        get() = arr.size
-}
-internal class LongArrayWrapper(private val arr: LongArray) : ArrayWrapper() {
-    override fun get(index: Int): Long = arr[index]
-    override fun random(random: Random) = arr.random(random.asKotlinRandom())
-    override val size: Int
-        get() = arr.size
-}
-internal class DoubleArrayWrapper(private val arr: DoubleArray) : ArrayWrapper() {
-    override fun get(index: Int): Double = arr[index]
-    override fun random(random: Random) = arr.random(random.asKotlinRandom())
-    override val size: Int
-        get() = arr.size
-}
-internal class FloatArrayWrapper(private val arr: FloatArray) : ArrayWrapper() {
-    override fun get(index: Int): Float = arr[index]
-    override fun random(random: Random) = arr.random(random.asKotlinRandom())
-    override val size: Int
-        get() = arr.size
-}
-internal class CharArrayWrapper(private val arr: CharArray) : ArrayWrapper() {
-    override fun get(index: Int): Char = arr[index]
-    override fun random(random: Random) = arr.random(random.asKotlinRandom())
-    override val size: Int
-        get() = arr.size
-}
-internal class BooleanArrayWrapper(private val arr: BooleanArray) : ArrayWrapper() {
-    override fun get(index: Int): Boolean = arr[index]
-    override fun random(random: Random) = arr.random(random.asKotlinRandom())
-    override val size: Int
-        get() = arr.size
+    fun random(random: Random): Any? {
+        return get(random.nextInt(size))
+    }
 }
 internal fun ArrayWrapper?.isNullOrEmpty() = this == null || this.size == 0
 
 internal val defaultEdgeCases = mapOf(
-    Int::class.java to IntArrayWrapper(defaultIntEdgeCases),
-    Byte::class.java to ByteArrayWrapper(defaultByteEdgeCases),
-    Short::class.java to ShortArrayWrapper(defaultShortEdgeCases),
-    Long::class.java to LongArrayWrapper(defaultLongEdgeCases),
-    Double::class.java to DoubleArrayWrapper(defaultDoubleEdgeCases),
-    Float::class.java to FloatArrayWrapper(defaultFloatEdgeCases),
-    Char::class.java to CharArrayWrapper(defaultCharEdgeCases),
-    String::class.java to AnyArrayWrapper(defaultStringEdgeCases),
-
-    IntArray::class.java to AnyArrayWrapper(defaultIntArrayEdgeCases),
-    ByteArray::class.java to AnyArrayWrapper(defaultByteArrayEdgeCases),
-    ShortArray::class.java to AnyArrayWrapper(defaultShortArrayEdgeCases),
-    LongArray::class.java to AnyArrayWrapper(defaultLongArrayEdgeCases),
-    DoubleArray::class.java to AnyArrayWrapper(defaultDoubleArrayEdgeCases),
-    FloatArray::class.java to AnyArrayWrapper(defaultFloatArrayEdgeCases),
-    CharArray::class.java to AnyArrayWrapper(defaultCharArrayEdgeCases),
-    Array<String>::class.java to AnyArrayWrapper(defaultStringArrayEdgeCases),
-    BooleanArray::class.java to AnyArrayWrapper(defaultBooleanArrayEdgeCases)
-)
+    Int::class.java to ArrayWrapper(defaultIntEdgeCases),
+    Byte::class.java to ArrayWrapper(defaultByteEdgeCases),
+    Short::class.java to ArrayWrapper(defaultShortEdgeCases),
+    Long::class.java to ArrayWrapper(defaultLongEdgeCases),
+    Double::class.java to ArrayWrapper(defaultDoubleEdgeCases),
+    Float::class.java to ArrayWrapper(defaultFloatEdgeCases),
+    Char::class.java to ArrayWrapper(defaultCharEdgeCases),
+    String::class.java to ArrayWrapper(defaultStringEdgeCases),
+    Boolean::class.java to ArrayWrapper(booleanArrayOf())
+).let {
+    it + it.map { (clazz, _) ->
+        val emptyArray = ReflectArray.newInstance(clazz, 0)
+        emptyArray.javaClass to ArrayWrapper(arrayOf(emptyArray, null))
+    }
+}.toMap()
 internal val defaultSimpleCases = mapOf(
-    Int::class.java to IntArrayWrapper(defaultIntSimpleCases),
-    Byte::class.java to ByteArrayWrapper(defaultByteSimpleCases),
-    Short::class.java to ShortArrayWrapper(defaultShortSimpleCases),
-    Long::class.java to LongArrayWrapper(defaultLongSimpleCases),
-    Double::class.java to DoubleArrayWrapper(defaultDoubleSimpleCases),
-    Float::class.java to FloatArrayWrapper(defaultFloatSimpleCases),
-    Char::class.java to CharArrayWrapper(defaultCharSimpleCases),
-    String::class.java to AnyArrayWrapper(defaultStringSimpleCases),
+    Int::class.java to ArrayWrapper(defaultIntSimpleCases),
+    Byte::class.java to ArrayWrapper(defaultByteSimpleCases),
+    Short::class.java to ArrayWrapper(defaultShortSimpleCases),
+    Long::class.java to ArrayWrapper(defaultLongSimpleCases),
+    Double::class.java to ArrayWrapper(defaultDoubleSimpleCases),
+    Float::class.java to ArrayWrapper(defaultFloatSimpleCases),
+    Char::class.java to ArrayWrapper(defaultCharSimpleCases),
+    String::class.java to ArrayWrapper(defaultStringSimpleCases),
 
-    IntArray::class.java to AnyArrayWrapper(defaultIntArraySimpleCases),
-    ByteArray::class.java to AnyArrayWrapper(defaultByteArraySimpleCases),
-    ShortArray::class.java to AnyArrayWrapper(defaultShortArraySimpleCases),
-    LongArray::class.java to AnyArrayWrapper(defaultLongArraySimpleCases),
-    DoubleArray::class.java to AnyArrayWrapper(defaultDoubleArraySimpleCases),
-    FloatArray::class.java to AnyArrayWrapper(defaultFloatArraySimpleCases),
-    CharArray::class.java to AnyArrayWrapper(defaultCharArraySimpleCases),
-    Array<String>::class.java to AnyArrayWrapper(defaultStringArraySimpleCases)
+    IntArray::class.java to ArrayWrapper(defaultIntArraySimpleCases),
+    ByteArray::class.java to ArrayWrapper(defaultByteArraySimpleCases),
+    ShortArray::class.java to ArrayWrapper(defaultShortArraySimpleCases),
+    LongArray::class.java to ArrayWrapper(defaultLongArraySimpleCases),
+    DoubleArray::class.java to ArrayWrapper(defaultDoubleArraySimpleCases),
+    FloatArray::class.java to ArrayWrapper(defaultFloatArraySimpleCases),
+    CharArray::class.java to ArrayWrapper(defaultCharArraySimpleCases),
+    Array<String>::class.java to ArrayWrapper(defaultStringArraySimpleCases)
 )
 
 
