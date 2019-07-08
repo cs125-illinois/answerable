@@ -123,4 +123,22 @@ internal class TestGeneratorTest {
         secondOut.assertAllSucceeded(showOutput = false)
     }
 
+    @Test
+    fun testIntArrayParameter() {
+        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayParameter::class.java, "")
+                .loadSubmission(examples.testgeneration.arrays.IntArrayParameter::class.java)
+                .runTestsUnsecured(Random.nextLong())
+
+        out.assertAllSucceeded()
+    }
+
+    @Test
+    fun testIntArrayArrayParameter() {
+        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayArrayParameter::class.java, "")
+                .loadSubmission(examples.testgeneration.arrays.IntArrayArrayParameter::class.java)
+                .runTestsUnsecured(Random.nextLong())
+
+        out.assertAllSucceeded()
+    }
+
 }
