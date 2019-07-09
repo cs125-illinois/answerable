@@ -159,7 +159,7 @@ class TestGenerator(
         val dryRun = { loadSubmission(
                 mkOpenMirrorClass(referenceClass, typePool, "dryrunopenref_"),
                 bytecodeProvider = typePool.getLoader(),
-                runClassDesign = false).runTestsUnsecured(0x0403) }
+                runClassDesign = false).runTests(0x0403, TestEnvironment(defaultOutputCapturer, sameThreadSandbox)) }
         val dryRunOutput: TestRunOutput
 
         try {
