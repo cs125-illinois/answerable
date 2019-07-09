@@ -315,7 +315,7 @@ class PassedClassDesignRunner internal constructor(
 }
 
 class TestRunWorker internal constructor(
-    testGenerator: TestGenerator,
+    private val testGenerator: TestGenerator,
     private val usableSubmissionClass: Class<*>,
     private val environment: TestEnvironment,
     private val bytecodeProvider: BytecodeProvider?
@@ -509,7 +509,7 @@ class TestRunWorker internal constructor(
         var subProxy: Any? = null
 
         if (!isStatic) {
-            subProxy = mkProxy(usableReferenceClass, usableSubmissionClass, subReceiver!!, adapterTypePool)
+            subProxy = mkProxy(usableReferenceClass, usableSubmissionClass, subReceiver!!, testGenerator.typePool)
         }
 
         return test(iteration, refReceiver, subReceiver, subProxy, refMethodArgs, subMethodArgs)

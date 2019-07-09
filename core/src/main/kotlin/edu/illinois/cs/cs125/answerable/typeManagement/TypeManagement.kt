@@ -73,7 +73,7 @@ private data class TypeMap(
  * Determines what an inner class should be proxied to, if any.
  * @param outermostSuperClass the outer class a proxy is being made an instance of
  * @param childClass an inner class of the real/original class
- * @param pool type pool to look for classes in
+ * @param pool type pool to look for super classes in
  * @return a TypeMap that determines what classes to map fields and method between, or null if no proxy is needed
  */
 private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?, pool: TypePool): TypeMap? {
@@ -533,21 +533,11 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
 
     fun getProxyInstantiator(superClass: Class<*>): ObjectInstantiator<out Any> {
         return proxyInstantiators[superClass] ?: run {
-            val proxyClass = synchronized(ProxyFactory::class.java) {
-                val oldLoaderProvider = ProxyFactory.classLoaderProvider
-                ProxyFactory.classLoaderProvider = ProxyFactory.ClassLoaderProvider { loader }
+            val factory = ProxyFactory()
 
-                val factory = ProxyFactory()
-
-                factory.superclass = superClass
-                factory.setFilter { it.name != "finalize" }
-                val proxyClass = factory.createClass()
-
-                // Restore the ClassLoaderProvider in case anything else in the process uses Javassist
-                ProxyFactory.classLoaderProvider = oldLoaderProvider
-
-                proxyClass
-            }
+            factory.superclass = superClass
+            factory.setFilter { it.name != "finalize" }
+            val proxyClass = factory.createClass()
 
             objenesis.getInstantiatorOf(proxyClass).also { proxyInstantiators[superClass] = it }
         }
