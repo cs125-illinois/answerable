@@ -6,6 +6,7 @@ import org.junit.jupiter.api.assertThrows
 import kotlin.random.Random
 
 internal class TestGeneratorTest {
+
     @Test
     fun testMutableArguments() {
         val tg = PassedClassDesignRunner(examples.testgeneration.mutablearguments.reference.Array::class.java, examples.testgeneration.mutablearguments.Array::class.java)
@@ -19,7 +20,7 @@ internal class TestGeneratorTest {
 
         assertTrue(Pair(Array<IntArray>::class.java, null) in tg.generators.keys, "Generators does not contain key `Array<Array<Int>>'.")
 
-        assertTrue(tg.loadSubmission(examples.testgeneration.generators.defaults.MultiDemensionalPrimitiveArrays::class.java).runTestsUnsecured(0x0403)
+        assertTrue(tg.loadSubmission(examples.testgeneration.generators.defaults.MultiDimensionalPrimitiveArrays::class.java).runTestsUnsecured(0x0403)
             .testSteps.all { it as ExecutedTestStep; it.refOutput.threw == null && it.subOutput.threw == null }, "An error was thrown while testing nested primitive array generation")
     }
 
