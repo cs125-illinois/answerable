@@ -96,7 +96,7 @@ class TestGenerator(
         atNextMethod != null -> NEXT
         usableReferenceClass in generators.keys.map { it.first } -> GENERATOR
         defaultConstructor != null -> DEFAULTCONSTRUCTOR
-        else -> throw AnswerableMisuseException("The reference solution must provide either an @Generator or an @Next method if @Solution is not static.")
+        else -> throw AnswerableMisuseException("The reference solution must provide either an @Generator or an @Next method if @Solution is not static and no zero-argument constructor is accessible.")
     }
 
     init {
@@ -105,7 +105,7 @@ class TestGenerator(
 
     internal fun buildGeneratorMap(random: Random, submittedClassGenerator: Method? = null): Map<Pair<Type, String?>, GenWrapper<*>> {
         val types = params.toSet().let {
-            if (!isStatic && atNextMethod == null && defaultConstructor == null) {
+            if (!isStatic && atNextMethod == null) {
                 it + Pair(usableReferenceClass, null)
             } else it
         }
@@ -813,11 +813,7 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
     private val requiredGenerators: Set<Pair<Type, String?>> = goalTypes.toSet().also { it.forEach(this::request) }
 
     private fun lazyGenError(type: Type) = AnswerableMisuseException(
-        if (type == receiverType) {
-            "The reference solution must provide either an @Generator or an @Next method if @Solution is not static and no default constructor is accessible."
-        } else {
-            "A generator for type `${pool.getOriginalClass(type).sourceName}' was requested, but no generator for that type was found."
-        }
+        "A generator for type `${pool.getOriginalClass(type).sourceName}' was requested, but no generator for that type was found."
     )
 
     private fun lazyArrayError(type: Type) = AnswerableMisuseException(
@@ -855,9 +851,12 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
         }
     }
 
-    fun build(): Map<Pair<Type, String?>, GenWrapper<*>> = mapOf(*requiredGenerators.map {
-            it to (GenWrapper(knownGenerators[it]?.value ?: throw lazyGenError(it.first), random))
-        }.toTypedArray())
+    fun build(): Map<Pair<Type, String?>, GenWrapper<*>> {
+        return mapOf(*requiredGenerators
+                .filter { it.first != receiverType || knownGenerators[it]?.value != null }
+                .map { it to (GenWrapper(knownGenerators[it]?.value ?: throw lazyGenError(it.first), random)) }
+                .toTypedArray())
+    }
 
     companion object {
         private val defaultGenerators: List<Pair<Pair<Class<*>, String?>, Gen<*>>> = listOf(

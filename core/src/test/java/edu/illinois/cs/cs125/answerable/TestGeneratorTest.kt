@@ -65,7 +65,7 @@ internal class TestGeneratorTest {
                 examples.testgeneration.generators.errors.MissingReceiverGenerator::class.java
         ) }
 
-        assertEquals("\nThe reference solution must provide either an @Generator or an @Next method if @Solution is not static and no default constructor is accessible.",
+        assertEquals("\nThe reference solution must provide either an @Generator or an @Next method if @Solution is not static and no zero-argument constructor is accessible.",
                 err.message)
     }
 

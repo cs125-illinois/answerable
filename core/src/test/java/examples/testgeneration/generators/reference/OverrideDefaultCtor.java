@@ -2,27 +2,28 @@ package examples.testgeneration.generators.reference;
 
 import edu.illinois.cs.cs125.answerable.api.Generator;
 import edu.illinois.cs.cs125.answerable.api.Solution;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.Random;
 
 public class OverrideDefaultCtor {
 
-    private int springs;
+    public OverrideDefaultCtor() {
+        Assertions.fail();
+    }
+
+    public OverrideDefaultCtor(int unused) {
+        // Use this constructor
+    }
 
     @Solution
     public int getSprings() {
-        return springs;
-    }
-
-    public void setSprings(int count) {
-        springs = count;
+        return 0;
     }
 
     @Generator
     public static OverrideDefaultCtor generate(int complexity, Random random) {
-        OverrideDefaultCtor obj = new OverrideDefaultCtor();
-        obj.setSprings(22);
-        return obj;
+        return new OverrideDefaultCtor(1);
     }
 
 }
