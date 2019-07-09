@@ -201,7 +201,7 @@ class TestGenerator(
      */
     fun loadSubmission(
             submissionClass: Class<*>,
-            testRunnerArgs: TestRunnerArgs = this.testRunnerArgs,
+            testRunnerArgs: TestRunnerArgs = defaultArgs,
             bytecodeProvider: BytecodeProvider? = null
     ): TestRunner {
         return loadSubmission(submissionClass, testRunnerArgs, bytecodeProvider, true)
@@ -209,7 +209,7 @@ class TestGenerator(
 
     private fun loadSubmission(
         submissionClass: Class<*>,
-        testRunnerArgs: TestRunnerArgs = this.testRunnerArgs,
+        testRunnerArgs: TestRunnerArgs = defaultArgs,
         bytecodeProvider: BytecodeProvider? = null,
         runClassDesign: Boolean = true
     ): TestRunner {
@@ -222,7 +222,7 @@ class TestGenerator(
         // could subvert the system. On the other hand, it's impossible for the reference class to be unsafe against itself.
         // So we simply allow testing to continue if the reference and submission classes are the same class.
         return if (cdaPassed || !runClassDesign) {
-            PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs, bytecodeProvider)
+            PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs.applyOver(this.testRunnerArgs), bytecodeProvider)
         } else {
             FailedClassDesignTestRunner(referenceClass, solutionName, submissionClass, cda)
         }
@@ -251,7 +251,7 @@ class PassedClassDesignRunner internal constructor(
         private val testGenerator: TestGenerator,
         private val submissionClass: Class<*>,
         private val cachedClassDesignAnalysisResult: List<AnalysisOutput> = listOf(),
-        private val testRunnerArgs: TestRunnerArgs,
+        private val testRunnerArgs: TestRunnerArgs, // Already merged by TestGenerator#loadSubmission
         private val bytecodeProvider: BytecodeProvider?
 ) : TestRunner {
 
@@ -282,7 +282,7 @@ class PassedClassDesignRunner internal constructor(
         val testingBlockCounts = TestingBlockCounts()
         val startTime = System.currentTimeMillis()
         val timedOut = !environment.sandbox.run(if (testGenerator.timeout == 0L) null else testGenerator.timeout, Runnable {
-            worker.runTests(seed, testRunnerArgs, testSteps, testingBlockCounts)
+            worker.runTests(seed, testRunnerArgs.applyOver(this.testRunnerArgs), testSteps, testingBlockCounts)
         })
         val endTime = System.currentTimeMillis()
 
@@ -356,9 +356,6 @@ class TestRunWorker internal constructor(
                 mirrorToStudentClass.getEnabledSimpleCases(testGenerator.enabledNames)[usableSubmissionClass]
             )
         }
-
-    private val numEdgeCombinations = calculateNumCases(referenceEdgeCases)
-    private val numSimpleCombinations = calculateNumCases(referenceSimpleCases)
 
     private val referenceGens = testGenerator.generators
     private val submissionGens = mirrorToStudentClass
@@ -610,20 +607,23 @@ class TestRunWorker internal constructor(
     }
 
     fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs, testStepList: MutableList<TestStep>, testingBlockCounts: TestingBlockCounts) {
-        val numTests = testRunnerArgs.numTests
+        val resolvedArgs = testRunnerArgs.resolve() // All properties are non-null
+        val numTests = resolvedArgs.numTests!!
+        val numEdgeCombinations = calculateNumCases(referenceEdgeCases)
+        val numSimpleCombinations = calculateNumCases(referenceSimpleCases)
 
         val numEdgeCaseTests = if (referenceEdgeCases.values.all { it.isNullOrEmpty() }) 0 else min(
-            testRunnerArgs.maxOnlyEdgeCaseTests,
+            resolvedArgs.maxOnlyEdgeCaseTests!!,
             numEdgeCombinations
         )
-        val edgeExhaustive = numEdgeCombinations <= testRunnerArgs.maxOnlyEdgeCaseTests
+        val edgeExhaustive = numEdgeCombinations <= resolvedArgs.maxOnlyEdgeCaseTests!!
         val numSimpleCaseTests = if (referenceSimpleCases.values.all { it.isNullOrEmpty() }) 0 else min(
-            testRunnerArgs.maxOnlySimpleCaseTests,
+            resolvedArgs.maxOnlySimpleCaseTests!!,
             numSimpleCombinations
         )
-        val simpleExhaustive = numSimpleCombinations <= testRunnerArgs.maxOnlySimpleCaseTests
-        val numSimpleEdgeMixedTests = testRunnerArgs.numSimpleEdgeMixedTests
-        val numAllGeneratedTests = testRunnerArgs.numAllGeneratedTests
+        val simpleExhaustive = numSimpleCombinations <= resolvedArgs.maxOnlySimpleCaseTests!!
+        val numSimpleEdgeMixedTests = resolvedArgs.numSimpleEdgeMixedTests!!
+        val numAllGeneratedTests = resolvedArgs.numAllGeneratedTests!!
 
         val simpleCaseUpperBound = numEdgeCaseTests + numSimpleCaseTests
         val simpleEdgeMixedUpperBound = simpleCaseUpperBound + numSimpleEdgeMixedTests
@@ -650,7 +650,7 @@ class TestRunWorker internal constructor(
         var allGeneratedIdx = 0
 
         var i = 0
-        while (testingBlockCounts.numTests < testRunnerArgs.numTests) {
+        while (testingBlockCounts.numTests < numTests) {
             val refMethodArgs: Array<Any?>
             val subMethodArgs: Array<Any?>
             when {
@@ -698,7 +698,7 @@ class TestRunWorker internal constructor(
                 testingBlockCounts.allGeneratedTests < numAllGeneratedTests -> {
                     block = 3
 
-                    val comp = min((testRunnerArgs.maxComplexity * allGeneratedIdx) / numAllGeneratedTests, testRunnerArgs.maxComplexity)
+                    val comp = min((resolvedArgs.maxComplexity!! * allGeneratedIdx) / numAllGeneratedTests, resolvedArgs.maxComplexity)
 
                     refReceiver = mkRefReceiver(i, comp, refReceiver)
                     subReceiver = mkSubReceiver(i, comp, subReceiver)
@@ -711,7 +711,7 @@ class TestRunWorker internal constructor(
                 testingBlockCounts.numTests < numTests -> {
                     block = 4
 
-                    val comp = min((testRunnerArgs.maxComplexity * generatedMixedIdx) / numGeneratedMixedTests, testRunnerArgs.maxComplexity)
+                    val comp = min((resolvedArgs.maxComplexity!! * generatedMixedIdx) / numGeneratedMixedTests, resolvedArgs.maxComplexity)
 
                     refReceiver = mkRefReceiver(i, comp, refReceiver)
                     subReceiver = mkSubReceiver(i, comp, subReceiver)
@@ -746,7 +746,7 @@ class TestRunWorker internal constructor(
             }
             testStepList.add(result)
 
-            if (testingBlockCounts.discardedTests >= testRunnerArgs.maxDiscards) break
+            if (testingBlockCounts.discardedTests >= resolvedArgs.maxDiscards!!) break
             i++
         }
 

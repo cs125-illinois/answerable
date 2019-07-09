@@ -160,5 +160,32 @@ internal class TestGeneratorTest {
 
         out.assertAllSucceeded()
     }
+    
+    @Test
+    fun testRunnerArgsOverriding() {
+        val seed = Random.nextLong()
+        val gen = TestGenerator(examples.adder.correct.reference.Adder::class.java, testRunnerArgs = TestRunnerArgs(numTests = 64))
+        val defaultOut = gen.loadSubmission(examples.adder.correct.Adder::class.java).runTestsUnsecured(seed)
+        assertEquals(64, defaultOut.numTests)
+        val submission = gen.loadSubmission(examples.adder.correct.Adder::class.java, testRunnerArgs = TestRunnerArgs(numTests = 48))
+        val submissionOut = submission.runTestsUnsecured(seed)
+        assertEquals(48, submissionOut.numTests)
+        val runOut = submission.runTestsUnsecured(seed, testRunnerArgs = TestRunnerArgs(numTests = 32))
+        assertEquals(32, runOut.numTests)
+        val newRunOut = gen.loadSubmission(examples.adder.correct.Adder::class.java)
+                .runTestsUnsecured(seed, testRunnerArgs = TestRunnerArgs(numTests = 16))
+        assertEquals(16, newRunOut.numTests)
+    }
+
+    @Test
+    fun testRunnerArgsMerging() {
+        val seed = Random.nextLong()
+        val out = TestGenerator(examples.adder.correct.reference.Adder::class.java, testRunnerArgs = TestRunnerArgs(numTests = 128))
+                .loadSubmission(examples.adder.correct.Adder::class.java, testRunnerArgs = TestRunnerArgs(maxOnlySimpleCaseTests = 1))
+                .runTestsUnsecured(seed, testRunnerArgs = TestRunnerArgs(maxOnlyEdgeCaseTests = 2))
+        assertEquals(128, out.numTests)
+        assertEquals(1, out.numSimpleCaseTests)
+        assertEquals(2, out.numEdgeCaseTests)
+    }
 
 }
