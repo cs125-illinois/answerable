@@ -152,4 +152,13 @@ internal class TestGeneratorTest {
         out.assertAllSucceeded()
     }
 
+    @Test
+    fun testOverrideDefaultGenerator() {
+        val out = TestGenerator(examples.testgeneration.generators.reference.LabeledParamGens::class.java)
+            .loadSubmission(examples.testgeneration.generators.LabeledParamGens::class.java)
+            .runTestsUnsecured(Random.nextLong())
+
+        out.assertAllSucceeded()
+    }
+
 }
