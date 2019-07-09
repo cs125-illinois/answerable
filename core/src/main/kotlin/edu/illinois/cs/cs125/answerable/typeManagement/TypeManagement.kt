@@ -533,17 +533,21 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
 
     fun getProxyInstantiator(superClass: Class<*>): ObjectInstantiator<out Any> {
         return proxyInstantiators[superClass] ?: run {
-            val oldLoaderProvider = ProxyFactory.classLoaderProvider
-            ProxyFactory.classLoaderProvider = ProxyFactory.ClassLoaderProvider { loader }
+            val proxyClass = synchronized(ProxyFactory::class.java) {
+                val oldLoaderProvider = ProxyFactory.classLoaderProvider
+                ProxyFactory.classLoaderProvider = ProxyFactory.ClassLoaderProvider { loader }
 
-            val factory = ProxyFactory()
+                val factory = ProxyFactory()
 
-            factory.superclass = superClass
-            factory.setFilter { it.name != "finalize" }
-            val proxyClass = factory.createClass()
+                factory.superclass = superClass
+                factory.setFilter { it.name != "finalize" }
+                val proxyClass = factory.createClass()
 
-            // Restore the ClassLoaderProvider in case anything else in the process uses Javassist
-            ProxyFactory.classLoaderProvider = oldLoaderProvider
+                // Restore the ClassLoaderProvider in case anything else in the process uses Javassist
+                ProxyFactory.classLoaderProvider = oldLoaderProvider
+
+                proxyClass
+            }
 
             objenesis.getInstantiatorOf(proxyClass).also { proxyInstantiators[superClass] = it }
         }
