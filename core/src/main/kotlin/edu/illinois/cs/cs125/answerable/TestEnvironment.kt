@@ -9,15 +9,15 @@ import edu.illinois.cs.cs125.answerable.api.defaultSandbox
  * A wrapper class for specifying the environment in which tests are run.
  */
 data class TestEnvironment(
-        /** The runner to use for capturing printed output. */
-        val outputCapturer: OutputCapturer,
-        /** The sandbox for executing tests. */
-        val sandbox: Sandbox
+    /** The runner to use for capturing printed output. */
+    val outputCapturer: OutputCapturer,
+    /** The sandbox for executing tests. */
+    val sandbox: Sandbox
 ) {
-        companion object {
-                @JvmStatic
-                fun getUnsecuredEnvironment(): TestEnvironment = defaultEnvironment
-        }
+    companion object {
+        @JvmStatic
+        fun getUnsecuredEnvironment(): TestEnvironment = defaultEnvironment
+    }
 }
 
 /**
