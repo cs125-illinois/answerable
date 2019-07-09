@@ -34,6 +34,20 @@ internal class TestGeneratorTest {
     }
 
     @Test
+    fun testDefaultConstructor() {
+        val out = TestGenerator(examples.testgeneration.generators.defaults.reference.DefaultCtor::class.java)
+                .loadSubmission(examples.testgeneration.generators.defaults.DefaultCtor::class.java).runTestsUnsecured(0x0403)
+        out.assertAllSucceeded(false)
+    }
+
+    @Test
+    fun testOverrideDefaultConstructor() {
+        val out = TestGenerator(examples.testgeneration.generators.reference.OverrideDefaultCtor::class.java)
+                .loadSubmission(examples.testgeneration.generators.OverrideDefaultCtor::class.java).runTestsUnsecured(0x0403)
+        out.assertAllSucceeded(false)
+    }
+
+    @Test
     fun testMissingGeneratorError() {
         val errMsg = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
             examples.testgeneration.generators.errors.reference.MissingGenerator::class.java,
@@ -50,7 +64,7 @@ internal class TestGeneratorTest {
                 examples.testgeneration.generators.errors.MissingReceiverGenerator::class.java
         ) }
 
-        assertEquals("\nA generator for type `examples.testgeneration.generators.errors.reference.MissingReceiverGenerator' was requested, but no generator for that type was found.",
+        assertEquals("\nThe reference solution must provide either an @Generator or an @Next method if @Solution is not static and no default constructor is accessible.",
                 err.message)
     }
 

@@ -73,6 +73,7 @@ class TestGenerator(
         }
     }
     internal val atNextMethod: Method? = usableReferenceClass.getAtNext(enabledNames)
+    internal val defaultConstructor: Constructor<*>? = usableReferenceClass.constructors.firstOrNull { it.parameterCount == 0 }
 
     internal val isStatic = referenceMethod?.let { Modifier.isStatic(it.modifiers) } ?: false
     /** Pair<return type, useGeneratorName> */
@@ -89,11 +90,12 @@ class TestGenerator(
     internal val timeout = referenceMethod?.getAnnotation(Timeout::class.java)?.timeout
         ?: (customVerifier?.getAnnotation(Timeout::class.java)?.timeout ?: 0)
 
-    internal enum class ReceiverGenStrategy { GENERATOR, NEXT, NONE }
+    internal enum class ReceiverGenStrategy { GENERATOR, NEXT, DEFAULTCONSTRUCTOR, NONE }
     internal val receiverGenStrategy: ReceiverGenStrategy = when {
+        isStatic -> NONE
         atNextMethod != null -> NEXT
         usableReferenceClass in generators.keys.map { it.first } -> GENERATOR
-        isStatic -> NONE
+        defaultConstructor != null -> DEFAULTCONSTRUCTOR
         else -> throw AnswerableMisuseException("The reference solution must provide either an @Generator or an @Next method if @Solution is not static.")
     }
 
@@ -103,12 +105,12 @@ class TestGenerator(
 
     internal fun buildGeneratorMap(random: Random, submittedClassGenerator: Method? = null): Map<Pair<Type, String?>, GenWrapper<*>> {
         val types = params.toSet().let {
-            if (!isStatic && atNextMethod == null) {
+            if (!isStatic && atNextMethod == null && defaultConstructor == null) {
                 it + Pair(usableReferenceClass, null)
             } else it
         }
 
-        val generatorMapBuilder = GeneratorMapBuilder(types, random, typePool)
+        val generatorMapBuilder = GeneratorMapBuilder(types, random, typePool, if (isStatic) null else usableReferenceClass)
 
         val enabledGens: List<Pair<Pair<Type, String?>, CustomGen>> = usableReferenceClass.getEnabledGenerators(enabledNames).map {
             return@map if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
@@ -337,6 +339,11 @@ class TestRunWorker internal constructor(
 
     private val mirrorToStudentClass = mkGeneratorMirrorClass(usableReferenceClass, usableSubmissionClass, adapterTypePool, "genmirror_")
 
+    private val referenceAtNext = testGenerator.atNextMethod
+    private val submissionAtNext = mirrorToStudentClass.getAtNext(testGenerator.enabledNames)
+    private val referenceDefaultCtor = testGenerator.defaultConstructor
+    private val submissionDefaultCtor = usableSubmissionClass.constructors.firstOrNull { it.parameterCount == 0 }
+
     private val referenceEdgeCases = testGenerator.edgeCases
     private val referenceSimpleCases = testGenerator.simpleCases
     private val submissionEdgeCases: Map<Type, ArrayWrapper?> = referenceEdgeCases
@@ -362,13 +369,10 @@ class TestRunWorker internal constructor(
         .getEnabledGenerators(testGenerator.enabledNames)
         .find { it.returnType == usableSubmissionClass }
         .let { testGenerator.buildGeneratorMap(randomForSubmission, it) }
-    private val referenceAtNext = testGenerator.atNextMethod
-    private val submissionAtNext = mirrorToStudentClass.getAtNext(testGenerator.enabledNames)
 
     private val receiverGenStrategy = testGenerator.receiverGenStrategy
     private val capturePrint = usableReferenceMethod?.getAnnotation(Solution::class.java)?.prints ?: false
     private val isStatic = testGenerator.isStatic
-    private val timeout = testGenerator.timeout
 
     private fun calculateNumCases(cases: Map<Type, ArrayWrapper?>): Int =
         paramsWithReceiver.foldIndexed(1) { idx, acc, param ->
@@ -514,6 +518,7 @@ class TestRunWorker internal constructor(
     private fun mkRefReceiver(iteration: Int, complexity: Int, prevRefReceiver: Any?): Any? =
         when (receiverGenStrategy) {
             NONE -> null
+            DEFAULTCONSTRUCTOR -> referenceDefaultCtor?.newInstance()
             GENERATOR -> referenceGens[Pair(usableReferenceClass, null)]?.generate(complexity)
             NEXT -> referenceAtNext?.invoke(null, prevRefReceiver, iteration, randomForReference)
         }
@@ -521,6 +526,7 @@ class TestRunWorker internal constructor(
     private fun mkSubReceiver(iteration: Int, complexity: Int, prevSubReceiver: Any?): Any? =
         when (receiverGenStrategy) {
             NONE -> null
+            DEFAULTCONSTRUCTOR -> submissionDefaultCtor?.newInstance()
             GENERATOR -> submissionGens[Pair(usableReferenceClass, null)]?.generate(complexity)
             NEXT -> submissionAtNext?.invoke(null, prevSubReceiver, iteration, randomForSubmission)
         }
@@ -797,7 +803,7 @@ operator fun <T> MutableMap<Pair<Type, String?>, T>.set(type: Type, newVal: T) {
     this[Pair(type, null)] = newVal
 }
 
-private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, private val random: Random, private val pool: TypePool) {
+private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, private val random: Random, private val pool: TypePool, private val receiverType: Class<*>?) {
     private var knownGenerators: MutableMap<Pair<Type, String?>, Lazy<Gen<*>>> = mutableMapOf()
     init {
         defaultGenerators.forEach(this::accept)
@@ -807,7 +813,11 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
     private val requiredGenerators: Set<Pair<Type, String?>> = goalTypes.toSet().also { it.forEach(this::request) }
 
     private fun lazyGenError(type: Type) = AnswerableMisuseException(
-        "A generator for type `${pool.getOriginalClass(type).sourceName}' was requested, but no generator for that type was found."
+        if (type == receiverType) {
+            "The reference solution must provide either an @Generator or an @Next method if @Solution is not static and no default constructor is accessible."
+        } else {
+            "A generator for type `${pool.getOriginalClass(type).sourceName}' was requested, but no generator for that type was found."
+        }
     )
 
     private fun lazyArrayError(type: Type) = AnswerableMisuseException(
