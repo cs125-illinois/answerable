@@ -859,10 +859,10 @@ internal class GenWrapper<T>(val gen: Gen<T>, private val random: Random) {
 
 // So named as to avoid conflict with the @Generator annotation, as that class name is part of the public API and this one is not.
 internal interface Gen<out T> {
-    operator fun invoke(complexity: Int, random: Random) = generate(complexity, random)
-
     fun generate(complexity: Int, random: Random): T
 }
+@Suppress("NOTHING_TO_INLINE")
+internal inline operator fun <T> Gen<T>.invoke(complexity: Int, random: Random): T = generate(complexity, random)
 
 internal class CustomGen(private val gen: Method) : Gen<Any?> {
     override fun generate(complexity: Int, random: Random): Any? = gen(null, complexity, random)
@@ -984,23 +984,14 @@ internal val defaultStringEdgeCases = arrayOf(null, "")
 internal val defaultStringSimpleCases = arrayOf("a", "A", "0")
 
 internal val defaultBooleanGen = object : Gen<Boolean> {
-    override fun generate(complexity: Int, random: Random): Boolean = random.nextInt(2) == 0
+    override fun generate(complexity: Int, random: Random): Boolean = random.nextBoolean()
 }
 
 internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: Class<*>) : Gen<Any> {
     override fun generate(complexity: Int, random: Random): Any {
-        fun genList(complexity: Int, length: Int): List<T> =
-            if (length <= 0) {
-                listOf()
-            } else {
-                listOf(tGen(random.nextInt(complexity + 1), random)) + genList(complexity, length - 1)
-            }
-
-        val vals = genList(complexity, random.nextInt(complexity + 1))
-        @Suppress("UNCHECKED_CAST")
-        return ReflectArray.newInstance(tClass, vals.size).also {
+        return ReflectArray.newInstance(tClass, random.nextInt(complexity + 1)).also {
             val wrapper = ArrayWrapper(it)
-            vals.forEachIndexed { idx, value -> wrapper[idx] = value }
+            (0 until wrapper.size).forEach { idx -> wrapper[idx] = tGen(random.nextInt(complexity + 1), random) }
         }
     }
 }
