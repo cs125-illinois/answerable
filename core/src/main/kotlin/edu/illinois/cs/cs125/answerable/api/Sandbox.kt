@@ -65,37 +65,22 @@ internal val defaultSandbox = object : Sandbox {
     }
 
     override fun run(timeout: Long?, callback: Runnable): Boolean {
-        fun timedTestingPortion() {
-            callback.run()
-        }
         return if (timeout == null) {
-            timedTestingPortion()
+            callback.run()
             true
         } else {
+            var thread: Thread? = null
             try {
-                Executors.newSingleThreadExecutor().submit(::timedTestingPortion)[timeout, TimeUnit.MILLISECONDS]
+                Executors.newSingleThreadExecutor().submit {
+                    thread = Thread.currentThread()
+                    callback.run()
+                }[timeout, TimeUnit.MILLISECONDS]
                 true
             } catch (e: TimeoutException) {
+                @Suppress("DEPRECATION") thread?.stop()
                 false
             }
         }
-    }
-
-}
-
-/**
- * A "sandbox" that just runs the task in the current thread with no security restrictions.
- * Used for dry runs, where timeout is handled by TestGenerator.
- */
-internal val sameThreadSandbox = object : Sandbox {
-
-    override fun transformLoader(loader: EnumerableBytecodeLoader): BytecodeClassProvider {
-        return loader
-    }
-
-    override fun run(timeout: Long?, callback: Runnable): Boolean {
-        callback.run()
-        return true
     }
 
 }

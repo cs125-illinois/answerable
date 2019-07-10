@@ -12,13 +12,14 @@ import org.junit.jupiter.api.assertThrows
 
 fun TestRunOutput.assertAllSucceeded(showOutput: Boolean = true) {
     if (showOutput) println(this.toJson())
-    this.classDesignAnalysisResult.forEach{ assertTrue(it.result is Matched) }
+    this.classDesignAnalysisResult.forEach { assertTrue(it.result is Matched, "Class design check failed") }
     this.testSteps.forEach {
         if (it is ExecutedTestStep) {
-            assertNull(it.assertErr)
-            assertTrue(it.succeeded)
+            assertNull(it.assertErr, "Test failed")
+            assertTrue(it.succeeded, "Test failed")
         }
     }
+    assertTrue(this.testSteps.any { it is ExecutedTestStep }, "No tests were executed")
 }
 
 internal class ServiceTests {

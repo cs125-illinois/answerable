@@ -150,33 +150,20 @@ class TestGenerator(
     private fun verifySafety() {
         verifyMemberAccess(referenceClass, typePool)
 
-        val dryRun = { loadSubmission(
+        val dryRunOutput = PassedClassDesignRunner(this,
                 mkOpenMirrorClass(referenceClass, typePool, "dryrunopenref_"),
-                bytecodeProvider = typePool.getLoader(),
-                runClassDesign = false).runTests(0x0403, TestEnvironment(defaultOutputCapturer, sameThreadSandbox)) }
-        val dryRunOutput: TestRunOutput
+                listOf(), testRunnerArgs, typePool.getLoader(),
+                timeoutOverride = 10000).runTestsUnsecured(0x0403)
 
-        try {
-            dryRunOutput = Executors.newSingleThreadExecutor().submit(dryRun)[10000, TimeUnit.MILLISECONDS]
-        } catch (e: TimeoutException) {
-            throw AnswerableVerificationException(
-                "Testing reference against itself timed out (10s)."
-            )
-        } catch (e: ExecutionException) {
-            if (e.cause != null) {
-                throw e.cause!!
-            } else {
-                throw e
-            }
-        }
+        if (dryRunOutput.timedOut) throw AnswerableVerificationException("Testing reference against itself timed out (10s).")
 
-        dryRunOutput.testSteps.forEach {
-            if (it is ExecutedTestStep) {
+        synchronized(dryRunOutput.testSteps) {
+            dryRunOutput.testSteps.filterIsInstance(ExecutedTestStep::class.java).forEach {
                 if (!it.succeeded) {
                     throw AnswerableVerificationException(
-                        "Testing reference against itself failed on inputs: ${Arrays.deepToString(
-                            it.refOutput.args
-                        )}"
+                            "Testing reference against itself failed on inputs: ${Arrays.deepToString(
+                                    it.refOutput.args
+                            )}"
                     ).initCause(it.assertErr)
                 }
             }
@@ -196,28 +183,14 @@ class TestGenerator(
      * @param bytecodeProvider provider of bytecode for the submission class(es), or null if not loaded dynamically
      */
     fun loadSubmission(
-            submissionClass: Class<*>,
-            testRunnerArgs: TestRunnerArgs = defaultArgs,
-            bytecodeProvider: BytecodeProvider? = null
-    ): TestRunner {
-        return loadSubmission(submissionClass, testRunnerArgs, bytecodeProvider, true)
-    }
-
-    private fun loadSubmission(
         submissionClass: Class<*>,
         testRunnerArgs: TestRunnerArgs = defaultArgs,
-        bytecodeProvider: BytecodeProvider? = null,
-        runClassDesign: Boolean = true
+        bytecodeProvider: BytecodeProvider? = null
     ): TestRunner {
         val cda = ClassDesignAnalysis(solutionName, referenceClass, submissionClass).runSuite()
         val cdaPassed = cda.all { ao -> ao.result is Matched }
 
-        // when testing the reference against itself, we fully expect that public methods and fields
-        // won't match, particularly @Generators, @Verifies, @EdgeCases etc.
-        // We can't just exclude them from class design analysis in the submission because then real submissions
-        // could subvert the system. On the other hand, it's impossible for the reference class to be unsafe against itself.
-        // So we simply allow testing to continue if the reference and submission classes are the same class.
-        return if (cdaPassed || !runClassDesign) {
+        return if (cdaPassed) {
             PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs.applyOver(this.testRunnerArgs), bytecodeProvider)
         } else {
             FailedClassDesignTestRunner(referenceClass, solutionName, submissionClass, cda)
@@ -248,7 +221,8 @@ class PassedClassDesignRunner internal constructor(
         private val submissionClass: Class<*>,
         private val cachedClassDesignAnalysisResult: List<AnalysisOutput> = listOf(),
         private val testRunnerArgs: TestRunnerArgs, // Already merged by TestGenerator#loadSubmission
-        private val bytecodeProvider: BytecodeProvider?
+        private val bytecodeProvider: BytecodeProvider?,
+        private val timeoutOverride: Long? = null
 ) : TestRunner {
 
     internal constructor(
@@ -273,12 +247,15 @@ class PassedClassDesignRunner internal constructor(
         val loader = environment.sandbox.transformLoader(submissionTypePool.getLoader())
         val sandboxedSubMirror = Class.forName(untrustedSubMirror.name, false, loader.getLoader())
         val worker = TestRunWorker(testGenerator, sandboxedSubMirror, environment, loader)
+        val timeLimit = timeoutOverride ?: testGenerator.timeout
 
         val testSteps = mutableListOf<TestStep>()
         val testingBlockCounts = TestingBlockCounts()
         val startTime = System.currentTimeMillis()
-        val timedOut = !environment.sandbox.run(if (testGenerator.timeout == 0L) null else testGenerator.timeout, Runnable {
-            worker.runTests(seed, testRunnerArgs.applyOver(this.testRunnerArgs), testSteps, testingBlockCounts)
+        val timedOut = !environment.sandbox.run(if (timeLimit == 0L) null else timeLimit, Runnable {
+            synchronized(testSteps) {
+                worker.runTests(seed, testRunnerArgs.applyOver(this.testRunnerArgs), testSteps, testingBlockCounts)
+            }
         })
         val endTime = System.currentTimeMillis()
 
@@ -298,7 +275,7 @@ class PassedClassDesignRunner internal constructor(
                 numMixedTests = testingBlockCounts.generatedMixedTests,
                 numAllGeneratedTests = testingBlockCounts.allGeneratedTests,
                 classDesignAnalysisResult = cachedClassDesignAnalysisResult,
-                testSteps = testSteps
+                testSteps = synchronized(testSteps) { testSteps.toList() }
         )
     }
 
@@ -545,7 +522,8 @@ class TestRunWorker internal constructor(
                     try {
                         output = method(receiver, *args)
                         behavior = Behavior.RETURNED
-                    } catch (e: Throwable) {
+                    } catch (e: InvocationTargetException) {
+                        if (e.cause is ThreadDeath) throw ThreadDeath()
                         threw = e.cause ?: e
                         behavior = Behavior.THREW
                     }
