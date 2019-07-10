@@ -38,28 +38,29 @@ internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method? {
 
 internal fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
 
-internal fun Class<*>.findSolutionAttemptMethod(matchTo: Method?): Method? {
+internal fun Class<*>.findSolutionAttemptMethod(matchTo: Method?, correspondingClass: Class<*>): Method? {
     if (matchTo == null) return null
     val matchName: String = matchTo.name
-    val matchRType: String = matchTo.genericReturnType.sourceName
-    val matchPTypes: List<String> = matchTo.genericParameterTypes.map { it.sourceName }
+    val matchRType: Type = matchTo.genericReturnType
+    val matchPTypes: Array<Type> = matchTo.genericParameterTypes
 
-    var methods =
-            this.declaredMethods
-                .filter { it.name == matchName }
+    var methods = this.declaredMethods.filter { it.name == matchName }
     if (methods.isEmpty()) {
         throw SubmissionMismatchException("Expected a method named `$matchName'.")
     }
 
-    methods = methods.filter { it.genericReturnType.sourceName == matchRType }
+    methods = methods.filter { matchRType.correspondsTo(it.genericReturnType, correspondingClass, this) }
     if (methods.isEmpty()) {
-        throw SubmissionMismatchException("Expected a method with return type `$matchRType'.")
+        throw SubmissionMismatchException("Expected a method with return type `${matchRType.sourceName}'.")
     }
 
-    methods = methods.filter { it.genericParameterTypes?.map { it.sourceName }?.equals(matchPTypes) ?: false }
+    methods = methods.filter { m ->
+        m.genericParameterTypes.size == matchPTypes.size
+                && (0 until matchPTypes.size).all { matchPTypes[it].correspondsTo(m.genericParameterTypes[it], correspondingClass, this) }
+    }
     if (methods.isEmpty()) {
         throw SubmissionMismatchException(
-            "Expected a method with parameter types `${matchPTypes.joinToString(prefix = "[", postfix = "]")}'."
+            "Expected a method with parameter types `${matchPTypes.joinToString(prefix = "[", postfix = "]") { it.sourceName }}'."
         )
     }
     // If the student code compiled, there can only be one method

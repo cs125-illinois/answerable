@@ -326,7 +326,7 @@ class TestRunWorker internal constructor(
 
     private val submissionTypePool = TypePool(bytecodeProvider, usableSubmissionClass.classLoader)
     private val adapterTypePool = TypePool(testGenerator.typePool, submissionTypePool)
-    private val usableSubmissionMethod = usableSubmissionClass.findSolutionAttemptMethod(usableReferenceMethod)
+    private val usableSubmissionMethod = usableSubmissionClass.findSolutionAttemptMethod(usableReferenceMethod, usableReferenceClass)
 
     private val params = testGenerator.params
     private val paramsWithReceiver = testGenerator.paramsWithReceiver

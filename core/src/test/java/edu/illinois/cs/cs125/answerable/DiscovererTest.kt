@@ -32,7 +32,7 @@ internal class DiscovererTest {
         val solnMethod = soln.getReferenceSolutionMethod()
 
         val attempt = getAttemptClass(correctAdderAttempt)
-        val attemptMethod = attempt.findSolutionAttemptMethod(solnMethod)
+        val attemptMethod = attempt.findSolutionAttemptMethod(solnMethod, soln)
 
         assertEquals("add", attemptMethod?.name)
         assertEquals(Int::class.java, attemptMethod?.genericReturnType)

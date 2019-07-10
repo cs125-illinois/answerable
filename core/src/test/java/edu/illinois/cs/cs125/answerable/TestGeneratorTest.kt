@@ -89,6 +89,24 @@ internal class TestGeneratorTest {
     }
 
     @Test
+    fun testStaticTakesInstanceError() {
+        val errMsg = assertThrows<AnswerableMisuseException> { TestGenerator(examples.testgeneration.generators.reference.StaticTakesInstance::class.java)
+                .loadSubmission(examples.testgeneration.generators.StaticTakesInstance::class.java)
+                .runTestsUnsecured(Random.nextLong()) }.message
+
+        assertEquals("\nA generator for type `examples.testgeneration.generators.reference.StaticTakesInstance' was requested, but no generator for that type was found.", errMsg)
+    }
+
+    @Test
+    fun testDefaultCtorNeededAsArgument() {
+        val out = TestGenerator(examples.testgeneration.generators.reference.DefaultCtorClassAsParam::class.java, "")
+                .loadSubmission(examples.testgeneration.generators.DefaultCtorClassAsParam::class.java)
+                .runTestsUnsecured(Random.nextLong())
+
+        out.assertAllSucceeded()
+    }
+
+    @Test
     fun testStandaloneVerify() {
         val tg = TestGenerator(examples.testgeneration.standaloneverify.reference.Standalone::class.java, "standalone test")
         val tr = tg.loadSubmission(examples.testgeneration.standaloneverify.Standalone::class.java)
