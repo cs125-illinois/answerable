@@ -1,5 +1,7 @@
 package edu.illinois.cs.cs125.answerable.api
 
+import edu.illinois.cs.cs125.answerable.TestRunnerArgs
+
 /**
  * Annotation to mark a method as the reference solution for Answerable.
  *
@@ -90,12 +92,12 @@ annotation class Next(
  * will be used to generate new receiver objects on every iteration of the testing loop.
  *
  * @[Generator] annotations can have a [name] parameter, which must be unique.
- * If your class provides multiple generators for the same type, answerable will resolve conflicts by choosing the one
+ * If your class provides multiple generators for the same type, Answerable will resolve conflicts by choosing the one
  * whose [name] is in the [Solution.enabled] array on the @[Solution] annotation.
  * The default tag if none is specified is the empty string.
  *
  * If a helper method is needed that should not be included in class design analysis, see the @[Helper] annotation.
- * Generators can safely call each other and the @[Next] method (if any), even if those which create instance
+ * Generators can safely call each other and the @[Next] method (if any), even those which create instances
  * of the reference class.
  */
 @Target(AnnotationTarget.FUNCTION)
@@ -237,3 +239,23 @@ annotation class Helper
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Ignore
+
+/**
+ * Specifies default arguments for the test execution of the @[Solution] or standalone @[Verify] problem method
+ * to which it is applied.
+ *
+ * This is turned into a [TestRunnerArgs], with negative values treated as unspecified settings.
+ * Any settings specified by this annotation are overriden by conflicting settings from [TestRunnerArgs] instances
+ * specified in code.
+ */
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class DefaultTestRunArguments(
+    val numTests: Int = -1,
+    val maxDiscards: Int = -1,
+    val maxOnlyEdgeCaseTests: Int = -1,
+    val maxOnlySimpleCaseTests: Int = -1,
+    val numSimpleEdgeMixedTests: Int = -1,
+    val numAllGeneratedTests: Int = -1,
+    val maxComplexity: Int = -1
+)

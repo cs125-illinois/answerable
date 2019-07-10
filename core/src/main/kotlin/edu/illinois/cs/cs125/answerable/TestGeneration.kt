@@ -10,10 +10,6 @@ import kotlin.math.min
 import java.lang.Character.UnicodeBlock.*
 import java.lang.IllegalStateException
 import java.lang.reflect.*
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 import java.lang.reflect.Array as ReflectArray
 
 /**
@@ -35,7 +31,7 @@ import java.lang.reflect.Array as ReflectArray
 class TestGenerator(
     val referenceClass: Class<*>,
     val solutionName: String = "",
-    private val testRunnerArgs: TestRunnerArgs = defaultArgs,
+    testRunnerArgs: TestRunnerArgs = defaultArgs,
     private val bytecodeProvider: BytecodeProvider? = null,
     private val commonClassloader: ClassLoader? = null
 ) {
@@ -61,6 +57,7 @@ class TestGenerator(
     internal val usablePrecondition: Method? = usableReferenceClass.getPrecondition(solutionName)
     private val customVerifier: Method? = referenceClass.getCustomVerifier(solutionName)
     internal val usableCustomVerifier: Method? = usableReferenceClass.getCustomVerifier(solutionName)
+    internal val mergedArgs: TestRunnerArgs
 
     init {
         if (referenceMethod == null) {
@@ -71,6 +68,14 @@ class TestGenerator(
                         "to make verifier `${MethodData(customVerifier)}' standalone?")
             }
         }
+        val solutionArgsAnnotation = usableReferenceMethod?.getAnnotation(DefaultTestRunArguments::class.java)
+        val verifyArgsAnnotation = usableCustomVerifier?.getAnnotation(DefaultTestRunArguments::class.java)
+        if (solutionArgsAnnotation != null && verifyArgsAnnotation != null) {
+            throw AnswerableMisuseException("The @Solution and @Verify methods cannot both specify a @DefaultTestRunArguments.\n" +
+                "While loading question `$solutionName'.")
+        }
+        val argsAnnotation = solutionArgsAnnotation ?: verifyArgsAnnotation
+        mergedArgs = testRunnerArgs.applyOver(argsAnnotation?.asTestRunnerArgs() ?: defaultArgs)
     }
     internal val atNextMethod: Method? = usableReferenceClass.getAtNext(enabledNames)
     internal val defaultConstructor: Constructor<*>? = usableReferenceClass.constructors.firstOrNull { it.parameterCount == 0 }
@@ -152,7 +157,7 @@ class TestGenerator(
 
         val dryRunOutput = PassedClassDesignRunner(this,
                 mkOpenMirrorClass(referenceClass, typePool, "dryrunopenref_"),
-                listOf(), testRunnerArgs, typePool.getLoader(),
+                listOf(), mergedArgs, typePool.getLoader(),
                 timeoutOverride = 10000).runTestsUnsecured(0x0403)
 
         if (dryRunOutput.timedOut) throw AnswerableVerificationException("Testing reference against itself timed out (10s).")
@@ -191,7 +196,7 @@ class TestGenerator(
         val cdaPassed = cda.all { ao -> ao.result is Matched }
 
         return if (cdaPassed) {
-            PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs.applyOver(this.testRunnerArgs), bytecodeProvider)
+            PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs.applyOver(this.mergedArgs), bytecodeProvider)
         } else {
             FailedClassDesignTestRunner(referenceClass, solutionName, submissionClass, cda)
         }
@@ -1077,6 +1082,7 @@ internal fun verifyStaticSignatures(referenceClass: Class<*>) {
     verifyPreconditions(allMethods)
     verifyCaseMethods(allMethods)
     verifyCaseFields(referenceClass, referenceClass.declaredFields)
+    verifyRunArgs(allMethods)
 }
 
 private val generatorPTypes = arrayOf(Int::class.java, java.util.Random::class.java)
@@ -1234,6 +1240,21 @@ private fun verifyCaseFields(clazz: Class<*>, fields: Array<Field>) {
                 $caseString cases for the reference class must be represented by a function.
                 While verifying $caseString field `$field'.
             """.trimIndent())
+        }
+    }
+}
+
+private fun verifyRunArgs(methods: Array<Method>) {
+    methods.filter { it.isAnnotationPresent(DefaultTestRunArguments::class.java) }.forEach {
+        val message = """
+                @DefaultTestRunArguments can only be applied to a @Solution or standalone @Verify method.
+                While verifying method `${MethodData(it)}'.
+            """.trimIndent()
+        if (it.isAnnotationPresent(Verify::class.java)) {
+            val verifyAnnotation = it.getAnnotation(Verify::class.java)
+            if (!verifyAnnotation.standalone) throw AnswerableMisuseException(message)
+        } else if (!it.isAnnotationPresent(Solution::class.java)) {
+            throw AnswerableMisuseException(message)
         }
     }
 }

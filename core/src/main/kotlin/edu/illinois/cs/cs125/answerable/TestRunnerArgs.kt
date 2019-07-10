@@ -2,6 +2,7 @@
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.api.Generator
+import edu.illinois.cs.cs125.answerable.api.DefaultTestRunArguments
 
 /**
  * A class that holds configuration for [TestRunner]s.
@@ -45,6 +46,18 @@ data class TestRunnerArgs(
             maxComplexity = maxComplexity ?: 100
         )
     }
+}
+
+fun DefaultTestRunArguments.asTestRunnerArgs(): TestRunnerArgs {
+    return TestRunnerArgs(
+        numTests = if (this.numTests < 0) null else this.numTests,
+        maxDiscards = if (this.maxDiscards < 0) null else this.maxDiscards,
+        maxOnlyEdgeCaseTests = if (this.maxOnlyEdgeCaseTests < 0) null else this.maxOnlyEdgeCaseTests,
+        maxOnlySimpleCaseTests = if (this.maxOnlySimpleCaseTests < 0) null else this.maxOnlySimpleCaseTests,
+        numSimpleEdgeMixedTests = if (this.numSimpleEdgeMixedTests < 0) null else this.numSimpleEdgeMixedTests,
+        numAllGeneratedTests = if (this.numAllGeneratedTests < 0) null else this.numAllGeneratedTests,
+        maxComplexity = if (this.maxComplexity < 0) null else this.maxComplexity
+    )
 }
 
 /**
