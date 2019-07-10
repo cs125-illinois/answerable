@@ -90,20 +90,20 @@ internal class TestGeneratorTest {
 
     @Test
     fun testStaticTakesInstanceError() {
-        val errMsg = assertThrows<AnswerableMisuseException> { TestGenerator(examples.testgeneration.generators.reference.StaticTakesInstance::class.java)
-                .loadSubmission(examples.testgeneration.generators.StaticTakesInstance::class.java)
-                .runTestsUnsecured(Random.nextLong()) }.message
+        val errMsg = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
+                examples.testgeneration.generators.reference.StaticTakesInstance::class.java,
+                examples.testgeneration.generators.StaticTakesInstance::class.java) }.message
 
         assertEquals("\nA generator for type `examples.testgeneration.generators.reference.StaticTakesInstance' was requested, but no generator for that type was found.", errMsg)
     }
 
     @Test
-    fun testDefaultCtorNeededAsArgument() {
-        val out = TestGenerator(examples.testgeneration.generators.reference.DefaultCtorClassAsParam::class.java, "")
-                .loadSubmission(examples.testgeneration.generators.DefaultCtorClassAsParam::class.java)
-                .runTestsUnsecured(Random.nextLong())
+    fun testDefaultCtorNeededAsArgumentError() {
+        val errMsg = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
+                examples.testgeneration.generators.reference.DefaultCtorClassAsParam::class.java,
+                examples.testgeneration.generators.DefaultCtorClassAsParam::class.java) }.message
 
-        out.assertAllSucceeded()
+        assertEquals("\nA generator for type `examples.testgeneration.generators.reference.DefaultCtorClassAsParam' was requested, but no generator for that type was found.", errMsg)
     }
 
     @Test

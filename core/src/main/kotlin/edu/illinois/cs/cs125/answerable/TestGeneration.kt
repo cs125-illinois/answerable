@@ -104,13 +104,7 @@ class TestGenerator(
     }
 
     internal fun buildGeneratorMap(random: Random, submittedClassGenerator: Method? = null): Map<Pair<Type, String?>, GenWrapper<*>> {
-        val types = params.toSet().let {
-            if (!isStatic && atNextMethod == null) {
-                it + Pair(usableReferenceClass, null)
-            } else it
-        }
-
-        val generatorMapBuilder = GeneratorMapBuilder(types, random, typePool, if (isStatic) null else usableReferenceClass)
+        val generatorMapBuilder = GeneratorMapBuilder(params.toSet(), random, typePool, if (isStatic) null else usableReferenceClass)
 
         val enabledGens: List<Pair<Pair<Type, String?>, CustomGen>> = usableReferenceClass.getEnabledGenerators(enabledNames).map {
             return@map if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
@@ -491,7 +485,7 @@ class TestRunWorker internal constructor(
                 }
             }
             if (choice == 2) {
-                case[i] = gens[param]?.generate(complexity)
+                case[i] = (gens[param] ?: error("Missing generator for ${param.first.sourceName}")).generate(complexity)
             }
         }
 
@@ -852,10 +846,17 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
     }
 
     fun build(): Map<Pair<Type, String?>, GenWrapper<*>> {
-        return mapOf(*requiredGenerators
-                .filter { it.first != receiverType || knownGenerators[it]?.value != null }
+        val discovered = mutableMapOf(*requiredGenerators
                 .map { it to (GenWrapper(knownGenerators[it]?.value ?: throw lazyGenError(it.first), random)) }
                 .toTypedArray())
+        if (receiverType != null) {
+            // Add a receiver generator if possible - don't fail here if not found because there might be a default constructor
+            val receiverTarget = Pair(receiverType, null)
+            if (!discovered.containsKey(receiverTarget)) knownGenerators[receiverType]?.value?.let {
+                discovered[receiverTarget] = GenWrapper(it, random)
+            }
+        }
+        return discovered
     }
 
     companion object {
