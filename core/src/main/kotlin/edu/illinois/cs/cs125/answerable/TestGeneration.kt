@@ -258,9 +258,7 @@ class PassedClassDesignRunner internal constructor(
         val testingBlockCounts = TestingBlockCounts()
         val startTime = System.currentTimeMillis()
         val timedOut = !environment.sandbox.run(if (timeLimit == 0L) null else timeLimit, Runnable {
-            synchronized(testSteps) {
-                worker.runTests(seed, testRunnerArgs.applyOver(this.testRunnerArgs), testSteps, testingBlockCounts)
-            }
+            worker.runTests(seed, testRunnerArgs.applyOver(this.testRunnerArgs), testSteps, testingBlockCounts)
         })
         val endTime = System.currentTimeMillis()
 
@@ -727,7 +725,9 @@ class TestRunWorker internal constructor(
                 result = DiscardedTestStep(i, refReceiver, refMethodArgs)
                 testingBlockCounts.discardedTests++
             }
-            testStepList.add(result)
+            synchronized(testStepList) {
+                testStepList.add(result)
+            }
 
             if (testingBlockCounts.discardedTests >= resolvedArgs.maxDiscards!!) break
             i++
