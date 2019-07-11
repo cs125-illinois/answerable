@@ -160,10 +160,19 @@ internal class TestGeneratorTest {
 
     @Test
     fun testMutatedStaticField() {
-        val generator = TestGenerator(examples.testgeneration.mutatestaticfield.reference.Counter::class.java, "")
+        val generator = TestGenerator(examples.testgeneration.mutatestaticfield.reference.Counter::class.java)
         val firstOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.Counter::class.java).runTestsUnsecured(0x0403)
         firstOut.assertAllSucceeded(showOutput = false)
         val secondOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.another.Counter::class.java).runTestsUnsecured(403)
+        secondOut.assertAllSucceeded(showOutput = false)
+    }
+
+    @Test
+    fun testMutatedStaticFieldWithTimeout() {
+        val generator = TestGenerator(examples.testgeneration.mutatestaticfield.reference.Counter::class.java)
+        val firstOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.timesout.Counter::class.java).runTestsUnsecured(0x0403)
+        assertTrue(firstOut.timedOut)
+        val secondOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.Counter::class.java).runTestsUnsecured(403)
         secondOut.assertAllSucceeded(showOutput = false)
     }
 

@@ -254,6 +254,12 @@ class PassedClassDesignRunner internal constructor(
         val worker = TestRunWorker(testGenerator, sandboxedSubMirror, environment, loader)
         val timeLimit = timeoutOverride ?: testGenerator.timeout
 
+        // Store reference class static field values so that the next run against this solution doesn't break
+        val refStaticFieldValues = testGenerator.usableReferenceClass.declaredFields.filter { Modifier.isStatic(it.modifiers) }.map {
+            it.isAccessible = true
+            it to it.get(null)
+        }
+
         val testSteps = mutableListOf<TestStep>()
         val testingBlockCounts = TestingBlockCounts()
         val startTime = System.currentTimeMillis()
@@ -261,6 +267,9 @@ class PassedClassDesignRunner internal constructor(
             worker.runTests(seed, testRunnerArgs.applyOver(this.testRunnerArgs), testSteps, testingBlockCounts)
         })
         val endTime = System.currentTimeMillis()
+
+        // Restore reference class static field values
+        refStaticFieldValues.forEach { (field, value) -> field.set(null, value) }
 
         return TestRunOutput(
                 seed = seed,
@@ -617,12 +626,6 @@ class TestRunWorker internal constructor(
 
         setOf(randomForReference, randomForSubmission, testRunnerRandom).forEach { it.setSeed(seed) }
 
-        // Store reference class static field values so that the next run against this solution doesn't break
-        val refStaticFieldValues = usableReferenceClass.declaredFields.filter { Modifier.isStatic(it.modifiers) }.map {
-            it.isAccessible = true
-            it to it.get(null)
-        }
-
         var refReceiver: Any? = null
         var subReceiver: Any? = null
 
@@ -732,9 +735,6 @@ class TestRunWorker internal constructor(
             if (testingBlockCounts.discardedTests >= resolvedArgs.maxDiscards!!) break
             i++
         }
-
-        // Restore reference class static field values
-        refStaticFieldValues.forEach { (field, value) -> field.set(null, value) }
     }
 
 }
