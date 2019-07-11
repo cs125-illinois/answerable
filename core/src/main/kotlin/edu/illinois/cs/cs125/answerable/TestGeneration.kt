@@ -25,15 +25,13 @@ import java.lang.reflect.Array as ReflectArray
  *
  * @constructor Creates a [TestGenerator] for the [referenceClass] @[Solution] method named [solutionName],
  * which creates [TestRunner]s which default to using [testRunnerArgs]. If [referenceClass] was loaded dynamically,
- * a [BytecodeProvider] must be specified that can determine its bytecode. If the reference or solution class
- * refers to a class that was loaded dynamically, the [commonClassloader] for that class must be provided.
+ * a [BytecodeProvider] must be specified that can determine its bytecode.
  */
 class TestGenerator(
     val referenceClass: Class<*>,
     val solutionName: String = "",
     testRunnerArgs: TestRunnerArgs = defaultArgs,
-    private val bytecodeProvider: BytecodeProvider? = null,
-    private val commonClassloader: ClassLoader? = null
+    private val bytecodeProvider: BytecodeProvider? = null
 ) {
     /**
      * A secondary constructor which uses Answerable's [defaultArgs] and no custom bytecode provider.
@@ -46,7 +44,8 @@ class TestGenerator(
     // "Usable" members are from the opened (un-final-ified) mirror of the original reference class.
     // The original members are used for certain checks so a nice class name can be displayed.
 
-    internal val typePool = TypePool(bytecodeProvider, commonClassloader ?: javaClass.classLoader)
+    internal val typePool = TypePool(bytecodeProvider,
+            if (referenceClass.classLoader == javaClass.classLoader) javaClass.classLoader else referenceClass.classLoader?.parent ?: javaClass.classLoader)
     internal val usableReferenceClass = mkOpenMirrorClass(referenceClass, typePool, "openref_")
     internal val usableReferenceMethod = usableReferenceClass.getReferenceSolutionMethod(solutionName)
 

@@ -32,12 +32,11 @@ class Answerable(private val environment: TestEnvironment) {
         referenceClass: Class<*>,
         solutionName: String = "",
         testRunnerArgs: TestRunnerArgs = defaultArgs,
-        bytecodeProvider: BytecodeProvider? = null,
-        commonLoader: ClassLoader? = null
+        bytecodeProvider: BytecodeProvider? = null
     ) {
         val testgen: TestGenerator
         try {
-            testgen = TestGenerator(referenceClass, solutionName, testRunnerArgs, bytecodeProvider, commonLoader)
+            testgen = TestGenerator(referenceClass, solutionName, testRunnerArgs, bytecodeProvider)
         } catch (ame: AnswerableMisuseException) {
             throw AnswerableMisuseException("${ame.message?.trim()}\nWhile trying to load new question: $questionName.")
                 .initCause(ame)
@@ -55,9 +54,8 @@ class Answerable(private val environment: TestEnvironment) {
         questionName: String,
         referenceClass: Class<*>,
         testRunnerArgs: TestRunnerArgs,
-        bytecodeProvider: BytecodeProvider? = null,
-        commonLoader: ClassLoader? = null
-    ) = loadNewQuestion(questionName, referenceClass, "", testRunnerArgs, bytecodeProvider, commonLoader)
+        bytecodeProvider: BytecodeProvider? = null
+    ) = loadNewQuestion(questionName, referenceClass, "", testRunnerArgs, bytecodeProvider)
 
     /**
      * Make a submission to a question. Returns a [TestRunner] which can run tests on demand.

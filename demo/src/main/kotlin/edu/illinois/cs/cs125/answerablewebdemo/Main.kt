@@ -52,6 +52,16 @@ data class AnswerableDemoPost(
 )
 
 private fun main() {
+    val commonSource = Source(mapOf(
+            "Common" to """
+public class Common {
+    public static int identity(int number) {
+        return number;
+    }
+}
+            """.trim()
+    ))
+
     val referenceSource = Source(mapOf(
         "Reference" to """
 import edu.illinois.cs.cs125.answerable.api.*;
@@ -59,7 +69,7 @@ import edu.illinois.cs.cs125.answerable.api.*;
 public class Test {
     @Solution
     public static int sum(int a, int b) {
-        return a + b;
+        return a + Common.identity(b);
     }
 }
         """.trim()
@@ -68,20 +78,26 @@ public class Test {
         "Submission" to """
 public class Test {
     public static int sum(int first, int second) {
-        return first - second;
+        return Common.identity(first) - second;
     }
 }
         """.trim()
     ))
 
+    val common = try {
+        commonSource.compile()
+    } catch (e: CompilationFailed) {
+        e.errors.forEach { println("${it.location}: ${it.message}\n") }
+        throw e
+    }
     val refCL = try {
-        referenceSource.compile()
+        referenceSource.compile(CompilationArguments(parentClassLoader = common.classLoader, parentFileManager = common.fileManager))
     } catch (e: CompilationFailed) {
         e.errors.forEach { println("${it.location}: ${it.message}\n") }
         throw e
     }.classLoader
     val subCL = try {
-        submissionSource.compile()
+        submissionSource.compile(CompilationArguments(parentClassLoader = common.classLoader, parentFileManager = common.fileManager))
     } catch (e: CompilationFailed) {
         e.errors.forEach { println("${it.location}: ${it.message}\n") }
         throw e
