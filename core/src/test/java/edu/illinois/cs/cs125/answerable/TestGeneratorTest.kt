@@ -223,10 +223,26 @@ internal class TestGeneratorTest {
 
     @Test
     fun testAnnotationRunnerArgs() {
-        val out = TestGenerator(examples.testgeneration.argsannotated.Adder::class.java, testRunnerArgs = TestRunnerArgs(numTests = 64))
+        val out = TestGenerator(examples.testgeneration.argsannotated.reference.Adder::class.java, testRunnerArgs = TestRunnerArgs(numTests = 64))
                 .loadSubmission(examples.adder.correct.Adder::class.java).runTestsUnsecured(0x0403)
         assertEquals(64, out.numTests)
         assertEquals(1, out.numSimpleCaseTests)
+    }
+
+    @Test
+    fun testArgsAnnotationOnStandaloneVerify() {
+        val out = TestGenerator(examples.testgeneration.argsannotated.reference.ArgsOnStandaloneVerify::class.java)
+                .loadSubmission(examples.testgeneration.argsannotated.ArgsOnStandaloneVerify::class.java).runTestsUnsecured(0x0403)
+        assertEquals(96, out.numTests)
+    }
+
+    @Test
+    fun testArgsAnnotationOnVerifyError() {
+        val errMsg = assertThrows<AnswerableMisuseException> {
+            TestGenerator(examples.testgeneration.argsannotated.reference.ArgsOnInvalidVerify::class.java)
+        }.message
+        assertEquals("\n@DefaultTestRunArguments can only be applied to a @Solution or standalone @Verify method.\n" +
+                "While verifying method `public static void verify(TestOutput<Void>, TestOutput<Void>)'.", errMsg)
     }
 
 }
