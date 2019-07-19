@@ -305,6 +305,7 @@ class TestRunWorker internal constructor(
     private val usableReferenceClass = testGenerator.usableReferenceClass
     private val usableReferenceMethod = testGenerator.usableReferenceMethod
     private val usableCustomVerifier = testGenerator.usableCustomVerifier
+    private val passRandomToVerify = usableCustomVerifier?.parameters?.size == 3
 
     private val submissionTypePool = TypePool(bytecodeProvider, usableSubmissionClass.classLoader)
     private val adapterTypePool = TypePool(testGenerator.typePool, submissionTypePool)
@@ -576,7 +577,11 @@ class TestRunWorker internal constructor(
                         usableReferenceClass.getField(it.name).set(subProxy, it.get(subReceiver))
                     }
                 }
-                usableCustomVerifier.invoke(null, refBehavior, subBehavior)
+                if (passRandomToVerify) {
+                    usableCustomVerifier.invoke(null, refBehavior, subBehavior, testRunnerRandom)
+                } else {
+                    usableCustomVerifier.invoke(null, refBehavior, subBehavior)
+                }
             }
         } catch (ite: InvocationTargetException) {
             assertErr = ite.cause
@@ -1125,7 +1130,8 @@ private fun verifyNexts(clazz: Class<*>, methods: Array<Method>) {
     }
 }
 
-private val verifyPTypes = arrayOf(TestOutput::class.java, TestOutput::class.java)
+private val verifyPTypes1 = arrayOf(TestOutput::class.java, TestOutput::class.java)
+private val verifyPTypes2 = arrayOf(TestOutput::class.java, TestOutput::class.java, Random::class.java)
 private fun verifyVerifiers(methods: Array<Method>) {
     val verifiers = methods.filter { it.isAnnotationPresent(Verify::class.java) }
 
@@ -1137,9 +1143,9 @@ private fun verifyVerifiers(methods: Array<Method>) {
             """.trimIndent())
         }
 
-        if (!(method.parameterTypes contentEquals verifyPTypes)) {
+        if (!((method.parameterTypes contentEquals verifyPTypes1) || (method.parameterTypes contentEquals verifyPTypes2))) {
             throw AnswerableMisuseException("""
-                @Verify methods must take parameter types [TestOutput, TestOutput].
+                @Verify methods must take parameter types [TestOutput, TestOutput] and optionally a java.util.Random.
                 While verifying @Verify method `${MethodData(method)}'.
             """.trimIndent())
         }

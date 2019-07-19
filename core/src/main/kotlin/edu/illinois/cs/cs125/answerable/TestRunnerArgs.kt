@@ -7,6 +7,7 @@ import edu.illinois.cs.cs125.answerable.api.DefaultTestRunArguments
 /**
  * A class that holds configuration for [TestRunner]s.
  */
+// If you modify this class, be sure to update the DefaultTestRunArguments annotation to match!
 data class TestRunnerArgs(
     /** The total number of tests to execute. Defaults to 1024. */
     val numTests: Int? = null,

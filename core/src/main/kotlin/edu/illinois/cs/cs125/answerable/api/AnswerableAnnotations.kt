@@ -188,12 +188,19 @@ annotation class Precondition(
  * The method must be static and take 2 parameters;
  * (1) a [TestOutput] instance representing the result of calling the reference method, and
  * (2) a [TestOutput] instance representing the result of calling the submitted method.
+ *
+ * Additionally, the method can optionally take a third parameter, a [java.util.Random] instance.
+ *
  * The visibility, name, and return type do not matter. The method will be ignored in class design analysis, even if it is public.
  * If the method has the wrong signature, an [AnswerableMisuseException] will be thrown.
  * The [TestOutput] type should be parameterized with the type of the reference class, but this is optional.
  *
  * The [TestOutput.receiver] field in the [TestOutput] of the submitted method contains an instance of the submitted class
- * which can be used as though it were an instance of the reference class. Due to this behavior, <b>only</b> the <tt>public</tt>
+ * which can be used as though it were an instance of the reference class. However, you <em>cannot access
+ * public static members of this instance.</em> Doing so will access the member of the reference class. Work around
+ * by using a public <em>instance</em> getter method.
+ *
+ * Due to this behavior, <b>only</b> the <tt>public</tt>
  * members of the reference class should be accessed from this instance, specifically those which the class design
  * analysis pass will see. Answerable <i>does not</i> currently attempt to verify the safety of @[Verify] methods.
  *

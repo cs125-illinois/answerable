@@ -3,6 +3,11 @@ import java.net.URI
 
 plugins {
     kotlin("jvm")
+    application
+}
+
+application {
+    mainClassName = "edu.illinois.cs.cs125.answerable.MainKt"
 }
 
 version = "SNAPSHOT"

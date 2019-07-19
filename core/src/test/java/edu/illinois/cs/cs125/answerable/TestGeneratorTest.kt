@@ -254,4 +254,13 @@ internal class TestGeneratorTest {
                 "While verifying method `public static void verify(TestOutput<Void>, TestOutput<Void>)'.", errMsg)
     }
 
+    @Test
+    fun testVerifyWithRandom() {
+        val out = TestGenerator(examples.testgeneration.reference.VerifyWithRandom::class.java)
+            .loadSubmission(examples.testgeneration.VerifyWithRandom::class.java)
+            .runTestsUnsecured(Random.nextLong())
+
+        out.assertAllSucceeded()
+    }
+
 }
