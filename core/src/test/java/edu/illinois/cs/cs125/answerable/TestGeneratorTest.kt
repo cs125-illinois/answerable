@@ -251,7 +251,7 @@ internal class TestGeneratorTest {
             TestGenerator(examples.testgeneration.argsannotated.reference.ArgsOnInvalidVerify::class.java)
         }.message
         assertEquals("\n@DefaultTestRunArguments can only be applied to a @Solution or standalone @Verify method.\n" +
-                "While verifying method `public static void verify(TestOutput<Void>, TestOutput<Void>)'.", errMsg)
+                "While validating method `public static void verify(TestOutput<Void>, TestOutput<Void>)'.", errMsg)
     }
 
     @Test

@@ -31,14 +31,14 @@ class TestGenerator(
     val referenceClass: Class<*>,
     val solutionName: String = "",
     testRunnerArgs: TestRunnerArgs = defaultArgs,
-    private val bytecodeProvider: BytecodeProvider? = null
+    bytecodeProvider: BytecodeProvider? = null
 ) {
     /**
      * A secondary constructor which uses Answerable's [defaultArgs] and no custom bytecode provider.
      */
     constructor(referenceClass: Class<*>, solutionName: String) : this(referenceClass, solutionName, defaultArgs)
     init {
-        verifyStaticSignatures(referenceClass)
+        validateStaticSignatures(referenceClass)
     }
 
     // "Usable" members are from the opened (un-final-ified) mirror of the original reference class.
@@ -1074,193 +1074,6 @@ internal class DefaultListGen<T>(private val tGen: Gen<T>) : Gen<List<T>> {
                 listOf(tGen(random.nextInt(complexity + 1), random)) + genList(complexity, length - 1)
             }
         return genList(complexity, random.nextInt(complexity + 1))
-    }
-}
-
-internal fun verifyStaticSignatures(referenceClass: Class<*>) {
-    val allMethods = referenceClass.declaredMethods
-
-    verifyGenerators(allMethods)
-    verifyNexts(referenceClass, allMethods)
-    verifyVerifiers(allMethods)
-    verifyPreconditions(allMethods)
-    verifyCaseMethods(allMethods)
-    verifyCaseFields(referenceClass, referenceClass.declaredFields)
-    verifyRunArgs(allMethods)
-}
-
-private val generatorPTypes = arrayOf(Int::class.java, java.util.Random::class.java)
-private fun verifyGenerators(methods: Array<Method>) {
-    val generators = methods.filter { it.isAnnotationPresent(Generator::class.java) }
-
-    generators.forEach { method ->
-        if (!Modifier.isStatic(method.modifiers)) {
-            throw AnswerableMisuseException("""
-                @Generator methods must be static.
-                While verifying generator method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-
-        if (!(method.parameterTypes contentEquals generatorPTypes)) {
-            throw AnswerableMisuseException("""
-                @Generator methods must take parameter types [int, Random].
-                While verifying @Generator method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-    }
-}
-
-private fun verifyNexts(clazz: Class<*>, methods: Array<Method>) {
-    val nexts = methods.filter { it.isAnnotationPresent(Next::class.java) }
-
-    nexts.forEach { method ->
-        if (!Modifier.isStatic(method.modifiers)) {
-            throw AnswerableMisuseException("""
-                @Next methods must be static.
-                While verifying @Next method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-
-        if (!(method.parameterTypes contentEquals arrayOf(clazz, Int::class.java, java.util.Random::class.java))) {
-            throw AnswerableMisuseException("""
-                @Next method must take parameter types [${clazz.sourceName}, int, Random].
-                While verifying @Next method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-    }
-}
-
-private val verifyPTypes1 = arrayOf(TestOutput::class.java, TestOutput::class.java)
-private val verifyPTypes2 = arrayOf(TestOutput::class.java, TestOutput::class.java, Random::class.java)
-private fun verifyVerifiers(methods: Array<Method>) {
-    val verifiers = methods.filter { it.isAnnotationPresent(Verify::class.java) }
-
-    verifiers.forEach { method ->
-        if (!Modifier.isStatic(method.modifiers)) {
-            throw AnswerableMisuseException("""
-                @Verify methods must be static.
-                While verifying @Verify method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-
-        if (!((method.parameterTypes contentEquals verifyPTypes1) || (method.parameterTypes contentEquals verifyPTypes2))) {
-            throw AnswerableMisuseException("""
-                @Verify methods must take parameter types [TestOutput, TestOutput] and optionally a java.util.Random.
-                While verifying @Verify method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-
-        if (method.returnType != Void.TYPE) {
-            throw AnswerableMisuseException("""
-                @Verify methods should be void. Throw an exception if verification fails.
-                While verifying @Verify method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-    }
-}
-
-private fun verifyPreconditions(methods: Array<Method>) {
-    val preconditions = methods.filter { it.isAnnotationPresent(Precondition::class.java) }
-
-    preconditions.forEach { method ->
-        if (method.returnType != Boolean::class.java) {
-            throw AnswerableMisuseException("""
-                @Precondition methods must return a boolean.
-                While verifying @Precondition method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-
-        val solution = methods.find {
-            it.getAnnotation(Solution::class.java)?.name?.equals(method.getAnnotation(Precondition::class.java)?.name)
-                ?: false } ?: return@forEach // nothing to compare to
-
-        if (Modifier.isStatic(solution.modifiers) && !Modifier.isStatic(method.modifiers)) {
-            throw AnswerableMisuseException("""
-                @Precondition methods must be static if the corresponding @Solution is static.
-                While verifying @Precondition method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-
-        if (!solution.genericParameterTypes!!.contentEquals(method.genericParameterTypes)) {
-            throw AnswerableMisuseException("""
-                @Precondition methods must have the same parameter types as the corresponding @Solution.
-                While verifying @Precondition method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-    }
-}
-
-private val caseAnnotations = setOf(EdgeCase::class.java, SimpleCase::class.java)
-private fun verifyCaseMethods(methods: Array<Method>) {
-    val cases = methods.filter { method -> caseAnnotations.any { method.isAnnotationPresent(it) } }
-
-    cases.forEach { method ->
-        val caseString = if (method.isAnnotationPresent(EdgeCase::class.java)) "@EdgeCase" else "@SimpleCase"
-
-        if (!Modifier.isStatic(method.modifiers)) {
-            throw AnswerableMisuseException("""
-                $caseString methods must be static.
-                While verifying $caseString method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-
-        if (method.parameterTypes.isNotEmpty()) {
-            throw AnswerableMisuseException("""
-                $caseString methods must not take any parameters.
-                While verifying $caseString method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-
-        if (!method.returnType.isArray) {
-            throw AnswerableMisuseException("""
-                $caseString methods must return an array.
-                While verifying $caseString method `${MethodData(method)}'.
-            """.trimIndent())
-        }
-    }
-}
-
-private fun verifyCaseFields(clazz: Class<*>, fields: Array<Field>) {
-    val cases = fields.filter { field -> caseAnnotations.any { field.isAnnotationPresent(it) } }
-
-    cases.forEach { field ->
-        val caseString = if (field.isAnnotationPresent(EdgeCase::class.java)) "@EdgeCase" else "@SimpleCase"
-
-        if (!Modifier.isStatic(field.modifiers)) {
-            throw AnswerableMisuseException("""
-                $caseString fields must be static.
-                While verifying $caseString field `$field'.
-            """.trimIndent())
-        }
-
-        if (!field.type.isArray) {
-            throw AnswerableMisuseException("""
-                $caseString fields must store an array.
-                While verifying $caseString field `$field'.
-            """.trimIndent())
-        }
-
-        if (field.type == clazz) {
-            throw AnswerableMisuseException("""
-                $caseString cases for the reference class must be represented by a function.
-                While verifying $caseString field `$field'.
-            """.trimIndent())
-        }
-    }
-}
-
-private fun verifyRunArgs(methods: Array<Method>) {
-    methods.filter { it.isAnnotationPresent(DefaultTestRunArguments::class.java) }.forEach {
-        val message = """
-                @DefaultTestRunArguments can only be applied to a @Solution or standalone @Verify method.
-                While verifying method `${MethodData(it)}'.
-            """.trimIndent()
-        if (it.isAnnotationPresent(Verify::class.java)) {
-            val verifyAnnotation = it.getAnnotation(Verify::class.java)
-            if (!verifyAnnotation.standalone) throw AnswerableMisuseException(message)
-        } else if (!it.isAnnotationPresent(Solution::class.java)) {
-            throw AnswerableMisuseException(message)
-        }
     }
 }
 
