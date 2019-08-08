@@ -25,22 +25,31 @@ infix fun <E, T, R> ValidationResult<E, T>.then(f: (T) -> ValidationResult<E, R>
     is Fatal -> Fatal(this.errors)
 }
 
-fun <E, T> succeed(v: T): ValidationResult<E, T> = Ok(v)
-fun <E, T> complain(e: E, v: T): ValidationResult<E, T> = Nonfatal(listOf(e), v)
-fun <E, T> explode(e: E): ValidationResult<E, T> = Fatal(listOf(e))
-fun <E, T> fromErrors(es: List<E>, value: T): ValidationResult<E, T> =
-    if (es.isEmpty()) Ok(value) else Nonfatal(es, value)
+infix fun <E, T, R> ValidationResult<E, T>.combineResult(other: ValidationResult<E, R>) = this then { other }
+
+fun <E, T> succeed(v: T): Ok<E, T> = Ok(v)
+fun <E, T> complain(e: E, v: T): Nonfatal<E, T> = Nonfatal(listOf(e), v)
+fun <E, T> explode(e: E): Fatal<E, T> = Fatal(listOf(e))
+fun <E, T> fromErrors(es: List<E>, value: T): ValidationResult<E, T> = if (es.isEmpty()) Ok(value) else Nonfatal(es, value)
+fun <E> fromErrors(es: List<E>): ValidationResult<E, Unit> = fromErrors(es, Unit)
+
+@Suppress("UNCHECKED_CAST")
+fun <E, T> tolerate(result: ValidationResult<E, T>): ValidationResult<E, T?> = when (result) {
+    is Ok -> result as Nonfatal<E, T?>
+    is Nonfatal -> result as Nonfatal<E, T?>
+    is Fatal -> Nonfatal(result.errors, null)
+}
 
 internal fun validateStaticSignatures(referenceClass: Class<*>) {
     val allMethods = referenceClass.declaredMethods
 
-    val result =  validateGenerators(allMethods) then
-            { validateNexts(referenceClass, allMethods) } then
-            { validateVerifiers(allMethods) } then
-            { validatePreconditions(allMethods) } then
-            { validateCaseMethods(allMethods) } then
-            { validateCaseFields(referenceClass, referenceClass.declaredFields) } then
-            { validateRunArgs(allMethods) }
+    val result =  validateGenerators(allMethods) combineResult
+            validateNexts(referenceClass, allMethods) combineResult
+            validateVerifiers(allMethods) combineResult
+            validatePreconditions(allMethods) combineResult
+            validateCaseMethods(allMethods) combineResult
+            validateCaseFields(referenceClass, referenceClass.declaredFields) combineResult
+            validateRunArgs(allMethods)
 
     when (result) {
         is Ok -> return
