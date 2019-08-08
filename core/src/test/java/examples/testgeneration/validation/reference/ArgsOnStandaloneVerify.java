@@ -1,4 +1,4 @@
-package examples.testgeneration.argsannotated.reference;
+package examples.testgeneration.validation.reference;
 
 import edu.illinois.cs.cs125.answerable.api.DefaultTestRunArguments;
 import edu.illinois.cs.cs125.answerable.api.TestOutput;
