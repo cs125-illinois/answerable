@@ -43,7 +43,7 @@ fun jeedSandbox(loaderConfig: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLo
         }
         override fun run(timeout: Long?, callback: Runnable): Boolean {
             val timeoutConfig = Sandbox.ExecutionArguments(timeout ?: Long.MAX_VALUE,
-                    executeConfig.permissions, executeConfig.maxExtraThreads, loaderConfig)
+                    executeConfig.permissions, executeConfig.maxExtraThreads, classLoaderConfiguration = loaderConfig)
             val result = runBlocking {
                 Sandbox.execute(sandboxedLoader, timeoutConfig) { callback.run() }
             }

@@ -53,7 +53,7 @@ data class AnswerableDemoPost(
 
 private fun main() {
     val commonSource = Source(mapOf(
-            "Common" to """
+            "Common.java" to """
 public class Common {
     public static int identity(int number) {
         return number;
@@ -63,7 +63,7 @@ public class Common {
     ))
 
     val referenceSource = Source(mapOf(
-        "Reference" to """
+        "Reference.java" to """
 import edu.illinois.cs.cs125.answerable.api.*;
 
 public class Test {
@@ -75,7 +75,7 @@ public class Test {
         """.trim()
     ))
     val submissionSource = Source(mapOf(
-        "Submission" to """
+        "Submission.java" to """
 public class Test {
     public static int sum(int first, int second) {
         return Common.identity(first) - second;
