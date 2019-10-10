@@ -110,6 +110,6 @@ public class Test {
             .toJson()
     )
 
-    // FIXME: Jeed removed this method
+    // FIXME: Jeed removed this method, so the process won't exit automatically
     // Sandbox.shutdownThreadPool()
 }
