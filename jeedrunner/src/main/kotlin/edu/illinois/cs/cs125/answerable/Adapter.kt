@@ -42,6 +42,7 @@ fun jeedSandbox(loaderConfig: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLo
                     // FIXME: Jeed doesn't have a stable API for getting bytecode for a class
                     // Remove this hack when possible
                     val knownClassesField = sandboxedLoader.javaClass.getDeclaredField("knownClasses")
+                    knownClassesField.isAccessible = true
                     val knownClasses = knownClassesField.get(sandboxedLoader) as Map<*, *>
                     return knownClasses[clazz.name] as ByteArray
                 }
