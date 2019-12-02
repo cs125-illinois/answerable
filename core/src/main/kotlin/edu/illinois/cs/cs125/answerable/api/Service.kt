@@ -24,7 +24,6 @@ class Answerable(private val environment: TestEnvironment) {
      * @param solutionName the name of the @[Solution] or standalone @[Verify] method to use in this question.
      * @param testRunnerArgs the default arguments to [TestRunner]s produced by this question.
      * @param bytecodeProvider bytecode provider for reference solution class(es).
-     * @param commonLoader the loader of dynamically loaded classes used by both the reference and submission.
      */
     @JvmOverloads
     fun loadNewQuestion(

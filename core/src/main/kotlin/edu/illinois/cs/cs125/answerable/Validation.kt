@@ -15,6 +15,7 @@ class Ok<E, T>(override val value: T) : ValidationResult<E, T>()
 class Nonfatal<E, T>(override val errors: List<E>, override val value: T) : ValidationResult<E, T>()
 class Fatal<E, T>(override val errors: List<E>) : ValidationResult<E, T>()
 
+@Suppress("UNCHECKED_CAST")
 infix fun <E, T, R> ValidationResult<E, T>.then(f: (T) -> ValidationResult<E, R>): ValidationResult<E, R> = when (this) {
     is Ok -> f(this.value)
     is Nonfatal -> f(this.value).let { other -> when (other) {
@@ -22,7 +23,7 @@ infix fun <E, T, R> ValidationResult<E, T>.then(f: (T) -> ValidationResult<E, R>
         is Nonfatal -> Nonfatal(this.errors + other.errors, other.value)
         is Fatal -> Fatal<E, R>(this.errors + other.errors)
     } }
-    is Fatal -> Fatal(this.errors)
+    is Fatal -> this as Fatal<E, R>
 }
 
 infix fun <E, T, R> ValidationResult<E, T>.combineResult(other: ValidationResult<E, R>) = this then { other }
@@ -35,7 +36,7 @@ fun <E> fromErrors(es: List<E>): ValidationResult<E, Unit> = fromErrors(es, Unit
 
 @Suppress("UNCHECKED_CAST")
 fun <E, T> tolerate(result: ValidationResult<E, T>): ValidationResult<E, T?> = when (result) {
-    is Ok -> result as Nonfatal<E, T?>
+    is Ok -> result as Ok<E, T?>
     is Nonfatal -> result as Nonfatal<E, T?>
     is Fatal -> Nonfatal(result.errors, null)
 }

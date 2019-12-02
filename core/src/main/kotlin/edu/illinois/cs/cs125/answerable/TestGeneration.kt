@@ -46,8 +46,8 @@ class TestGenerator(
 
     internal val typePool = TypePool(bytecodeProvider,
             if (referenceClass.classLoader == javaClass.classLoader) javaClass.classLoader else referenceClass.classLoader?.parent ?: javaClass.classLoader)
-    internal val usableReferenceClass = mkOpenMirrorClass(referenceClass, typePool, "openref_")
-    internal val usableReferenceMethod = usableReferenceClass.getReferenceSolutionMethod(solutionName)
+    internal val usableReferenceClass: Class<*> = mkOpenMirrorClass(referenceClass, typePool, "openref_")
+    internal val usableReferenceMethod: Method? = usableReferenceClass.getReferenceSolutionMethod(solutionName)
 
     private val referenceMethod: Method? = referenceClass.getReferenceSolutionMethod(solutionName)
     internal val enabledNames: Array<String> =
