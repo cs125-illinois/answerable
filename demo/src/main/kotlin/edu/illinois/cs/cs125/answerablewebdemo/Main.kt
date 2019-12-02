@@ -85,19 +85,19 @@ public class Test {
     ))
 
     val common = try {
-        commonSource.compile()
+        commonSource.compile(CompilationArguments(previewLevel = null))
     } catch (e: CompilationFailed) {
         e.errors.forEach { println("${it.location}: ${it.message}\n") }
         throw e
     }
     val refCL = try {
-        referenceSource.compile(CompilationArguments(parentClassLoader = common.classLoader, parentFileManager = common.fileManager))
+        referenceSource.compile(CompilationArguments(parentClassLoader = common.classLoader, parentFileManager = common.fileManager, previewLevel = null))
     } catch (e: CompilationFailed) {
         e.errors.forEach { println("${it.location}: ${it.message}\n") }
         throw e
     }.classLoader
     val subCL = try {
-        submissionSource.compile(CompilationArguments(parentClassLoader = common.classLoader, parentFileManager = common.fileManager))
+        submissionSource.compile(CompilationArguments(parentClassLoader = common.classLoader, parentFileManager = common.fileManager, previewLevel = null))
     } catch (e: CompilationFailed) {
         e.errors.forEach { println("${it.location}: ${it.message}\n") }
         throw e
@@ -110,5 +110,6 @@ public class Test {
             .toJson()
     )
 
-    Sandbox.shutdownThreadPool()
+    // FIXME: Jeed removed this method, so the process won't exit automatically
+    // Sandbox.shutdownThreadPool()
 }
