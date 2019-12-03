@@ -167,7 +167,7 @@ annotation class SimpleCase(
  * Preconditions should have a [name] corresponding to an @[Solution], otherwise they won't be used.
  *
  * A precondition method must take the same arguments as the @[Solution] annotation to which it corresponds.
- * @[Precondition] method must be static if the corresponding @[Solution] is static. Precondition methods should return a boolean,
+ * @[Precondition] methods must be static if the corresponding @[Solution] is static. Precondition methods should return a boolean,
  * true if the precondition is satisfied and false otherwise. Answerable will inspect @[Precondition] method signatures
  * and throw an [AnswerableMisuseException] if any are incorrect.
  *
@@ -252,7 +252,7 @@ annotation class Ignore
  * to which it is applied.
  *
  * This is turned into a [TestRunnerArgs], with negative values treated as unspecified settings.
- * Any settings specified by this annotation are overriden by conflicting settings from [TestRunnerArgs] instances
+ * Any settings specified by this annotation are overridden by conflicting settings from [TestRunnerArgs] instances
  * specified in code.
  */
 @Target(AnnotationTarget.FUNCTION)
