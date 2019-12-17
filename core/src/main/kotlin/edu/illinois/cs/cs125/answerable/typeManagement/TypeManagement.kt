@@ -22,8 +22,11 @@ private val objenesis = ObjenesisStd()
 
 private open class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLoader(parentLoader ?: getSystemClassLoader()), EnumerableBytecodeLoader {
     private val bytecodeLoaded = mutableMapOf<Class<*>, ByteArray>()
+    private val definedClasses = mutableMapOf<String, Class<*>>()
     fun loadBytes(name: String, bytes: ByteArray): Class<*> {
-        return defineClass(name, bytes, 0, bytes.size).also { bytecodeLoaded[it] = bytes }
+        return definedClasses.getOrPut(name, {
+            defineClass(name, bytes, 0, bytes.size).also { bytecodeLoaded[it] = bytes }
+        })
     }
     override fun getBytecode(clazz: Class<*>): ByteArray {
         return bytecodeLoaded[clazz] ?: throw ClassNotFoundException("This BytesClassLoader is not responsible for $clazz")
