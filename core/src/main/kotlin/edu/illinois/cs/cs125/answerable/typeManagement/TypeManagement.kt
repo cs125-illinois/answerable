@@ -246,11 +246,11 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
         val newMethod = MethodGen(it, classGen.className, constantPoolGen)
         newMethod.argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
         newMethod.returnType = fixType(it.returnType)
-        newMethod.instructionList.map { handle -> handle.instruction }.filterIsInstance(CPInstruction::class.java).forEach { instr ->
+        newMethod.instructionList.map { handle -> handle.instruction }.filterIsInstance<CPInstruction>().forEach { instr ->
             classIndexReplacement(instr.index)?.let { newIdx -> instr.index = newIdx }
         }
 
-        newMethod.codeAttributes.filterIsInstance(StackMap::class.java).firstOrNull()?.let { stackMap ->
+        newMethod.codeAttributes.filterIsInstance<StackMap>().firstOrNull()?.let { stackMap ->
             stackMap.stackMap.forEach { stackEntry ->
                 stackEntry.typesOfLocals.plus(stackEntry.typesOfStackItems).filter { local -> local.type == Const.ITEM_Object }.forEach { local ->
                     classIndexReplacement(local.index)?.let { newIdx -> local.index = newIdx }
@@ -263,15 +263,31 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
 
         classGen.addMethod(newMethod.method)
     }
+    classGen.fields.forEach {
+        classGen.removeField(it)
 
-    classGen.attributes.filterIsInstance(InnerClasses::class.java).firstOrNull()?.innerClasses?.forEach { innerClass ->
+        val newField = FieldGen(it, constantPoolGen)
+        newField.type = fixType(it.type)
+
+        classGen.addField(newField.field)
+    }
+
+    classGen.attributes.filterIsInstance<InnerClasses>().firstOrNull()?.innerClasses?.forEach { innerClass ->
         val outerName = (constantPool.getConstant(innerClass.outerClassIndex) as? ConstantClass)?.getBytes(constantPool)
         if (outerName == baseClass.slashName()) {
             innerClass.outerClassIndex = mirrorClassIdx
         }
     }
 
-    // classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
+    // Mirror Java 11 nesting attributes
+    classGen.attributes.filterIsInstance<NestHost>().firstOrNull()?.let { nestHost ->
+        nestHost.hostClassIndex = refMirrorClassIdx
+    }
+    classGen.attributes.filterIsInstance<NestMembers>().firstOrNull()?.let { nestMembers ->
+        nestMembers.classes = nestMembers.classNames.map { constantPoolGen.addClass(fixOuterClassName(it)) }.toIntArray()
+    }
+
+    //classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
     return pool.loadBytes(mirrorName, classGen.javaClass, baseClass)
 }
 
@@ -303,7 +319,7 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
 
     // Recursively mirror inner classes
     val newBase = newName.split('$', limit = 2)[0]
-    classGen.attributes.filterIsInstance(InnerClasses::class.java).firstOrNull()?.innerClasses?.forEach { innerClass ->
+    classGen.attributes.filterIsInstance<InnerClasses>().firstOrNull()?.innerClasses?.forEach { innerClass ->
         val innerName = (constantPool.getConstant(innerClass.innerClassIndex) as? ConstantClass)?.getBytes(constantPool) ?: return@forEach
         if (innerName.startsWith(baseClass.slashName() + "$")) {
             if (Modifier.isFinal(innerClass.innerAccessFlags)) innerClass.innerAccessFlags -= Modifier.FINAL
@@ -337,13 +353,13 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
             constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(fixSignature(signature)))
         }
     }
-    classGen.methods.map { it.signatureIndex }.forEach { sigIdx ->
+    classGen.methods.map { it.signatureIndex }.union(classGen.fields.map { it.signatureIndex }).forEach { sigIdx ->
         val signature = (constantPool.getConstant(sigIdx) as ConstantUtf8).bytes
         constantPoolGen.setConstant(sigIdx, ConstantUtf8(fixSignature(signature)))
     }
 
     // Create and load the modified class
-    // classGen.javaClass.dump("Opened${alreadyDone.indexOf(newName)}.class") // Uncomment for debugging
+    //classGen.javaClass.dump("Opened${alreadyDone.indexOf(newName)}.class") // Uncomment for debugging
     return pool.loadBytes(newName, classGen.javaClass, clazz)
 }
 
@@ -379,7 +395,7 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
     }
 
     val constantPool = toCheck.constantPool
-    val innerClassIndexes = toCheck.attributes.filterIsInstance(InnerClasses::class.java).firstOrNull()?.innerClasses?.filter { innerClass ->
+    val innerClassIndexes = toCheck.attributes.filterIsInstance<InnerClasses>().firstOrNull()?.innerClasses?.filter { innerClass ->
         (constantPool.getConstant(innerClass.innerClassIndex) as ConstantClass).getBytes(constantPool).startsWith("${toCheck.className.replace('.', '/')}$")
     }?.map { it.innerClassIndex } ?: listOf()
 
@@ -390,7 +406,7 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
         if (methodsChecked.contains(method)) return
         methodsChecked.add(method)
 
-        InstructionList(method.code.code).map { it.instruction }.filterIsInstance(CPInstruction::class.java).forEach eachInstr@{ instr ->
+        InstructionList(method.code.code).map { it.instruction }.filterIsInstance<CPInstruction>().forEach eachInstr@{ instr ->
             if (instr is FieldOrMethod) {
                 if (instr is INVOKEDYNAMIC) return@eachInstr
                 val refConstant = constantPool.getConstant(instr.index) as? ConstantCP ?: return@eachInstr
