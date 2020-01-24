@@ -1,8 +1,8 @@
 !gradle-wrapper.jar
 /.gradle
-/out/
-/build/
-/test-output/
+out/
+build/
+test-output/
 *.class
 *.swp
 *.swo
@@ -10,3 +10,4 @@
 !.idea/runConfigurations
 *.iml
 .env
+.kotlintest
