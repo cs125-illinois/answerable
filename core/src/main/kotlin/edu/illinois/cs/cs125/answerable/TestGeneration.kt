@@ -784,6 +784,9 @@ operator fun <T> MutableMap<Pair<Type, String?>, T>.set(type: Type, newVal: T) {
     this[Pair(type, null)] = newVal
 }
 
+// NOTE: [Generator Keys]
+// goalTypes holds types that we need generators for. @UseGenerator annotations allow specifying a specific generator.
+// The string in the Pair is non-null iff a specific generator is requested.
 private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, private val random: Random, private val pool: TypePool, private val receiverType: Class<*>?) {
     private var knownGenerators: MutableMap<Pair<Type, String?>, Lazy<Gen<*>>> = mutableMapOf()
     init {
@@ -833,6 +836,9 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
     }
 
     fun build(): Map<Pair<Type, String?>, GenWrapper<*>> {
+        // TODO: Select a variant-compatible generator if an exact match isn't found
+        // e.g. Kotlin Function1<? super Whatever, SomethingElse> (required) is compatible with Function1<Whatever, SomethingElse> (known)
+        // We should think more about when exactly this is safe
         val discovered = mutableMapOf(*requiredGenerators
                 .map { it to (GenWrapper(knownGenerators[it]?.value ?: throw lazyGenError(it.first), random)) }
                 .toTypedArray())

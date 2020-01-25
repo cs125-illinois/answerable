@@ -6,8 +6,10 @@ import org.junit.jupiter.api.Test
 class KotlinTest {
 
     private fun assertClassDesignPasses(solution: Class<*>, submission: Class<*>) {
-        val analyzer = ClassDesignAnalysis("", solution, submission)
-        Assertions.assertTrue(analyzer.runSuite().all { it.result is Matched })
+        val result = ClassDesignAnalysis("", solution, submission).runSuite()
+        result.map { it.result }.filterIsInstance<Mismatched<*>>().forEach {
+            Assertions.fail(it.toString())
+        }
     }
 
     private fun assertClassDesignFails(solution: Class<*>, submission: Class<*>) {
@@ -33,6 +35,12 @@ class KotlinTest {
                 examples.ktclassdesign.ctormissingval.DefaultConstructorWidget::class.java)
     }
 
+    @Test
+    fun testStringFilterClassDesign() {
+        assertClassDesignPasses(examples.ktfilter.reference.StringFilterer::class.java,
+                examples.ktfilter.StringFilterer::class.java)
+    }
+
     private fun assertAllSucceeded(results: TestRunOutput) {
         results.testSteps.forEach {
             if (it is ExecutedTestStep) {
@@ -49,6 +57,11 @@ class KotlinTest {
     @Test
     fun testAverage() {
         assertClassesPass(examples.ktaverage.reference.Average::class.java, examples.ktaverage.Average::class.java)
+    }
+
+    @Test
+    fun testStringFilter() {
+        assertClassesPass(examples.ktfilter.reference.StringFilterer::class.java, examples.ktfilter.StringFilterer::class.java)
     }
 
 }
