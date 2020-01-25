@@ -5,10 +5,32 @@ import org.junit.jupiter.api.Test
 
 class KotlinTest {
 
+    private fun assertClassDesignPasses(solution: Class<*>, submission: Class<*>) {
+        val analyzer = ClassDesignAnalysis("", solution, submission)
+        Assertions.assertTrue(analyzer.runSuite().all { it.result is Matched })
+    }
+
+    private fun assertClassDesignFails(solution: Class<*>, submission: Class<*>) {
+        val results = ClassDesignAnalysis("", solution, submission).runSuite()
+        Assertions.assertFalse(results.all { it.result is Matched })
+        results.filter { it.result is Mismatched }.forEach { println(it.toErrorMsg()) }
+    }
+
     @Test
     fun testAverageClassDesign() {
-        val analyzer = ClassDesignAnalysis("", examples.ktaverage.reference.Average::class.java, examples.ktaverage.Average::class.java)
-        Assertions.assertTrue(analyzer.runSuite().all { it.result is Matched })
+        assertClassDesignPasses(examples.ktaverage.reference.Average::class.java, examples.ktaverage.Average::class.java)
+    }
+
+    @Test
+    fun testDefaultCtorClassDesign() {
+        assertClassDesignPasses(examples.ktclassdesign.correctctor.reference.DefaultConstructorWidget::class.java,
+                examples.ktclassdesign.correctctor.DefaultConstructorWidget::class.java)
+    }
+
+    @Test
+    fun testDefaultCtorMissingVal() {
+        assertClassDesignFails(examples.ktclassdesign.correctctor.reference.DefaultConstructorWidget::class.java,
+                examples.ktclassdesign.ctormissingval.DefaultConstructorWidget::class.java)
     }
 
     private fun assertAllSucceeded(results: TestRunOutput) {
