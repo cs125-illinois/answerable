@@ -110,6 +110,7 @@ class ClassDesignAnalysis(private val solutionName: String, private val referenc
         val refFields =
             reference.getPublicFields()
                 .filter { field -> referenceAnnotations.none { field.isAnnotationPresent(it) } }
+                .filter { !it.type.kotlin.isCompanion }
                 .map(::mkFieldString)
                 .sorted()
         val attFields =

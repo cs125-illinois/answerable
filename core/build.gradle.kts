@@ -26,6 +26,7 @@ dependencies {
     implementation("org.objenesis:objenesis:3.0.1")
     implementation("com.google.code.gson:gson:2.8.5")
     testImplementation("org.junit.jupiter:junit-jupiter:5.4.2")
+    implementation(kotlin("reflect"))
 }
 
 tasks.compileKotlin {
