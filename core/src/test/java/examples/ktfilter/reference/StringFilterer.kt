@@ -21,13 +21,14 @@ class StringFilterer(private val strings: List<CharSequence>) {
         @Generator
         @JvmStatic
         fun makeSieve(complexity: Int, random: Random): (CharSequence) -> Boolean {
-            return { true }
+            val lengthCutoff = random.nextInt(complexity + 1)
+            return { it.length < lengthCutoff }
         }
 
         @Generator
         @JvmStatic
         fun makeFilterer(complexity: Int, random: Random): StringFilterer {
-            return StringFilterer((0..complexity).map { defaultStringGenerator(complexity, random) }.toList())
+            return StringFilterer((0..(complexity / 16)).map { defaultStringGenerator(complexity, random) }.toList())
         }
 
     }

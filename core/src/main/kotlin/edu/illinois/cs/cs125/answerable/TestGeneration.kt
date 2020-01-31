@@ -254,7 +254,8 @@ class PassedClassDesignRunner internal constructor(
         val timeLimit = timeoutOverride ?: testGenerator.timeout
 
         // Store reference class static field values so that the next run against this solution doesn't break
-        val refStaticFieldValues = testGenerator.usableReferenceClass.declaredFields.filter { Modifier.isStatic(it.modifiers) }.map {
+        val refStaticFieldValues = testGenerator.usableReferenceClass.declaredFields
+                .filter { Modifier.isStatic(it.modifiers) && !Modifier.isFinal(it.modifiers) }.map {
             it.isAccessible = true
             it to it.get(null)
         }

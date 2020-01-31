@@ -197,7 +197,8 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
                     } ?: false) && !memberName.contains('$')
                 } else if (constant is ConstantFieldref) {
                     val helperAnnotations = setOf(Helper::class.java, EdgeCase::class.java, SimpleCase::class.java)
-                    shouldReplace = !(referenceClass.declaredFields
+                    val helperNames = setOf("Companion")
+                    shouldReplace = memberName !in helperNames && !(referenceClass.declaredFields
                         .firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.let { field ->
                             helperAnnotations.any { annotation -> field.isAnnotationPresent(annotation) }
                         } ?: false)
@@ -288,7 +289,7 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
     }
 
     //classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
-    return pool.loadBytes(mirrorName, classGen.javaClass, baseClass)
+    return pool.loadBytes(mirrorName, classGen.javaClass, baseClass).also { mirrorsMade[mirrorName] = it }
 }
 
 /**
