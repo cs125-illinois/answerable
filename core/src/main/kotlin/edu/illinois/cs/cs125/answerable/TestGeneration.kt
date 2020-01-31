@@ -835,12 +835,35 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
         }
     }
 
+    private fun generatorCompatible(requested: Type, known: Type): Boolean {
+        // TODO: There are probably more cases we'd like to handle, but we should be careful to not be too liberal in matching
+        if (requested == known) return true
+        return when (requested) {
+            is ParameterizedType -> when (known) {
+                is ParameterizedType -> requested.rawType == known.rawType
+                        && requested.actualTypeArguments.indices.all { generatorCompatible(requested.actualTypeArguments[it], known.actualTypeArguments[it]) }
+                else -> false
+            }
+            is WildcardType -> when (known) {
+                is Class<*> -> requested.lowerBounds.elementAtOrNull(0) == known
+                is ParameterizedType -> requested.lowerBounds.isNotEmpty() && generatorCompatible(requested.lowerBounds[0], known)
+                else -> false
+            }
+            else -> false
+        }
+    }
+
     fun build(): Map<Pair<Type, String?>, GenWrapper<*>> {
-        // TODO: Select a variant-compatible generator if an exact match isn't found
-        // e.g. Kotlin Function1<? super Whatever, SomethingElse> (required) is compatible with Function1<Whatever, SomethingElse> (known)
-        // We should think more about when exactly this is safe
+        fun selectGenerator(goal: Pair<Type, String?>): Gen<*>? {
+            // Selects a variant-compatible generator if an exact match isn't found
+            // e.g. Kotlin Function1<? super Whatever, SomethingElse> (required) is compatible with Function1<Whatever, SomethingElse> (known)
+            knownGenerators[goal]?.value?.let { return it }
+            return knownGenerators.filter { (known, _) ->
+                known.second == goal.second && generatorCompatible(goal.first, known.first)
+            }.toList().firstOrNull()?.second?.value
+        }
         val discovered = mutableMapOf(*requiredGenerators
-                .map { it to (GenWrapper(knownGenerators[it]?.value ?: throw lazyGenError(it.first), random)) }
+                .map { it to (GenWrapper(selectGenerator(it) ?: throw lazyGenError(it.first), random)) }
                 .toTypedArray())
         if (receiverType != null) {
             // Add a receiver generator if possible - don't fail here if not found because there might be a default constructor
