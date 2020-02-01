@@ -63,6 +63,7 @@ class ClassDesignAnalysis(private val solutionName: String, private val referenc
         }
     )
 
+    // Order is significant since it's part of the class API
     fun typeParamsMatch() = AnalysisOutput(AnalysisTag.TYPE_PARAMS, run {
         val refTypes = reference.typeParameters.map { it.name }
         val attTypes = attempt.typeParameters.map { it.name }
@@ -73,6 +74,7 @@ class ClassDesignAnalysis(private val solutionName: String, private val referenc
         }
     })
 
+    // Order is not significant here
     fun superClassesMatch() = AnalysisOutput(
         AnalysisTag.SUPERCLASSES,
         if (reference.genericSuperclass == attempt.genericSuperclass
@@ -107,10 +109,10 @@ class ClassDesignAnalysis(private val solutionName: String, private val referenc
             return sb.toString()
         }
 
+        // order is irrelevant; we only care about the API
         val refFields =
             reference.getPublicFields()
                 .filter { field -> referenceAnnotations.none { field.isAnnotationPresent(it) } }
-                .filter { !it.type.kotlin.isCompanion }
                 .map(::mkFieldString)
                 .sorted()
         val attFields =
@@ -195,10 +197,10 @@ class MethodData(
 
             printModifiersIfNonzero(sb, modifierMask, isDefault)
 
-            val typeparms = typeParams
-            if (typeparms.isNotEmpty()) {
+            val typeparams = typeParams
+            if (typeparams.isNotEmpty()) {
                 sb.append(
-                    typeparms.joinToString(
+                    typeparams.joinToString(
                         prefix = "<",
                         separator = ", ",
                         postfix = "> ",
@@ -243,9 +245,7 @@ class MethodData(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as MethodData
+        if (other !is MethodData) return false
 
         if (signature != other.signature) return false
 
@@ -264,7 +264,7 @@ private fun printModifiersIfNonzero(sb: StringBuilder, mask: Int, isDefault: Boo
         sb.append(Modifier.toString(mod)).append(' ')
     } else {
         val accessModifiers = Modifier.PUBLIC or Modifier.PROTECTED or Modifier.PRIVATE
-        val accessMod = mod and (accessModifiers)
+        val accessMod = mod and (accessModifiers) // infix bitwise &
         if (accessMod != 0)
             sb.append(Modifier.toString(accessMod)).append(' ')
         if (isDefault)
@@ -275,6 +275,6 @@ private fun printModifiersIfNonzero(sb: StringBuilder, mask: Int, isDefault: Boo
     }
 }
 
+// Unqualified names
 fun Field.simpleName(): String = this.name.split(".").last()
-
 fun Type.simpleName(): String = this.typeName.split(".").last()
