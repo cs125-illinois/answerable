@@ -254,7 +254,8 @@ class PassedClassDesignRunner internal constructor(
         val timeLimit = timeoutOverride ?: testGenerator.timeout
 
         // Store reference class static field values so that the next run against this solution doesn't break
-        val refStaticFieldValues = testGenerator.usableReferenceClass.declaredFields.filter { Modifier.isStatic(it.modifiers) }.map {
+        val refStaticFieldValues = testGenerator.usableReferenceClass.declaredFields
+                .filter { Modifier.isStatic(it.modifiers) && !Modifier.isFinal(it.modifiers) }.map {
             it.isAccessible = true
             it to it.get(null)
         }
@@ -784,6 +785,9 @@ operator fun <T> MutableMap<Pair<Type, String?>, T>.set(type: Type, newVal: T) {
     this[Pair(type, null)] = newVal
 }
 
+// NOTE: [Generator Keys]
+// goalTypes holds types that we need generators for. @UseGenerator annotations allow specifying a specific generator.
+// The string in the Pair is non-null iff a specific generator is requested.
 private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, private val random: Random, private val pool: TypePool, private val receiverType: Class<*>?) {
     private var knownGenerators: MutableMap<Pair<Type, String?>, Lazy<Gen<*>>> = mutableMapOf()
     init {
@@ -832,9 +836,35 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
         }
     }
 
+    private fun generatorCompatible(requested: Type, known: Type): Boolean {
+        // TODO: There are probably more cases we'd like to handle, but we should be careful to not be too liberal in matching
+        if (requested == known) return true
+        return when (requested) {
+            is ParameterizedType -> when (known) {
+                is ParameterizedType -> requested.rawType == known.rawType
+                        && requested.actualTypeArguments.indices.all { generatorCompatible(requested.actualTypeArguments[it], known.actualTypeArguments[it]) }
+                else -> false
+            }
+            is WildcardType -> when (known) {
+                is Class<*> -> requested.lowerBounds.elementAtOrNull(0) == known
+                is ParameterizedType -> requested.lowerBounds.isNotEmpty() && generatorCompatible(requested.lowerBounds[0], known)
+                else -> false
+            }
+            else -> false
+        }
+    }
+
     fun build(): Map<Pair<Type, String?>, GenWrapper<*>> {
+        fun selectGenerator(goal: Pair<Type, String?>): Gen<*>? {
+            // Selects a variant-compatible generator if an exact match isn't found
+            // e.g. Kotlin Function1<? super Whatever, SomethingElse> (required) is compatible with Function1<Whatever, SomethingElse> (known)
+            knownGenerators[goal]?.value?.let { return it }
+            return knownGenerators.filter { (known, _) ->
+                known.second == goal.second && generatorCompatible(goal.first, known.first)
+            }.toList().firstOrNull()?.second?.value
+        }
         val discovered = mutableMapOf(*requiredGenerators
-                .map { it to (GenWrapper(knownGenerators[it]?.value ?: throw lazyGenError(it.first), random)) }
+                .map { it to (GenWrapper(selectGenerator(it) ?: throw lazyGenError(it.first), random)) }
                 .toTypedArray())
         if (receiverType != null) {
             // Add a receiver generator if possible - don't fail here if not found because there might be a default constructor

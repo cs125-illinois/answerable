@@ -56,8 +56,8 @@ internal fun Type.correspondsTo(other: Type, mapFrom: Class<*>, mapTo: Class<*>)
         is WildcardType -> other is WildcardType
                 && this.lowerBounds.size == other.lowerBounds.size
                 && this.upperBounds.size == other.upperBounds.size
-                && (0 until this.lowerBounds.size).all { this.lowerBounds[it].correspondsTo(other.lowerBounds[it], mapFrom, mapTo) }
-                && (0 until this.upperBounds.size).all { this.upperBounds[it].correspondsTo(other.upperBounds[it], mapFrom, mapTo) }
+                && this.lowerBounds.indices.all { this.lowerBounds[it].correspondsTo(other.lowerBounds[it], mapFrom, mapTo) }
+                && this.upperBounds.indices.all { this.upperBounds[it].correspondsTo(other.upperBounds[it], mapFrom, mapTo) }
         else -> false
     }
 }
