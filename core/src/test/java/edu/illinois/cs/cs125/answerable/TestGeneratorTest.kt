@@ -37,6 +37,12 @@ internal class TestGeneratorTest {
     }
 
     @Test
+    fun testWildcardTypeSpecialization() {
+        val tg = TestGenerator(examples.testgeneration.generators.reference.WildcardTypes::class.java)
+        tg.loadSubmission(examples.testgeneration.generators.WildcardTypes::class.java).runTestsUnsecured(0x0403)
+    }
+
+    @Test
     fun testDefaultConstructor() {
         val out = TestGenerator(examples.testgeneration.generators.defaults.reference.DefaultCtor::class.java)
                 .loadSubmission(examples.testgeneration.generators.defaults.DefaultCtor::class.java).runTestsUnsecured(0x0403)
