@@ -842,12 +842,19 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
         return when (requested) {
             is ParameterizedType -> when (known) {
                 is ParameterizedType -> requested.rawType == known.rawType
-                        && requested.actualTypeArguments.indices.all { generatorCompatible(requested.actualTypeArguments[it], known.actualTypeArguments[it]) }
+                        && requested.actualTypeArguments.indices
+                            .all { generatorCompatible(requested.actualTypeArguments[it], known.actualTypeArguments[it]) }
                 else -> false
             }
             is WildcardType -> when (known) {
                 is Class<*> -> requested.lowerBounds.elementAtOrNull(0) == known
-                is ParameterizedType -> requested.lowerBounds.isNotEmpty() && generatorCompatible(requested.lowerBounds[0], known)
+                is ParameterizedType -> {
+                    val hasLower = requested.lowerBounds.size == 1
+                    val matchesLower = hasLower && generatorCompatible(requested.lowerBounds[0], known)
+                    val hasUpper = requested.upperBounds.size == 1
+                    val matchesUpper = hasUpper && generatorCompatible(requested.upperBounds[0], known)
+                    (!hasLower || matchesLower) && (!hasUpper || matchesUpper) && (hasLower || hasUpper)
+                }
                 else -> false
             }
             else -> false
