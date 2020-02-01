@@ -848,6 +848,7 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
             }
             is WildcardType -> when (known) {
                 is Class<*> -> requested.lowerBounds.elementAtOrNull(0) == known
+                        || requested.upperBounds.elementAtOrNull(0) == known
                 is ParameterizedType -> {
                     val hasLower = requested.lowerBounds.size == 1
                     val matchesLower = hasLower && generatorCompatible(requested.lowerBounds[0], known)

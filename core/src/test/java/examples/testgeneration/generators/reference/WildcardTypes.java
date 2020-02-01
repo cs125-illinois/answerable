@@ -15,11 +15,18 @@ public class WildcardTypes {
     }
 
     @Generator
-    public static Object mkObject(int comp, Random r) { return new Object(); }
+    public static Object mkObject(int comp, Random r) {
+        return new Object() {
+            @Override
+            public String toString() {
+                return "" + r.nextInt();
+            }
+        };
+    }
 
     @Generator
     public static List<Object> mkList(int comp, Random r) {
-        int length = r.nextInt(comp);
+        int length = r.nextInt(comp + 1);
         return IntStream.range(0, length).mapToObj(unused -> mkObject(comp, r)).collect(Collectors.toList());
     }
 }
