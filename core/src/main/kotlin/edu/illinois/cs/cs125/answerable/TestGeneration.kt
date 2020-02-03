@@ -50,7 +50,7 @@ class TestGenerator(
     internal val usableReferenceClass: Class<*> = mkOpenMirrorClass(referenceClass, typePool, "openref_")
     internal val usableControlClass: Class<*> =
             if (controlClass == referenceClass) usableReferenceClass
-            else mkGeneratorMirrorClass(controlClass, referenceClass, usableReferenceClass, typePool, "controlmirror_")
+            else mkOpenMirrorClass(controlClass, listOf(Pair(referenceClass.name, usableReferenceClass.name)), typePool, "controlmirror_")
     internal val usableReferenceMethod: Method? = usableReferenceClass.getReferenceSolutionMethod(solutionName)
 
     private val referenceMethod: Method? = referenceClass.getReferenceSolutionMethod(solutionName)
@@ -326,7 +326,7 @@ class TestRunWorker internal constructor(
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
-    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableControlClass, usableControlClass, usableSubmissionClass, adapterTypePool, "genmirror_")
+    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableControlClass, usableSubmissionClass, adapterTypePool, "genmirror_")
 
     private val referenceAtNext = testGenerator.atNextMethod
     private val submissionAtNext = mirrorToStudentClass.getAtNext(testGenerator.enabledNames)
