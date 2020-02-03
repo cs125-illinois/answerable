@@ -55,8 +55,8 @@ internal class ProxyingTest {
 
     @Test
     fun testMultipleMirrors() {
-        val first = mkGeneratorMirrorClass(InnerClassGeneratorWidget::class.java, GeneratedWidget::class.java)
-        val second = mkGeneratorMirrorClass(InnerClassGeneratorWidget::class.java, GeneratedWidget::class.java)
+        val first = mkGeneratorMirrorClass(InnerClassGeneratorWidget::class.java, InnerClassGeneratorWidget::class.java, GeneratedWidget::class.java)
+        val second = mkGeneratorMirrorClass(InnerClassGeneratorWidget::class.java, InnerClassGeneratorWidget::class.java, GeneratedWidget::class.java)
         Assertions.assertNotEquals(first, second)
     }
 

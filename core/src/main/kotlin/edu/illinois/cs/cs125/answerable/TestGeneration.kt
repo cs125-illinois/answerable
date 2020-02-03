@@ -46,16 +46,20 @@ class TestGenerator(
 
     internal val typePool = TypePool(bytecodeProvider,
             if (referenceClass.classLoader == javaClass.classLoader) javaClass.classLoader else referenceClass.classLoader?.parent ?: javaClass.classLoader)
+    private val controlClass: Class<*> = getDefiningKotlinFileClass(referenceClass, typePool) ?: referenceClass
     internal val usableReferenceClass: Class<*> = mkOpenMirrorClass(referenceClass, typePool, "openref_")
+    internal val usableControlClass: Class<*> =
+            if (controlClass == referenceClass) usableReferenceClass
+            else mkGeneratorMirrorClass(controlClass, referenceClass, usableReferenceClass, typePool, "controlmirror_")
     internal val usableReferenceMethod: Method? = usableReferenceClass.getReferenceSolutionMethod(solutionName)
 
     private val referenceMethod: Method? = referenceClass.getReferenceSolutionMethod(solutionName)
     internal val enabledNames: Array<String> =
         referenceMethod?.getAnnotation(Solution::class.java)?.enabled ?: arrayOf()
 
-    internal val usablePrecondition: Method? = usableReferenceClass.getPrecondition(solutionName)
-    private val customVerifier: Method? = referenceClass.getCustomVerifier(solutionName)
-    internal val usableCustomVerifier: Method? = usableReferenceClass.getCustomVerifier(solutionName)
+    internal val usablePrecondition: Method? = usableControlClass.getPrecondition(solutionName)
+    private val customVerifier: Method? = controlClass.getCustomVerifier(solutionName)
+    internal val usableCustomVerifier: Method? = usableControlClass.getCustomVerifier(solutionName)
     internal val mergedArgs: TestRunnerArgs
 
     init {
@@ -76,7 +80,7 @@ class TestGenerator(
         val argsAnnotation = solutionArgsAnnotation ?: verifyArgsAnnotation
         mergedArgs = testRunnerArgs.applyOver(argsAnnotation?.asTestRunnerArgs() ?: defaultArgs)
     }
-    internal val atNextMethod: Method? = usableReferenceClass.getAtNext(enabledNames)
+    internal val atNextMethod: Method? = usableControlClass.getAtNext(enabledNames)
     internal val defaultConstructor: Constructor<*>? = usableReferenceClass.constructors.firstOrNull { it.parameterCount == 0 }
 
     internal val isStatic = referenceMethod?.let { Modifier.isStatic(it.modifiers) } ?: false
@@ -87,9 +91,9 @@ class TestGenerator(
     internal val random: Random = Random(0)
     internal val generators: Map<Pair<Type, String?>, GenWrapper<*>> = buildGeneratorMap(random)
     internal val edgeCases: Map<Type, ArrayWrapper?> =
-        getEdgeCases(usableReferenceClass, paramsWithReceiver.map { it.first }.toTypedArray())
+        getEdgeCases(usableControlClass, paramsWithReceiver.map { it.first }.toTypedArray())
     internal val simpleCases: Map<Type, ArrayWrapper?> =
-        getSimpleCases(usableReferenceClass, paramsWithReceiver.map { it.first }.toTypedArray())
+        getSimpleCases(usableControlClass, paramsWithReceiver.map { it.first }.toTypedArray())
 
     internal val timeout = referenceMethod?.getAnnotation(Timeout::class.java)?.timeout
         ?: (customVerifier?.getAnnotation(Timeout::class.java)?.timeout ?: 0)
@@ -110,7 +114,7 @@ class TestGenerator(
     internal fun buildGeneratorMap(random: Random, submittedClassGenerator: Method? = null): Map<Pair<Type, String?>, GenWrapper<*>> {
         val generatorMapBuilder = GeneratorMapBuilder(params.toSet(), random, typePool, if (isStatic) null else usableReferenceClass)
 
-        val enabledGens: List<Pair<Pair<Type, String?>, CustomGen>> = usableReferenceClass.getEnabledGenerators(enabledNames).map {
+        val enabledGens: List<Pair<Pair<Type, String?>, CustomGen>> = usableControlClass.getEnabledGenerators(enabledNames).map {
             return@map if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
                 Pair(Pair(it.genericReturnType, null), CustomGen(submittedClassGenerator))
             } else {
@@ -127,7 +131,7 @@ class TestGenerator(
         enabledGens.forEach(generatorMapBuilder::accept)
 
         // The map builder needs to be aware of all named generators for parameter-specific generator choices
-        val otherGens: List<Pair<Pair<Type, String?>, CustomGen>> = usableReferenceClass.getAllGenerators().mapNotNull {
+        val otherGens: List<Pair<Pair<Type, String?>, CustomGen>> = usableControlClass.getAllGenerators().mapNotNull {
             // Skip unnamed generators
             val name = it.getAnnotation(Generator::class.java)?.name ?: return@mapNotNull null
             return@mapNotNull if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
@@ -304,6 +308,7 @@ class TestRunWorker internal constructor(
     private val bytecodeProvider: BytecodeProvider?
 ) {
     private val usableReferenceClass = testGenerator.usableReferenceClass
+    private val usableControlClass = testGenerator.usableControlClass
     private val usableReferenceMethod = testGenerator.usableReferenceMethod
     private val usableCustomVerifier = testGenerator.usableCustomVerifier
     private val passRandomToVerify = usableCustomVerifier?.parameters?.size == 3
@@ -321,7 +326,7 @@ class TestRunWorker internal constructor(
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
-    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableReferenceClass, usableSubmissionClass, adapterTypePool, "genmirror_")
+    private val mirrorToStudentClass = mkGeneratorMirrorClass(usableControlClass, usableControlClass, usableSubmissionClass, adapterTypePool, "genmirror_")
 
     private val referenceAtNext = testGenerator.atNextMethod
     private val submissionAtNext = mirrorToStudentClass.getAtNext(testGenerator.enabledNames)

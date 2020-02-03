@@ -121,14 +121,15 @@ private fun Class<*>.slashName() = name.replace('.', '/')
 
 /**
  * Creates a mirror class containing only enough of the reference class to generate submission classes.
- * @param referenceClass the reference class containing methods to mirror
+ * @param outerClass the class to transform
+ * @param originalClass the original reference class (often the same as outerClass)
  * @param targetClass the class the generator should make instances of
  * @param pool the type pool to get bytecode from
  * @return a mirror class suitable only for generation
  */
-internal fun mkGeneratorMirrorClass(referenceClass: Class<*>, targetClass: Class<*>,
+internal fun mkGeneratorMirrorClass(outerClass: Class<*>, originalClass: Class<*>, targetClass: Class<*>,
                                     pool: TypePool = TypePool(null), namePrefix: String = "m"): Class<*> {
-    return mkGeneratorMirrorClass(referenceClass, referenceClass, targetClass,
+    return mkGeneratorMirrorClass(outerClass, originalClass, targetClass,
             "answerablemirror.$namePrefix" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), pool)
 }
 
@@ -287,7 +288,7 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
         nestMembers.classes = nestMembers.classNames.map { constantPoolGen.addClass(fixOuterClassName(it)) }.toIntArray()
     }
 
-    //classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
+    classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
     return pool.loadBytes(mirrorName, classGen.javaClass, baseClass).also { mirrorsMade[mirrorName] = it }
 }
 
@@ -468,7 +469,12 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
 internal fun getDefiningKotlinFileClass(forClass: Class<*>, typePool: TypePool): Class<*>? {
     val bcelClass = typePool.getBcelClassForClass(forClass)
     val sourceFile = bcelClass.attributes.filterIsInstance<SourceFile>().firstOrNull() ?: return null
-    return null
+    val filename = sourceFile.sourceFileName ?: return null
+    return try {
+        forClass.classLoader.loadClass(forClass.packageName + "." + filename.replace(".kt", "Kt"))
+    } catch (e: ClassNotFoundException) {
+        null
+    }
 }
 
 internal class AnswerableBytecodeVerificationException(val blameMethod: String, val blameClass: Class<*>, val member: Member) : AnswerableVerificationException("Bytecode error not specified. Please report a bug.") {
