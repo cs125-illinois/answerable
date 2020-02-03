@@ -197,8 +197,7 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
                     } ?: false) && !memberName.contains('$')
                 } else if (constant is ConstantFieldref) {
                     val helperAnnotations = setOf(Helper::class.java, EdgeCase::class.java, SimpleCase::class.java)
-                    val helperNames = setOf("Companion")
-                    shouldReplace = memberName !in helperNames && !(referenceClass.declaredFields
+                    shouldReplace = !(referenceClass.declaredFields
                         .firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.let { field ->
                             helperAnnotations.any { annotation -> field.isAnnotationPresent(annotation) }
                         } ?: false)
@@ -464,6 +463,12 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
     }
 
     methodsToCheck.forEach { checkMethod(it, true) }
+}
+
+internal fun getDefiningKotlinFileClass(forClass: Class<*>, typePool: TypePool): Class<*>? {
+    val bcelClass = typePool.getBcelClassForClass(forClass)
+    val sourceFile = bcelClass.attributes.filterIsInstance<SourceFile>().firstOrNull() ?: return null
+    return null
 }
 
 internal class AnswerableBytecodeVerificationException(val blameMethod: String, val blameClass: Class<*>, val member: Member) : AnswerableVerificationException("Bytecode error not specified. Please report a bug.") {
