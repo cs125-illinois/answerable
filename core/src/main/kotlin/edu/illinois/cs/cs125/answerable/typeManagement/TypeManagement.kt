@@ -343,18 +343,22 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
     }
 
     // Rename the class by changing all strings used by class or signature constants
-    val newSlashBase = newBase.replace('.', '/')
+    val slashNames = classRenames.map { Pair(it.first.replace('.', '/'), it.second.replace('.', '/')) }.toMap()
     fun fixSignature(signature: String): String {
-        return signature.replace("L${baseClass.slashName()};", "L$newSlashBase;")
-                .replace("L${baseClass.slashName()}$", "L$newSlashBase$")
+        var editedSignature = signature
+        slashNames.forEach { (orig, new) ->
+            editedSignature = editedSignature.replace("L$orig;", "L$new;").replace("L$orig$", "L$new$")
+        }
+        return editedSignature
     }
     (1 until constantPool.length).forEach { idx ->
         val constant = constantPool.getConstant(idx)
         if (constant is ConstantClass) {
             val className = constant.getBytes(constantPool)
             val classNameParts = className.split('$', limit = 2)
-            val newConstantValue = if (classNameParts[0] == baseClass.slashName()) {
-                 if (classNameParts.size > 1) "$newSlashBase\$${classNameParts[1]}" else newSlashBase
+            val newConstantValue = if (classNameParts[0] in slashNames.keys) {
+                val newSlashBase = slashNames[classNameParts[0]]
+                if (classNameParts.size > 1) "$newSlashBase\$${classNameParts[1]}" else newSlashBase
             } else if (className.contains(';')) {
                 fixSignature(className)
             } else {
