@@ -298,24 +298,28 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
  * @return a non-final version of the class with non-final members/classes
  */
 internal fun mkOpenMirrorClass(clazz: Class<*>, pool: TypePool, namePrefix: String = "o"): Class<*> {
-    return mkOpenMirrorClass(clazz, listOf(), pool, namePrefix)
+    return mkOpenMirrorClass(clazz, mapOf(), pool, namePrefix)
 }
 
 /**
  * Creates an open mirror, with the specified class references remapped.
  * @param clazz an outer class
- * @param classRenames replacements to make: original class name (dot style), desired new class name
+ * @param classRenames replacements to make
  * @param pool the type pool to get bytecode from and load classes into
  * @return a non-final version of the class with non-final members/classes
  */
-internal fun mkOpenMirrorClass(clazz: Class<*>, classRenames: List<Pair<String, String>>,
+internal fun mkOpenMirrorClass(clazz: Class<*>, classRenames: Map<Class<*>, Class<*>>,
                                pool: TypePool, namePrefix: String = "o"): Class<*> {
     val newName = "answerablemirror.$namePrefix" + UUID.randomUUID().toString().replace("-", "")
-    return mkOpenMirrorClass(clazz, clazz, newName, listOf(Pair(clazz.name, newName)) + classRenames, mutableListOf(), pool)!!
+    val allRenames = classRenames
+            .map { (inClass, outClass) -> Pair(inClass.name, outClass.name) }
+            .plus(Pair(clazz.name, newName))
+            .map { Pair(it.first.replace('.', '/'), it.second.replace('.', '/')) }
+    return mkOpenMirrorClass(clazz, clazz, newName, allRenames.toMap(), mutableListOf(), pool)!!
 }
 
 private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: String,
-                              classRenames: List<Pair<String, String>>, alreadyDone: MutableList<String>, pool: TypePool): Class<*>? {
+                              classRenames: Map<String, String>, alreadyDone: MutableList<String>, pool: TypePool): Class<*>? {
     if (alreadyDone.contains(newName)) return null
     alreadyDone.add(newName)
 
@@ -343,10 +347,9 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
     }
 
     // Rename the class by changing all strings used by class or signature constants
-    val slashNames = classRenames.map { Pair(it.first.replace('.', '/'), it.second.replace('.', '/')) }.toMap()
     fun fixSignature(signature: String): String {
         var editedSignature = signature
-        slashNames.forEach { (orig, new) ->
+        classRenames.forEach { (orig, new) ->
             editedSignature = editedSignature.replace("L$orig;", "L$new;").replace("L$orig$", "L$new$")
         }
         return editedSignature
@@ -356,8 +359,8 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
         if (constant is ConstantClass) {
             val className = constant.getBytes(constantPool)
             val classNameParts = className.split('$', limit = 2)
-            val newConstantValue = if (classNameParts[0] in slashNames.keys) {
-                val newSlashBase = slashNames[classNameParts[0]]
+            val newConstantValue = if (classNameParts[0] in classRenames.keys) {
+                val newSlashBase = classRenames[classNameParts[0]]
                 if (classNameParts.size > 1) "$newSlashBase\$${classNameParts[1]}" else newSlashBase
             } else if (className.contains(';')) {
                 fixSignature(className)
