@@ -37,8 +37,8 @@ class KotlinTest {
 
     @Test
     fun testStringFilterClassDesign() {
-        assertClassDesignPasses(examples.ktfilter.reference.StringFilterer::class.java,
-                examples.ktfilter.StringFilterer::class.java)
+        assertClassDesignPasses(examples.testgeneration.ktfilter.reference.StringFilterer::class.java,
+                examples.testgeneration.ktfilter.StringFilterer::class.java)
     }
 
     private fun assertAllSucceeded(results: TestRunOutput) {
@@ -61,7 +61,18 @@ class KotlinTest {
 
     @Test
     fun testStringFilter() {
-        assertClassesPass(examples.ktfilter.reference.StringFilterer::class.java, examples.ktfilter.StringFilterer::class.java)
+        assertClassesPass(examples.testgeneration.ktfilter.reference.StringFilterer::class.java, examples.testgeneration.ktfilter.StringFilterer::class.java)
+    }
+
+    @Test
+    fun testPrecondition() {
+        assertClassesPass(examples.testgeneration.reference.KtPrecondition::class.java, examples.testgeneration.KtPrecondition::class.java)
+    }
+
+    @Test
+    fun testStandaloneVerify() {
+        assertClassesPass(examples.testgeneration.standaloneverify.reference.KtStandaloneVerify::class.java,
+                examples.testgeneration.standaloneverify.KtStandaloneVerify::class.java)
     }
 
 }

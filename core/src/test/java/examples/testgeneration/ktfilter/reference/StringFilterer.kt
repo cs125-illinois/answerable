@@ -1,4 +1,4 @@
-package examples.ktfilter.reference
+package examples.testgeneration.ktfilter.reference
 
 import edu.illinois.cs.cs125.answerable.api.Generator
 import edu.illinois.cs.cs125.answerable.api.Solution

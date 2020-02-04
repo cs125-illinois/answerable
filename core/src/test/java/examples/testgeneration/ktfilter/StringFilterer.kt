@@ -1,4 +1,4 @@
-package examples.ktfilter
+package examples.testgeneration.ktfilter
 
 class StringFilterer(private val strings: List<CharSequence>) {
 
