@@ -1,6 +1,7 @@
 package edu.illinois.cs.cs125.answerable.api
 
 import edu.illinois.cs.cs125.answerable.*
+import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
 import java.util.*
 
@@ -11,7 +12,8 @@ class Answerable(private val environment: TestEnvironment) {
     private val existingQuestions: MutableMap<String, TestGenerator> = mutableMapOf()
 
     /**
-     * Load a new question into the Answerable service.
+     * Load a new question into the Answerable service. If a question with the given name already exists,
+     * raises an [IllegalArgumentException].
      *
      * Throws [AnswerableMisuseException]s and [AnswerableVerificationException] if issues are found with the [referenceClass].
      * It is recommended to wrap calls to [loadNewQuestion] in a try-catch block.
@@ -33,6 +35,10 @@ class Answerable(private val environment: TestEnvironment) {
         testRunnerArgs: TestRunnerArgs = defaultArgs,
         bytecodeProvider: BytecodeProvider? = null
     ) {
+        if (existingQuestions.containsKey(questionName)) {
+            throw IllegalArgumentException("Answerable already has a reference for question named `$questionName'.")
+        }
+
         val testgen: TestGenerator
         try {
             testgen = TestGenerator(referenceClass, solutionName, testRunnerArgs, bytecodeProvider)
@@ -55,6 +61,55 @@ class Answerable(private val environment: TestEnvironment) {
         testRunnerArgs: TestRunnerArgs,
         bytecodeProvider: BytecodeProvider? = null
     ) = loadNewQuestion(questionName, referenceClass, "", testRunnerArgs, bytecodeProvider)
+
+    private fun updateQuestionInternal(
+        questionName: String,
+        referenceClass: Class<*>,
+        cb: (TestGenerator) -> Triple<String, TestRunnerArgs, BytecodeProvider?>
+    ) {
+        val oldTestGen = existingQuestions.remove(questionName)
+        val extras = cb(oldTestGen ?: return)
+        loadNewQuestion(questionName, referenceClass, extras.first, extras.second, extras.third)
+    }
+
+    /**
+     * Update an existing question in the service. If the question doesn't already exist, exits silently.
+     * Note: will _not_ register a new question if the question does not already exist.
+     *
+     * See [loadNewQuestion] for param information; if null is passed for [solutionName] or [testRunnerArgs],
+     * the existing data from the old question will be used.
+     */
+    fun updateQuestion(
+        questionName: String,
+        referenceClass: Class<*>,
+        solutionName: String? = null,
+        testRunnerArgs: TestRunnerArgs? = null
+    ) {
+        updateQuestionInternal(questionName, referenceClass) {
+            Triple(solutionName ?: it.solutionName , testRunnerArgs ?: it.mergedArgs, it.bytecodeProvider)
+        }
+    }
+    // fill in the missing JvmOverload
+    fun updateQuestion(
+        questionName: String,
+        referenceClass: Class<*>,
+        testRunnerArgs: TestRunnerArgs
+    ) = updateQuestionInternal(questionName, referenceClass) {
+        Triple(it.solutionName, testRunnerArgs, it.bytecodeProvider)
+    }
+
+    /**
+     * Fully-featured overload of [updateQuestion] which additionally enables modifying the bytecodeProvider.
+     */
+    fun updateQuestion(
+        questionName: String,
+        referenceClass: Class<*>,
+        solutionName: String? = null,
+        testRunnerArgs: TestRunnerArgs? = null,
+        bytecodeProvider: BytecodeProvider?
+    ) = updateQuestionInternal(questionName, referenceClass) {
+        Triple(solutionName ?: it.solutionName, testRunnerArgs ?: it.mergedArgs, bytecodeProvider)
+    }
 
     /**
      * Make a submission to a question. Returns a [TestRunner] which can run tests on demand.

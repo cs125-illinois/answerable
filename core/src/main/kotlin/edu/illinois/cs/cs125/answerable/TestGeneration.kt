@@ -31,7 +31,7 @@ class TestGenerator(
     val referenceClass: Class<*>,
     val solutionName: String = "",
     testRunnerArgs: TestRunnerArgs = defaultArgs,
-    bytecodeProvider: BytecodeProvider? = null
+    internal val bytecodeProvider: BytecodeProvider? = null
 ) {
     /**
      * A secondary constructor which uses Answerable's [defaultArgs] and no custom bytecode provider.
