@@ -62,6 +62,10 @@ class Answerable(private val environment: TestEnvironment) {
         bytecodeProvider: BytecodeProvider? = null
     ) = loadNewQuestion(questionName, referenceClass, "", testRunnerArgs, bytecodeProvider)
 
+    fun unloadQuestion(questionName: String) {
+        existingQuestions.remove(questionName)
+    }
+
     private fun updateQuestionInternal(
         questionName: String,
         referenceClass: Class<*>,
