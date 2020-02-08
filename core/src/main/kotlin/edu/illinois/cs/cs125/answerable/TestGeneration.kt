@@ -802,7 +802,7 @@ operator fun <T> MutableMap<Pair<Type, String?>, T>.set(type: Type, newVal: T) {
 private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, private val random: Random, private val pool: TypePool, private val receiverType: Class<*>?) {
     private var knownGenerators: MutableMap<Pair<Type, String?>, Lazy<Gen<*>>> = mutableMapOf()
     init {
-        defaultGenerators.forEach(this::accept)
+        defaultGenerators.forEach { (k, v) -> accept(k, v) }
         knownGenerators[String::class.java] = lazy { DefaultStringGen(knownGenerators[Char::class.java]!!.value) }
     }
 
@@ -896,7 +896,7 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
     }
 
     companion object {
-        private val defaultGenerators: List<Pair<Pair<Class<*>, String?>, Gen<*>>> = listOf(
+        private val defaultGenerators: Map<Pair<Class<*>, String?>, Gen<*>> = mapOf(
             Int::class.java     to defaultIntGen,
             Double::class.java  to defaultDoubleGen,
             Float::class.java   to defaultFloatGen,
@@ -905,7 +905,7 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
             Long::class.java    to defaultLongGen,
             Char::class.java    to defaultCharGen,
             Boolean::class.java to defaultBooleanGen
-        ).map { Pair(Pair(it.first, null), it.second) }
+        ).mapKeys { (k, _) -> Pair(k, null) }
     }
 }
 
@@ -936,9 +936,6 @@ internal val defaultIntGen = object : Gen<Int> {
     }
 }
 
-internal val defaultIntEdgeCases = intArrayOf(0)
-internal val defaultIntSimpleCases = intArrayOf(-1, 1)
-
 internal val defaultDoubleGen = object : Gen<Double> {
     override fun generate(complexity: Int, random: Random): Double {
         val denom = random.nextDouble() * (1e10 - 1) + 1
@@ -946,9 +943,6 @@ internal val defaultDoubleGen = object : Gen<Double> {
         return num / denom
     }
 }
-
-internal val defaultDoubleEdgeCases = doubleArrayOf(0.0)
-internal val defaultDoubleSimpleCases = doubleArrayOf(-1.0, 1.0)
 
 internal val defaultFloatGen = object : Gen<Float> {
     override fun generate(complexity: Int, random: Random): Float {
@@ -958,26 +952,17 @@ internal val defaultFloatGen = object : Gen<Float> {
     }
 }
 
-internal val defaultFloatEdgeCases = floatArrayOf(0f)
-internal val defaultFloatSimpleCases = floatArrayOf(-1f, 1f)
-
 internal val defaultByteGen = object : Gen<Byte> {
     override fun generate(complexity: Int, random: Random): Byte {
         return (random.nextInt(complexity * 2 + 1) - complexity).toByte()
     }
 }
 
-internal val defaultByteEdgeCases = byteArrayOf(0)
-internal val defaultByteSimpleCases = byteArrayOf(-1, 1)
-
 internal val defaultShortGen = object : Gen<Short> {
     override fun generate(complexity: Int, random: Random): Short {
         return (random.nextInt(complexity * 2 + 1) - complexity).toShort()
     }
 }
-
-internal val defaultShortEdgeCases = shortArrayOf(0)
-internal val defaultShortSimpleCases = shortArrayOf(-1, 1)
 
 internal val defaultLongGen = object : Gen<Long> {
     // see Random.nextInt(int) algorithm.
@@ -995,9 +980,6 @@ internal val defaultLongGen = object : Gen<Long> {
         return random.nextLong(complexity.toLong() * 4 + 1) - (complexity.toLong() * 2)
     }
 }
-
-internal val defaultLongEdgeCases = longArrayOf(0)
-internal val defaultLongSimpleCases = longArrayOf(-1, 1)
 
 internal val defaultCharGen = object : Gen<Char> {
     private fun Char.isPrintableAscii(): Boolean = this.toInt() in 32..126
@@ -1021,9 +1003,6 @@ internal val defaultCharGen = object : Gen<Char> {
     }
 }
 
-internal val defaultCharEdgeCases = charArrayOf(' ')
-internal val defaultCharSimpleCases = charArrayOf('a', 'A', '0')
-
 internal val defaultAsciiGen = object : Gen<Char> {
     override fun generate(complexity: Int, random: Random): Char {
         return (random.nextInt(95) + 32).toChar()
@@ -1038,9 +1017,6 @@ internal class DefaultStringGen(private val cGen: Gen<*>) : Gen<String> {
     }
 }
 
-internal val defaultStringEdgeCases = arrayOf(null, "")
-internal val defaultStringSimpleCases = arrayOf("a", "A", "0")
-
 internal val defaultBooleanGen = object : Gen<Boolean> {
     override fun generate(complexity: Int, random: Random): Boolean = random.nextBoolean()
 }
@@ -1053,15 +1029,6 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: 
         }
     }
 }
-
-internal val defaultIntArraySimpleCases = arrayOf(intArrayOf(0))
-internal val defaultByteArraySimpleCases = arrayOf(byteArrayOf(0))
-internal val defaultShortArraySimpleCases = arrayOf(shortArrayOf(0))
-internal val defaultLongArraySimpleCases = arrayOf(longArrayOf(0))
-internal val defaultDoubleArraySimpleCases = arrayOf(doubleArrayOf(0.0))
-internal val defaultFloatArraySimpleCases = arrayOf(floatArrayOf(0f))
-internal val defaultCharArraySimpleCases = arrayOf(charArrayOf(' '))
-internal val defaultStringArraySimpleCases = arrayOf(arrayOf(""))
 
 internal class ArrayWrapper(val array: Any) {
     val size = ReflectArray.getLength(array)
@@ -1076,43 +1043,6 @@ internal class ArrayWrapper(val array: Any) {
     }
 }
 internal fun ArrayWrapper?.isNullOrEmpty() = this == null || this.size == 0
-
-internal val defaultEdgeCases = mapOf(
-    Int::class.java to ArrayWrapper(defaultIntEdgeCases),
-    Byte::class.java to ArrayWrapper(defaultByteEdgeCases),
-    Short::class.java to ArrayWrapper(defaultShortEdgeCases),
-    Long::class.java to ArrayWrapper(defaultLongEdgeCases),
-    Double::class.java to ArrayWrapper(defaultDoubleEdgeCases),
-    Float::class.java to ArrayWrapper(defaultFloatEdgeCases),
-    Char::class.java to ArrayWrapper(defaultCharEdgeCases),
-    String::class.java to ArrayWrapper(defaultStringEdgeCases),
-    Boolean::class.java to ArrayWrapper(booleanArrayOf())
-).let {
-    it + it.map { (clazz, _) ->
-        val emptyArray = ReflectArray.newInstance(clazz, 0)
-        emptyArray.javaClass to ArrayWrapper(arrayOf(emptyArray, null))
-    }
-}.toMap()
-internal val defaultSimpleCases = mapOf(
-    Int::class.java to ArrayWrapper(defaultIntSimpleCases),
-    Byte::class.java to ArrayWrapper(defaultByteSimpleCases),
-    Short::class.java to ArrayWrapper(defaultShortSimpleCases),
-    Long::class.java to ArrayWrapper(defaultLongSimpleCases),
-    Double::class.java to ArrayWrapper(defaultDoubleSimpleCases),
-    Float::class.java to ArrayWrapper(defaultFloatSimpleCases),
-    Char::class.java to ArrayWrapper(defaultCharSimpleCases),
-    String::class.java to ArrayWrapper(defaultStringSimpleCases),
-
-    IntArray::class.java to ArrayWrapper(defaultIntArraySimpleCases),
-    ByteArray::class.java to ArrayWrapper(defaultByteArraySimpleCases),
-    ShortArray::class.java to ArrayWrapper(defaultShortArraySimpleCases),
-    LongArray::class.java to ArrayWrapper(defaultLongArraySimpleCases),
-    DoubleArray::class.java to ArrayWrapper(defaultDoubleArraySimpleCases),
-    FloatArray::class.java to ArrayWrapper(defaultFloatArraySimpleCases),
-    CharArray::class.java to ArrayWrapper(defaultCharArraySimpleCases),
-    Array<String>::class.java to ArrayWrapper(defaultStringArraySimpleCases)
-)
-
 
 internal class DefaultListGen<T>(private val tGen: Gen<T>) : Gen<List<T>> {
     override fun generate(complexity: Int, random: Random): List<T> {
