@@ -3,20 +3,20 @@ package edu.illinois.cs.cs125.answerable
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
+internal fun assertClassDesignPasses(solution: Class<*>, submission: Class<*>) {
+    val result = ClassDesignAnalysis("", solution, submission).runSuite()
+    result.map { it.result }.filterIsInstance<Mismatched<*>>().forEach {
+        Assertions.fail(it.toString())
+    }
+}
+
+internal fun assertClassDesignFails(solution: Class<*>, submission: Class<*>) {
+    val results = ClassDesignAnalysis("", solution, submission).runSuite()
+    Assertions.assertFalse(results.all { it.result is Matched })
+    results.filter { it.result is Mismatched }.forEach { println(it.toErrorMsg()) }
+}
+
 class KotlinTest {
-
-    private fun assertClassDesignPasses(solution: Class<*>, submission: Class<*>) {
-        val result = ClassDesignAnalysis("", solution, submission).runSuite()
-        result.map { it.result }.filterIsInstance<Mismatched<*>>().forEach {
-            Assertions.fail(it.toString())
-        }
-    }
-
-    private fun assertClassDesignFails(solution: Class<*>, submission: Class<*>) {
-        val results = ClassDesignAnalysis("", solution, submission).runSuite()
-        Assertions.assertFalse(results.all { it.result is Matched })
-        results.filter { it.result is Mismatched }.forEach { println(it.toErrorMsg()) }
-    }
 
     @Test
     fun testAverageClassDesign() {
