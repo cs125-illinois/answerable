@@ -98,6 +98,8 @@ class TestGenerator(
     internal val timeout = referenceMethod?.getAnnotation(Timeout::class.java)?.timeout
         ?: (customVerifier?.getAnnotation(Timeout::class.java)?.timeout ?: 0)
 
+    // Default constructor case is for when there is no @Generator and no @Next, but
+    // we can still construct receiver objects via a default constructor.
     internal enum class ReceiverGenStrategy { GENERATOR, NEXT, DEFAULTCONSTRUCTOR, NONE }
     internal val receiverGenStrategy: ReceiverGenStrategy = when {
         isStatic -> NONE
