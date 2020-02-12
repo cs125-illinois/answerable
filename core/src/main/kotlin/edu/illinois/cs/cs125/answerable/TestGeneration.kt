@@ -43,10 +43,10 @@ class TestGenerator(
     // "Usable" members are from the opened (un-final-ified) mirror of the original reference class.
     // The original members are used for certain checks so a nice class name can be displayed.
 
-    internal val languageMode = getLanguageMode(referenceClass)
+    private val languageMode = getLanguageMode(referenceClass)
     internal val typePool = TypePool(bytecodeProvider,
             if (referenceClass.classLoader == javaClass.classLoader) javaClass.classLoader else referenceClass.classLoader?.parent ?: javaClass.classLoader)
-    private val controlClass: Class<*> = getDefiningKotlinFileClass(referenceClass, typePool) ?: referenceClass
+    private val controlClass: Class<*> = languageMode.findControlClass(referenceClass, typePool) ?: referenceClass
     internal val usableReferenceClass: Class<*> = mkOpenMirrorClass(referenceClass, typePool, "openref_")
     internal val usableControlClass: Class<*> =
             if (controlClass == referenceClass) usableReferenceClass
@@ -800,7 +800,7 @@ operator fun <T> MutableMap<Pair<Type, String?>, T>.set(type: Type, newVal: T) {
 // goalTypes holds types that we need generators for. @UseGenerator annotations allow specifying a specific generator.
 // The string in the Pair is non-null iff a specific generator is requested.
 private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, private val random: Random, private val pool: TypePool,
-                                  private val receiverType: Class<*>?, private val languageMode: LanguageMode) {
+                                  private val receiverType: Class<*>?, languageMode: LanguageMode) {
     private var knownGenerators: MutableMap<Pair<Type, String?>, Lazy<Gen<*>>> = mutableMapOf()
     private val defaultGenerators: Map<Pair<Class<*>, String?>, Gen<*>> = languageMode.defaultGenerators.mapKeys { (k, _) -> Pair(k, null) }
     init {

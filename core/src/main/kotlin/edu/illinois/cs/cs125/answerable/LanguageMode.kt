@@ -1,5 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
+import edu.illinois.cs.cs125.answerable.typeManagement.getDefiningKotlinFileClass
 import java.util.*
 import kotlin.math.min
 import java.lang.reflect.Array as ReflectArray
@@ -8,6 +10,7 @@ internal interface LanguageMode {
     val defaultSimpleCases: Map<Class<*>, ArrayWrapper>
     val defaultEdgeCases: Map<Class<*>, ArrayWrapper>
     val defaultGenerators: Map<Class<*>, Gen<*>>
+    fun findControlClass(clazz: Class<*>, typePool: TypePool): Class<*>?
 }
 
 private val defaultIntSimpleCases = intArrayOf(-1, 1)
@@ -178,6 +181,8 @@ internal object JavaMode : LanguageMode {
         }
     override val defaultGenerators: Map<Class<*>, Gen<*>>
         get() = primitiveGenerators
+    override fun findControlClass(clazz: Class<*>, typePool: TypePool): Class<*>?
+            = null
 }
 
 internal object KotlinMode : LanguageMode {
@@ -192,6 +197,8 @@ internal object KotlinMode : LanguageMode {
         }
     override val defaultGenerators: Map<Class<*>, Gen<*>>
         get() = primitiveGenerators
+    override fun findControlClass(clazz: Class<*>, typePool: TypePool): Class<*>?
+            = getDefiningKotlinFileClass(clazz, typePool)
 }
 
 internal fun getLanguageMode(clazz: Class<*>): LanguageMode {
