@@ -13,6 +13,6 @@ class KtPrecondition {
 }
 
 @Precondition
-fun precondition(text: String?): Boolean {
-    return text?.isNotEmpty() ?: false
+fun precondition(text: String): Boolean {
+    return text.isNotEmpty()
 }
