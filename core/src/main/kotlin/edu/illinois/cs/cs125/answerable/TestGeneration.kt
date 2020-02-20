@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Assertions.*
 import org.opentest4j.AssertionFailedError
 import java.util.*
 import kotlin.math.min
-import java.lang.Character.UnicodeBlock.*
 import java.lang.IllegalStateException
 import java.lang.reflect.*
 import java.lang.reflect.Array as ReflectArray
@@ -44,9 +43,10 @@ class TestGenerator(
     // "Usable" members are from the opened (un-final-ified) mirror of the original reference class.
     // The original members are used for certain checks so a nice class name can be displayed.
 
+    private val languageMode = getLanguageMode(referenceClass)
     internal val typePool = TypePool(bytecodeProvider,
             if (referenceClass.classLoader == javaClass.classLoader) javaClass.classLoader else referenceClass.classLoader?.parent ?: javaClass.classLoader)
-    private val controlClass: Class<*> = getDefiningKotlinFileClass(referenceClass, typePool) ?: referenceClass
+    private val controlClass: Class<*> = languageMode.findControlClass(referenceClass, typePool) ?: referenceClass
     internal val usableReferenceClass: Class<*> = mkOpenMirrorClass(referenceClass, typePool, "openref_")
     internal val usableControlClass: Class<*> =
             if (controlClass == referenceClass) usableReferenceClass
@@ -114,7 +114,7 @@ class TestGenerator(
     }
 
     internal fun buildGeneratorMap(random: Random, submittedClassGenerator: Method? = null): Map<Pair<Type, String?>, GenWrapper<*>> {
-        val generatorMapBuilder = GeneratorMapBuilder(params.toSet(), random, typePool, if (isStatic) null else usableReferenceClass)
+        val generatorMapBuilder = GeneratorMapBuilder(params.toSet(), random, typePool, if (isStatic) null else usableReferenceClass, languageMode)
 
         val enabledGens: List<Pair<Pair<Type, String?>, CustomGen>> = usableControlClass.getEnabledGenerators(enabledNames).map {
             return@map if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
@@ -149,11 +149,11 @@ class TestGenerator(
     }
 
     private fun getEdgeCases(clazz: Class<*>, types: Array<Type>): Map<Type, ArrayWrapper?> {
-        val all = defaultEdgeCases + clazz.getEnabledEdgeCases(enabledNames)
+        val all = languageMode.defaultEdgeCases + clazz.getEnabledEdgeCases(enabledNames)
         return mapOf(*types.map { it to all[it] }.toTypedArray())
     }
     private fun getSimpleCases(clazz: Class<*>, types: Array<Type>): Map<Type, ArrayWrapper?> {
-        val all = defaultSimpleCases + clazz.getEnabledSimpleCases(enabledNames)
+        val all = languageMode.defaultSimpleCases + clazz.getEnabledSimpleCases(enabledNames)
         return mapOf(*types.map { it to all[it] }.toTypedArray())
     }
 
@@ -799,10 +799,12 @@ operator fun <T> MutableMap<Pair<Type, String?>, T>.set(type: Type, newVal: T) {
 // NOTE: [Generator Keys]
 // goalTypes holds types that we need generators for. @UseGenerator annotations allow specifying a specific generator.
 // The string in the Pair is non-null iff a specific generator is requested.
-private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, private val random: Random, private val pool: TypePool, private val receiverType: Class<*>?) {
+private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, private val random: Random, private val pool: TypePool,
+                                  private val receiverType: Class<*>?, languageMode: LanguageMode) {
     private var knownGenerators: MutableMap<Pair<Type, String?>, Lazy<Gen<*>>> = mutableMapOf()
+    private val defaultGenerators: Map<Pair<Class<*>, String?>, Gen<*>> = languageMode.defaultGenerators.mapKeys { (k, _) -> Pair(k, null) }
     init {
-        defaultGenerators.forEach(this::accept)
+        defaultGenerators.forEach { (k, v) -> accept(k, v) }
         knownGenerators[String::class.java] = lazy { DefaultStringGen(knownGenerators[Char::class.java]!!.value) }
     }
 
@@ -896,18 +898,6 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
         return discovered
     }
 
-    companion object {
-        private val defaultGenerators: List<Pair<Pair<Class<*>, String?>, Gen<*>>> = listOf(
-            Int::class.java     to defaultIntGen,
-            Double::class.java  to defaultDoubleGen,
-            Float::class.java   to defaultFloatGen,
-            Byte::class.java    to defaultByteGen,
-            Short::class.java   to defaultShortGen,
-            Long::class.java    to defaultLongGen,
-            Char::class.java    to defaultCharGen,
-            Boolean::class.java to defaultBooleanGen
-        ).map { Pair(Pair(it.first, null), it.second) }
-    }
 }
 
 internal class GenWrapper<T>(val gen: Gen<T>, private val random: Random) {
@@ -927,123 +917,12 @@ internal class CustomGen(private val gen: Method) : Gen<Any?> {
     override fun generate(complexity: Int, random: Random): Any? = gen(null, complexity, random)
 }
 
-internal val defaultIntGen = object : Gen<Int> {
-    override fun generate(complexity: Int, random: Random): Int {
-        var comp = complexity
-        if (complexity > Int.MAX_VALUE / 2) {
-            comp = Int.MAX_VALUE / 2
-        }
-        return random.nextInt(comp * 2 + 1) - comp
-    }
-}
-
-internal val defaultIntEdgeCases = intArrayOf(0)
-internal val defaultIntSimpleCases = intArrayOf(-1, 1)
-
-internal val defaultDoubleGen = object : Gen<Double> {
-    override fun generate(complexity: Int, random: Random): Double {
-        val denom = random.nextDouble() * (1e10 - 1) + 1
-        val num = (random.nextDouble() * 2 * complexity * denom) - complexity * denom
-        return num / denom
-    }
-}
-
-internal val defaultDoubleEdgeCases = doubleArrayOf(0.0)
-internal val defaultDoubleSimpleCases = doubleArrayOf(-1.0, 1.0)
-
-internal val defaultFloatGen = object : Gen<Float> {
-    override fun generate(complexity: Int, random: Random): Float {
-        val denom = random.nextDouble() * (1e10 - 1) + 1
-        val num = (random.nextDouble() * 2 * complexity * denom) - complexity * denom
-        return (num / denom).toFloat() // if complexity is > 1e38, this stops being uniform
-    }
-}
-
-internal val defaultFloatEdgeCases = floatArrayOf(0f)
-internal val defaultFloatSimpleCases = floatArrayOf(-1f, 1f)
-
-internal val defaultByteGen = object : Gen<Byte> {
-    override fun generate(complexity: Int, random: Random): Byte {
-        return (random.nextInt(complexity * 2 + 1) - complexity).toByte()
-    }
-}
-
-internal val defaultByteEdgeCases = byteArrayOf(0)
-internal val defaultByteSimpleCases = byteArrayOf(-1, 1)
-
-internal val defaultShortGen = object : Gen<Short> {
-    override fun generate(complexity: Int, random: Random): Short {
-        return (random.nextInt(complexity * 2 + 1) - complexity).toShort()
-    }
-}
-
-internal val defaultShortEdgeCases = shortArrayOf(0)
-internal val defaultShortSimpleCases = shortArrayOf(-1, 1)
-
-internal val defaultLongGen = object : Gen<Long> {
-    // see Random.nextInt(int) algorithm.
-    private fun Random.nextLong(bound: Long): Long {
-        var bits: Long
-        var value: Long
-        do {
-            bits = (nextLong() shl 1) shr 1
-            value = bits % bound
-        } while (bits - value + (bound - 1) < 0L)
-        return value
-    }
-
-    override fun generate(complexity: Int, random: Random): Long {
-        return random.nextLong(complexity.toLong() * 4 + 1) - (complexity.toLong() * 2)
-    }
-}
-
-internal val defaultLongEdgeCases = longArrayOf(0)
-internal val defaultLongSimpleCases = longArrayOf(-1, 1)
-
-internal val defaultCharGen = object : Gen<Char> {
-    private fun Char.isPrintableAscii(): Boolean = this.toInt() in 32..126
-
-    private fun Char.isPrint(): Boolean = isPrintableAscii() || of(this) in setOf(
-        CYRILLIC, CYRILLIC_SUPPLEMENTARY, TAMIL, CURRENCY_SYMBOLS, ARROWS, SUPPLEMENTAL_ARROWS_A,
-        ETHIOPIC_EXTENDED, CJK_RADICALS_SUPPLEMENT, KANGXI_RADICALS, KATAKANA_PHONETIC_EXTENSIONS,
-        ENCLOSED_CJK_LETTERS_AND_MONTHS, OLD_PERSIAN
-    )
-
-    override fun generate(complexity: Int, random: Random): Char {
-        return if (random.nextDouble() < min(.15/32 * complexity, .15)) {
-            var char: Char
-            do {
-                char = random.nextInt(0x10000).toChar()
-            } while (!char.isPrint())
-            char
-        } else {
-            (random.nextInt(95) + 32).toChar()
-        }
-    }
-}
-
-internal val defaultCharEdgeCases = charArrayOf(' ')
-internal val defaultCharSimpleCases = charArrayOf('a', 'A', '0')
-
-internal val defaultAsciiGen = object : Gen<Char> {
-    override fun generate(complexity: Int, random: Random): Char {
-        return (random.nextInt(95) + 32).toChar()
-    }
-}
-
 internal class DefaultStringGen(private val cGen: Gen<*>) : Gen<String> {
     override fun generate(complexity: Int, random: Random): String {
         val len = random.nextInt(complexity + 1)
 
         return String((1..len).map { cGen(complexity, random) as Char }.toTypedArray().toCharArray())
     }
-}
-
-internal val defaultStringEdgeCases = arrayOf(null, "")
-internal val defaultStringSimpleCases = arrayOf("a", "A", "0")
-
-internal val defaultBooleanGen = object : Gen<Boolean> {
-    override fun generate(complexity: Int, random: Random): Boolean = random.nextBoolean()
 }
 
 internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: Class<*>) : Gen<Any> {
@@ -1055,14 +934,17 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: 
     }
 }
 
-internal val defaultIntArraySimpleCases = arrayOf(intArrayOf(0))
-internal val defaultByteArraySimpleCases = arrayOf(byteArrayOf(0))
-internal val defaultShortArraySimpleCases = arrayOf(shortArrayOf(0))
-internal val defaultLongArraySimpleCases = arrayOf(longArrayOf(0))
-internal val defaultDoubleArraySimpleCases = arrayOf(doubleArrayOf(0.0))
-internal val defaultFloatArraySimpleCases = arrayOf(floatArrayOf(0f))
-internal val defaultCharArraySimpleCases = arrayOf(charArrayOf(' '))
-internal val defaultStringArraySimpleCases = arrayOf(arrayOf(""))
+internal class DefaultListGen<T>(private val tGen: Gen<T>) : Gen<List<T>> {
+    override fun generate(complexity: Int, random: Random): List<T> {
+        fun genList(complexity: Int, length: Int): List<T> =
+                if (length <= 0) {
+                    listOf()
+                } else {
+                    listOf(tGen(random.nextInt(complexity + 1), random)) + genList(complexity, length - 1)
+                }
+        return genList(complexity, random.nextInt(complexity + 1))
+    }
+}
 
 internal class ArrayWrapper(val array: Any) {
     val size = ReflectArray.getLength(array)
@@ -1077,55 +959,6 @@ internal class ArrayWrapper(val array: Any) {
     }
 }
 internal fun ArrayWrapper?.isNullOrEmpty() = this == null || this.size == 0
-
-internal val defaultEdgeCases = mapOf(
-    Int::class.java to ArrayWrapper(defaultIntEdgeCases),
-    Byte::class.java to ArrayWrapper(defaultByteEdgeCases),
-    Short::class.java to ArrayWrapper(defaultShortEdgeCases),
-    Long::class.java to ArrayWrapper(defaultLongEdgeCases),
-    Double::class.java to ArrayWrapper(defaultDoubleEdgeCases),
-    Float::class.java to ArrayWrapper(defaultFloatEdgeCases),
-    Char::class.java to ArrayWrapper(defaultCharEdgeCases),
-    String::class.java to ArrayWrapper(defaultStringEdgeCases),
-    Boolean::class.java to ArrayWrapper(booleanArrayOf())
-).let {
-    it + it.map { (clazz, _) ->
-        val emptyArray = ReflectArray.newInstance(clazz, 0)
-        emptyArray.javaClass to ArrayWrapper(arrayOf(emptyArray, null))
-    }
-}.toMap()
-internal val defaultSimpleCases = mapOf(
-    Int::class.java to ArrayWrapper(defaultIntSimpleCases),
-    Byte::class.java to ArrayWrapper(defaultByteSimpleCases),
-    Short::class.java to ArrayWrapper(defaultShortSimpleCases),
-    Long::class.java to ArrayWrapper(defaultLongSimpleCases),
-    Double::class.java to ArrayWrapper(defaultDoubleSimpleCases),
-    Float::class.java to ArrayWrapper(defaultFloatSimpleCases),
-    Char::class.java to ArrayWrapper(defaultCharSimpleCases),
-    String::class.java to ArrayWrapper(defaultStringSimpleCases),
-
-    IntArray::class.java to ArrayWrapper(defaultIntArraySimpleCases),
-    ByteArray::class.java to ArrayWrapper(defaultByteArraySimpleCases),
-    ShortArray::class.java to ArrayWrapper(defaultShortArraySimpleCases),
-    LongArray::class.java to ArrayWrapper(defaultLongArraySimpleCases),
-    DoubleArray::class.java to ArrayWrapper(defaultDoubleArraySimpleCases),
-    FloatArray::class.java to ArrayWrapper(defaultFloatArraySimpleCases),
-    CharArray::class.java to ArrayWrapper(defaultCharArraySimpleCases),
-    Array<String>::class.java to ArrayWrapper(defaultStringArraySimpleCases)
-)
-
-
-internal class DefaultListGen<T>(private val tGen: Gen<T>) : Gen<List<T>> {
-    override fun generate(complexity: Int, random: Random): List<T> {
-        fun genList(complexity: Int, length: Int): List<T> =
-            if (length <= 0) {
-                listOf()
-            } else {
-                listOf(tGen(random.nextInt(complexity + 1), random)) + genList(complexity, length - 1)
-            }
-        return genList(complexity, random.nextInt(complexity + 1))
-    }
-}
 
 /**
  * The types of behaviors that methods under test can have.

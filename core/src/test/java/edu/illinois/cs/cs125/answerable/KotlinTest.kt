@@ -1,5 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
+import examples.adder.correct.reference.Adder
+import examples.testgeneration.KtPrecondition
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -17,6 +19,12 @@ internal fun assertClassDesignFails(solution: Class<*>, submission: Class<*>) {
 }
 
 class KotlinTest {
+
+    @Test
+    fun testLanguageModeDetection() {
+        Assertions.assertSame(JavaMode, getLanguageMode(Adder::class.java))
+        Assertions.assertSame(KotlinMode, getLanguageMode(KtPrecondition::class.java))
+    }
 
     @Test
     fun testAverageClassDesign() {
