@@ -876,7 +876,8 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
     fun build(): Map<Pair<Type, String?>, GenWrapper<*>> {
         fun selectGenerator(goal: Pair<Type, String?>): Gen<*>? {
             // Selects a variant-compatible generator if an exact match isn't found
-            // e.g. Kotlin Function1<? super Whatever, SomethingElse> (required) is compatible with Function1<Whatever, SomethingElse> (known)
+            // e.g. Kotlin Function1<? super Whatever, SomethingElse> (required) is compatible
+            //        with Function1<        Whatever, SomethingElse> (known)
             knownGenerators[goal]?.value?.let { return it }
             return knownGenerators.filter { (known, _) ->
                 known.second == goal.second && generatorCompatible(goal.first, known.first)

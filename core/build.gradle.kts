@@ -11,6 +11,7 @@ buildscript {
 plugins {
     java
     kotlin("jvm")
+    kotlin("plugin.serialization") version "1.3.61"
     id("org.jetbrains.dokka") version "0.9.18"
     id("com.github.ben-manes.versions") version "0.21.0"
 }
@@ -27,6 +28,7 @@ dependencies {
     implementation("com.google.code.gson:gson:2.8.5")
     testImplementation("org.junit.jupiter:junit-jupiter:5.4.2")
     implementation(kotlin("reflect"))
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.14.0")
 }
 
 tasks.compileKotlin {
