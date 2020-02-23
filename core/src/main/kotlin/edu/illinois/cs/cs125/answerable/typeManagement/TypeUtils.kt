@@ -52,7 +52,7 @@ internal fun Type.correspondsTo(other: Type, mapFrom: Class<*>, mapTo: Class<*>)
         is ParameterizedType -> other is ParameterizedType
                 && this.rawType.correspondsTo(other.rawType, mapFrom, mapTo)
                 && this.actualTypeArguments.size == other.actualTypeArguments.size
-                && (0 until this.actualTypeArguments.size).all { this.actualTypeArguments[it].correspondsTo(other.actualTypeArguments[it], mapFrom, mapTo) }
+                && this.actualTypeArguments.indices.all { this.actualTypeArguments[it].correspondsTo(other.actualTypeArguments[it], mapFrom, mapTo) }
         is WildcardType -> other is WildcardType
                 && this.lowerBounds.size == other.lowerBounds.size
                 && this.upperBounds.size == other.upperBounds.size

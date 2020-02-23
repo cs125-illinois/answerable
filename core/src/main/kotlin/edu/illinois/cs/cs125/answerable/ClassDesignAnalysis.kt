@@ -3,11 +3,9 @@ package edu.illinois.cs.cs125.answerable
 import edu.illinois.cs.cs125.answerable.api.*
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.typeManagement.simpleSourceName
-import kotlinx.serialization.ContextualSerialization
 import java.lang.IllegalStateException
 import java.lang.reflect.*
 import java.util.*
-import kotlinx.serialization.Serializable
 
 // TODO: analyze inner classes recursively
 

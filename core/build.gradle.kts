@@ -28,7 +28,6 @@ dependencies {
     implementation("com.google.code.gson:gson:2.8.5")
     testImplementation("org.junit.jupiter:junit-jupiter:5.4.2")
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.14.0")
 }
 
 tasks.compileKotlin {
