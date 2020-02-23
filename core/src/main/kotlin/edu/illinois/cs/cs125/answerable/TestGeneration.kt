@@ -269,6 +269,8 @@ class PassedClassDesignRunner internal constructor(
         val testSteps = mutableListOf<TestStep>()
         val testingBlockCounts = TestingBlockCounts()
         val startTime = System.currentTimeMillis()
+
+        // the tests are executed here
         val timedOut = !environment.sandbox.run(if (timeLimit == 0L) null else timeLimit, Runnable {
             worker.runTests(seed, testRunnerArgs.applyOver(this.testRunnerArgs), testSteps, testingBlockCounts)
         })
@@ -303,7 +305,7 @@ class PassedClassDesignRunner internal constructor(
     override fun runTests(seed: Long, environment: TestEnvironment) = runTests(seed, environment, this.testRunnerArgs) // to expose the overload to Java
 }
 
-class TestRunWorker internal constructor(
+internal class TestRunWorker internal constructor(
     private val testGenerator: TestGenerator,
     private val usableSubmissionClass: Class<*>,
     private val environment: TestEnvironment,
@@ -611,7 +613,22 @@ class TestRunWorker internal constructor(
             assertErr = assertErr
         )
     }
+/* NOTE: [Testing Loop Critical Points]
 
+There are several important bits that the testing loop needs to hit. Obviously, if any particular test case fails,
+that's an out immediately. But because Java is a persistent state language, tests also need to verify that that
+persistent state is handled correctly.
+
+One important piece of that is regression testing. We need to ensure that student objects work when re-used.
+To clarify, let's refer to receiver objects by their index in the sequence of receiver objects used by Answerable.
+We see sequences like 0 1 2 3 4 5 6 7 8... and 0 0 0 0 ... 0 1 1 1 ... 1 2 2 2 ..., in other words,
+linear progressions. But we need to see sequences that reuse old objects.
+
+Regression test count should be configurable in DefaultTestRunArguments and insert evenly-spaced regression tests
+throughout the whole testing loop. @Next methods need to receive objects that are *not* from regression tests,
+so those have to be saved across iterations.
+
+*/
     fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs, testStepList: MutableList<TestStep>, testingBlockCounts: TestingBlockCounts) {
         val resolvedArgs = testRunnerArgs.resolve() // All properties are non-null
         val numTests = resolvedArgs.numTests!!
