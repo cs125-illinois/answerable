@@ -30,6 +30,12 @@ internal class ProxyingTest {
     }
 
     @Test
+    fun testCorrectFieldLinkedList() {
+        val tg = PassedClassDesignRunner(examples.proxy.reference.FieldLinkedList::class.java, examples.proxy.FieldLinkedList::class.java)
+        assertAllSucceeded(tg.runTestsUnsecured(0x0403))
+    }
+
+    @Test
     fun testGeneratedWidget() {
         val tg = PassedClassDesignRunner(examples.proxy.reference.GeneratedWidget::class.java, examples.proxy.GeneratedWidget::class.java)
         assertAllSucceeded(tg.runTestsUnsecured(0x0403))
