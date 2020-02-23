@@ -9,6 +9,15 @@ import java.lang.reflect.*
 import java.util.*
 import kotlinx.serialization.Serializable
 
+// TODO: analyze inner classes recursively
+
+/**
+ * Analyzer that determines that a submission class is equivalent in design to a reference class.
+ *
+ * The reference class for a question defines a "contract," a specification of the public members that any
+ * implementation must expose. Answerable's job is to acertain that a submission meets the specification both on the
+ * surface, in API, and behaviorally. This is the API component.
+ */
 class ClassDesignAnalysis(private val solutionName: String, private val reference: Class<*>, private val attempt: Class<*>) {
     fun runSuite(
         name: Boolean = true,

@@ -20,7 +20,12 @@ import java.util.*
 
 private val objenesis = ObjenesisStd()
 
-private open class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLoader(parentLoader ?: getSystemClassLoader()), EnumerableBytecodeLoader {
+/**
+    Lots of modifications done in this file affect the bytecode of a class, so we need a way to hot-reload those classes
+    and get them back into the JVM. Here we can take a bytearray (class file) and load it.
+ */
+private open class BytesClassLoader(parentLoader: ClassLoader? = null)
+    : ClassLoader(parentLoader ?: getSystemClassLoader()), EnumerableBytecodeLoader {
     private val bytecodeLoaded = mutableMapOf<Class<*>, ByteArray>()
     private val definedClasses = mutableMapOf<String, Class<*>>()
     fun loadBytes(name: String, bytes: ByteArray): Class<*> {
@@ -39,6 +44,9 @@ private open class BytesClassLoader(parentLoader: ClassLoader? = null) : ClassLo
     }
 }
 
+/**
+    Above; but also can ask other classloaders for classes. Useful in sandboxes.
+ */
 private class DiamondClassLoader(primaryParent: ClassLoader,
                                  vararg val otherParents: ClassLoader) : BytesClassLoader(primaryParent) {
     override fun loadClass(name: String?): Class<*> {
@@ -67,50 +75,112 @@ internal fun mkProxy(superClass: Class<*>, childClass: Class<*>, forward: Any, p
     return mkProxy(superClass, superClass, childClass, childClass, forward, pool)
 }
 
-private data class TypeMap(
-        val from: Class<*>,
-        val to: Class<*>
+/**
+ * A witness that instances of the "behavior" class should be proxied such that they can be used
+ * as though they were instances of the "presentation" class.
+ */
+private data class TypeMapping(
+    val behavior: Class<*>,
+    val presentation: Class<*>
 )
+
+/* NOTE: [Proxy inheritance with inner classes]
+
+Consider this example:
+
+```
+class Reference {
+    public class Foo { }
+
+    Foo getAFoo() {
+        return new Foo();
+    }
+}
+
+class Submission {
+    public class Foo { }
+    private class Bar extends Foo { }
+
+    Foo getAFoo() {
+        return new Bar();
+    }
+}
+```
+
+If we aren't careful, this will lead to trying to proxy instances of Submission.Bar as instances of Reference.Bar.
+But Reference.Bar doesn't exist and that would be bad.
+
+So instead, we find the nearest parent class which exists in Reference and is part of the contract, (TODO)
+in this case Reference.Foo, and proxy it as an instance of that.
+
+ */
 
 /**
  * Determines what an inner class should be proxied to, if any.
+ *
+ * This is a defense against some obscure corner case submissions, so that Answerable doesn't crash
+ * (and also behaves correctly). See note [Proxy inheritance with inner classes]
+ *
  * @param outermostSuperClass the outer class a proxy is being made an instance of
  * @param childClass an inner class of the real/original class
  * @param pool type pool to look for super classes in
- * @return a TypeMap that determines what classes to map fields and method between, or null if no proxy is needed
+ * @return a TypeMapping that determines what classes to map fields and method between, or null if no proxy is needed
  */
-private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?, pool: TypePool): TypeMap? {
+private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?, pool: TypePool): TypeMapping? {
     if (childClass == null) return null
     if (childClass.enclosingClass == null) return null
     val innerPath = childClass.name.split('$', limit = 2)[1]
     val correspondingSuper = "${outermostSuperClass.name}\$$innerPath"
     try {
-        return TypeMap(to = pool.classForName(correspondingSuper), from = childClass)
+        return TypeMapping(presentation = pool.classForName(correspondingSuper), behavior = childClass)
     } catch (e: ClassNotFoundException) {
         return mostDerivedProxyableClass(outermostSuperClass, childClass.superclass, pool)
     }
 }
 
-private fun mkProxy(superClass: Class<*>, outermostSuperClass: Class<*>, childClass: Class<*>, outermostChildClass: Class<*>,
-                    forward: Any, pool: TypePool): Any {
-    if (superClass == childClass) return forward
+/**
+ * Returns an instance of presentationClass that behaves equivalently to behavior instance: method calls
+ * on the returned instance are forwarded to the behaviorInstance, and modifications to fields of the returned proxy
+ * are synced with behaviorInstance whenever a method is called on the returned proxy. Modifications to
+ * behaviorInstance are not synced and will be clobbered when the proxy syncs.
+ *
+ * This function effectively invalidates behaviorInstance.
+ * Any modifications to the object referenced by behaviorInstance induce undefined behavior.
+ *
+ * @param presentationClass The class which 'behaviorInstance' should be usable as after proxying
+ * @param outermostPresentationClass The top-level class which contains presentation class as
+ *     a (possibly deep) inner class. If presentationClass is a top-level class, should be presentationClass.
+ * @param behaviorClass The class at which we should use behaviorInstance.
+ * @param outermostBehaviorClass See outermostPresentationClass.
+ * @param behaviorInstance The instance of behaviorClass which is being proxied.
+ * @param pool A TypePool from which we can get superclasses of the behaviorClass.
+ */
+private fun mkProxy(presentationClass: Class<*>, outermostPresentationClass: Class<*>,
+                    behaviorClass: Class<*>, outermostBehaviorClass: Class<*>,
+                    behaviorInstance: Any, pool: TypePool): Any {
+    if (presentationClass == behaviorClass) return behaviorInstance
 
-    val subProxy = pool.getProxyInstantiator(superClass).newInstance()
+    val subProxy = pool.getProxyInstantiator(presentationClass).newInstance()
     (subProxy as Proxy).setHandler { self, method, _, args ->
-        childClass.getPublicFields().forEach { it.set(forward, self.javaClass.getField(it.name).get(self)) }
-        val result = childClass.getMethod(method.name, *method.parameterTypes).invoke(forward, *args)
-        childClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(forward)) }
-        if (result != null && result.javaClass.enclosingClass != null && result.javaClass.name.startsWith("${outermostChildClass.name}$")) {
-            val innerMap = mostDerivedProxyableClass(outermostSuperClass, result.javaClass, pool)
+        // sync out
+        behaviorClass.getPublicFields().forEach { it.set(behaviorInstance, self.javaClass.getField(it.name).get(self)) }
+        val result = behaviorClass.getMethod(method.name, *method.parameterTypes).invoke(behaviorInstance, *args)
+        // sync in
+        behaviorClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(behaviorInstance)) }
+        // proxy result if necessary
+        if (result != null && result.javaClass.enclosingClass != null
+                && result.javaClass.name.startsWith("${outermostBehaviorClass.name}$")) {
+            val innerMap = mostDerivedProxyableClass(outermostPresentationClass, result.javaClass, pool)
             if (innerMap == null) {
-                result
+                return@setHandler result
             } else {
-                val innerProxy = mkProxy(innerMap.to, outermostSuperClass, innerMap.from, outermostChildClass, result, pool)
-                innerMap.from.getPublicFields().forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
-                innerProxy
+                val innerProxy = mkProxy(innerMap.presentation,
+                    outermostPresentationClass, innerMap.behavior, outermostBehaviorClass, result, pool)
+                innerMap.behavior.getPublicFields().forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
+                return@setHandler innerProxy
             }
         } else {
-            result
+            return@setHandler result
         }
     }
 
