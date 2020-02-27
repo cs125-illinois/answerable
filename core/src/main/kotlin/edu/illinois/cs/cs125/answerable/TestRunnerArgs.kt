@@ -21,6 +21,8 @@ data class TestRunnerArgs(
     val numSimpleEdgeMixedTests: Int? = null,
     /** The total number of all-generated tests to execute. Defaults to [numTests] / 2. */
     val numAllGeneratedTests: Int? = null,
+    /** The total number of regression tests to execute. Defaults to [numTests] / 16. */
+    val numRegressionTests: Int? = null,
     /** The upper bound on the 'complexity' @[Generator] parameter for this test run. Defaults to 100. */
     val maxComplexity: Int? = null
 ) {
@@ -32,6 +34,7 @@ data class TestRunnerArgs(
             maxOnlySimpleCaseTests = maxOnlySimpleCaseTests ?: base.maxOnlySimpleCaseTests,
             numSimpleEdgeMixedTests = numSimpleEdgeMixedTests ?: base.numSimpleEdgeMixedTests,
             numAllGeneratedTests = numAllGeneratedTests ?: base.numAllGeneratedTests,
+            numRegressionTests = numRegressionTests ?: base.numRegressionTests,
             maxComplexity = maxComplexity ?: base.maxComplexity
         )
     }
@@ -44,6 +47,7 @@ data class TestRunnerArgs(
             maxOnlySimpleCaseTests = maxOnlySimpleCaseTests ?: resolvedNumTests / 16,
             numSimpleEdgeMixedTests = numSimpleEdgeMixedTests ?: resolvedNumTests / 16,
             numAllGeneratedTests = numAllGeneratedTests ?: resolvedNumTests / 2,
+            numRegressionTests = numRegressionTests ?: resolvedNumTests / 16,
             maxComplexity = maxComplexity ?: 100
         )
     }
@@ -57,6 +61,7 @@ fun DefaultTestRunArguments.asTestRunnerArgs(): TestRunnerArgs {
         maxOnlySimpleCaseTests = if (this.maxOnlySimpleCaseTests < 0) null else this.maxOnlySimpleCaseTests,
         numSimpleEdgeMixedTests = if (this.numSimpleEdgeMixedTests < 0) null else this.numSimpleEdgeMixedTests,
         numAllGeneratedTests = if (this.numAllGeneratedTests < 0) null else this.numAllGeneratedTests,
+        numRegressionTests = if (this.numRegressionTests < 0) null else this.numRegressionTests,
         maxComplexity = if (this.maxComplexity < 0) null else this.maxComplexity
     )
 }

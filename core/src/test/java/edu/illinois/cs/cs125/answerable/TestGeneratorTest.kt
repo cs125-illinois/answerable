@@ -288,7 +288,6 @@ internal class TestGeneratorTest {
         val out = TestGenerator(examples.lastten.correct.reference.LastTen::class.java)
                 .loadSubmission(examples.lastten.reinitstatic.LastTen::class.java)
                 .runTestsUnsecured(Random.nextLong())
-        out.testSteps.filterIsInstance<ExecutedTestStep>().filter { !it.succeeded }.forEach { println(it.assertErr) }
         assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
 

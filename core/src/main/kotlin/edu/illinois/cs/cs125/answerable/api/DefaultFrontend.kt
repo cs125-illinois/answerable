@@ -55,6 +55,7 @@ internal fun ExecutedTestStep.defaultToJson(): String =
     """
         |{
         |  testNumber: $testNumber,
+        |  testType: $testType,
         |  discarded: false,
         |  refReceiver: ${refReceiver.jsonStringOrNull()},
         |  subReceiver: ${subReceiver.jsonStringOrNull()},
@@ -69,6 +70,7 @@ internal fun DiscardedTestStep.defaultToJson(): String =
     """
         |{
         |  testNumber: $testNumber,
+        |  testType: $testType
         |  discarded: true,
         |  receiver: $receiver,
         |  args: ${args.joinToString(prefix = "[", postfix = "]", transform = ::fixArrayToString)}

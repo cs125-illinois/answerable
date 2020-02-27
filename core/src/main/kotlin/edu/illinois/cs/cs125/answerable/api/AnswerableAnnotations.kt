@@ -264,5 +264,6 @@ annotation class DefaultTestRunArguments(
     val maxOnlySimpleCaseTests: Int = -1,
     val numSimpleEdgeMixedTests: Int = -1,
     val numAllGeneratedTests: Int = -1,
+    val numRegressionTests: Int = -1,
     val maxComplexity: Int = -1
 )

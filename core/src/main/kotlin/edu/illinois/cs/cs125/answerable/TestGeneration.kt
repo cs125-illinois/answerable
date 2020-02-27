@@ -4,6 +4,7 @@ import edu.illinois.cs.cs125.answerable.TestGenerator.ReceiverGenStrategy.*
 import edu.illinois.cs.cs125.answerable.api.*
 import edu.illinois.cs.cs125.answerable.typeManagement.*
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 import org.opentest4j.AssertionFailedError
 import java.util.*
 import kotlin.math.min
@@ -36,6 +37,7 @@ class TestGenerator(
      * A secondary constructor which uses Answerable's [defaultArgs] and no custom bytecode provider.
      */
     constructor(referenceClass: Class<*>, solutionName: String) : this(referenceClass, solutionName, defaultArgs)
+
     init {
         validateStaticSignatures(referenceClass)
     }
@@ -44,13 +46,16 @@ class TestGenerator(
     // The original members are used for certain checks so a nice class name can be displayed.
 
     private val languageMode = getLanguageMode(referenceClass)
-    internal val typePool = TypePool(bytecodeProvider,
-            if (referenceClass.classLoader == javaClass.classLoader) javaClass.classLoader else referenceClass.classLoader?.parent ?: javaClass.classLoader)
+    internal val typePool = TypePool(
+        bytecodeProvider,
+        if (referenceClass.classLoader == javaClass.classLoader) javaClass.classLoader else referenceClass.classLoader?.parent
+            ?: javaClass.classLoader
+    )
     private val controlClass: Class<*> = languageMode.findControlClass(referenceClass, typePool) ?: referenceClass
     internal val usableReferenceClass: Class<*> = mkOpenMirrorClass(referenceClass, typePool, "openref_")
     internal val usableControlClass: Class<*> =
-            if (controlClass == referenceClass) usableReferenceClass
-            else mkOpenMirrorClass(controlClass, mapOf(referenceClass to usableReferenceClass), typePool, "controlmirror_")
+        if (controlClass == referenceClass) usableReferenceClass
+        else mkOpenMirrorClass(controlClass, mapOf(referenceClass to usableReferenceClass), typePool, "controlmirror_")
     internal val usableReferenceMethod: Method? = usableReferenceClass.getReferenceSolutionMethod(solutionName)
 
     private val referenceMethod: Method? = referenceClass.getReferenceSolutionMethod(solutionName)
@@ -67,21 +72,27 @@ class TestGenerator(
             if (customVerifier == null) {
                 throw AnswerableMisuseException("No @Solution annotation or @Verify annotation with name `$solutionName' was found.")
             } else if (!customVerifier.getAnnotation(Verify::class.java)!!.standalone) {
-                throw AnswerableMisuseException("No @Solution annotation with name `$solutionName' was found.\nPerhaps you meant" +
-                        "to make verifier `${MethodData(customVerifier)}' standalone?")
+                throw AnswerableMisuseException(
+                    "No @Solution annotation with name `$solutionName' was found.\nPerhaps you meant" +
+                            "to make verifier `${MethodData(customVerifier)}' standalone?"
+                )
             }
         }
         val solutionArgsAnnotation = usableReferenceMethod?.getAnnotation(DefaultTestRunArguments::class.java)
         val verifyArgsAnnotation = usableCustomVerifier?.getAnnotation(DefaultTestRunArguments::class.java)
         if (solutionArgsAnnotation != null && verifyArgsAnnotation != null) {
-            throw AnswerableMisuseException("The @Solution and @Verify methods cannot both specify a @DefaultTestRunArguments.\n" +
-                "While loading question `$solutionName'.")
+            throw AnswerableMisuseException(
+                "The @Solution and @Verify methods cannot both specify a @DefaultTestRunArguments.\n" +
+                        "While loading question `$solutionName'."
+            )
         }
         val argsAnnotation = solutionArgsAnnotation ?: verifyArgsAnnotation
         mergedArgs = testRunnerArgs.applyOver(argsAnnotation?.asTestRunnerArgs() ?: defaultArgs)
     }
+
     internal val atNextMethod: Method? = usableControlClass.getAtNext(enabledNames)
-    internal val defaultConstructor: Constructor<*>? = usableReferenceClass.constructors.firstOrNull { it.parameterCount == 0 }
+    internal val defaultConstructor: Constructor<*>? =
+        usableReferenceClass.constructors.firstOrNull { it.parameterCount == 0 }
 
     internal val isStatic = referenceMethod?.let { Modifier.isStatic(it.modifiers) } ?: false
     /** Pair<return type, useGeneratorName> */
@@ -101,6 +112,7 @@ class TestGenerator(
     // Default constructor case is for when there is no @Generator and no @Next, but
     // we can still construct receiver objects via a default constructor.
     internal enum class ReceiverGenStrategy { GENERATOR, NEXT, DEFAULTCONSTRUCTOR, NONE }
+
     internal val receiverGenStrategy: ReceiverGenStrategy = when {
         isStatic -> NONE
         atNextMethod != null -> NEXT
@@ -113,16 +125,26 @@ class TestGenerator(
         verifySafety()
     }
 
-    internal fun buildGeneratorMap(random: Random, submittedClassGenerator: Method? = null): Map<Pair<Type, String?>, GenWrapper<*>> {
-        val generatorMapBuilder = GeneratorMapBuilder(params.toSet(), random, typePool, if (isStatic) null else usableReferenceClass, languageMode)
+    internal fun buildGeneratorMap(
+        random: Random,
+        submittedClassGenerator: Method? = null
+    ): Map<Pair<Type, String?>, GenWrapper<*>> {
+        val generatorMapBuilder = GeneratorMapBuilder(
+            params.toSet(),
+            random,
+            typePool,
+            if (isStatic) null else usableReferenceClass,
+            languageMode
+        )
 
-        val enabledGens: List<Pair<Pair<Type, String?>, CustomGen>> = usableControlClass.getEnabledGenerators(enabledNames).map {
-            return@map if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
-                Pair(Pair(it.genericReturnType, null), CustomGen(submittedClassGenerator))
-            } else {
-                Pair(Pair(it.genericReturnType, null), CustomGen(it))
+        val enabledGens: List<Pair<Pair<Type, String?>, CustomGen>> =
+            usableControlClass.getEnabledGenerators(enabledNames).map {
+                return@map if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
+                    Pair(Pair(it.genericReturnType, null), CustomGen(submittedClassGenerator))
+                } else {
+                    Pair(Pair(it.genericReturnType, null), CustomGen(it))
+                }
             }
-        }
 
         enabledGens.groupBy { it.first }.forEach { gensForType ->
             if (gensForType.value.size > 1) throw AnswerableMisuseException(
@@ -152,6 +174,7 @@ class TestGenerator(
         val all = languageMode.defaultEdgeCases + clazz.getEnabledEdgeCases(enabledNames)
         return mapOf(*types.map { it to all[it] }.toTypedArray())
     }
+
     private fun getSimpleCases(clazz: Class<*>, types: Array<Type>): Map<Type, ArrayWrapper?> {
         val all = languageMode.defaultSimpleCases + clazz.getEnabledSimpleCases(enabledNames)
         return mapOf(*types.map { it to all[it] }.toTypedArray())
@@ -160,10 +183,12 @@ class TestGenerator(
     private fun verifySafety() {
         verifyMemberAccess(referenceClass, typePool)
 
-        val dryRunOutput = PassedClassDesignRunner(this,
-                mkOpenMirrorClass(referenceClass, typePool, "dryrunopenref_"),
-                listOf(), mergedArgs, typePool.getLoader(),
-                timeoutOverride = 10000).runTestsUnsecured(0x0403)
+        val dryRunOutput = PassedClassDesignRunner(
+            this,
+            mkOpenMirrorClass(referenceClass, typePool, "dryrunopenref_"),
+            listOf(), mergedArgs, typePool.getLoader(),
+            timeoutOverride = 10000
+        ).runTestsUnsecured(0x0403)
 
         if (dryRunOutput.timedOut) throw AnswerableVerificationException("Testing reference against itself timed out (10s).")
 
@@ -171,9 +196,9 @@ class TestGenerator(
             dryRunOutput.testSteps.filterIsInstance(ExecutedTestStep::class.java).forEach {
                 if (!it.succeeded) {
                     throw AnswerableVerificationException(
-                            "Testing reference against itself failed on inputs: ${Arrays.deepToString(
-                                    it.refOutput.args
-                            )}"
+                        "Testing reference against itself failed on inputs: ${Arrays.deepToString(
+                            it.refOutput.args
+                        )}"
                     ).initCause(it.assertErr)
                 }
             }
@@ -201,7 +226,13 @@ class TestGenerator(
         val cdaPassed = cda.all { ao -> ao.result is Matched }
 
         return if (cdaPassed) {
-            PassedClassDesignRunner(this, submissionClass, cda, testRunnerArgs.applyOver(this.mergedArgs), bytecodeProvider)
+            PassedClassDesignRunner(
+                this,
+                submissionClass,
+                cda,
+                testRunnerArgs.applyOver(this.mergedArgs),
+                bytecodeProvider
+            )
         } else {
             FailedClassDesignTestRunner(referenceClass, solutionName, submissionClass, cda)
         }
@@ -217,8 +248,8 @@ interface TestRunner {
     fun runTests(seed: Long, environment: TestEnvironment): TestRunOutput
 }
 
-fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunnerArgs = defaultArgs)
-        = this.runTests(seed, defaultEnvironment, testRunnerArgs)
+fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunnerArgs = defaultArgs) =
+    this.runTests(seed, defaultEnvironment, testRunnerArgs)
 
 /**
  * The primary [TestRunner] subclass which tests classes that have passed Class Design Analysis.
@@ -227,20 +258,26 @@ fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunnerArgs = de
  * [TestGenerator.loadSubmission] on an existing [TestGenerator].
  */
 class PassedClassDesignRunner internal constructor(
-        private val testGenerator: TestGenerator,
-        private val submissionClass: Class<*>,
-        private val cachedClassDesignAnalysisResult: List<AnalysisOutput> = listOf(),
-        private val testRunnerArgs: TestRunnerArgs, // Already merged by TestGenerator#loadSubmission
-        private val bytecodeProvider: BytecodeProvider?,
-        private val timeoutOverride: Long? = null
+    private val testGenerator: TestGenerator,
+    private val submissionClass: Class<*>,
+    private val cachedClassDesignAnalysisResult: List<AnalysisOutput> = listOf(),
+    private val testRunnerArgs: TestRunnerArgs, // Already merged by TestGenerator#loadSubmission
+    private val bytecodeProvider: BytecodeProvider?,
+    private val timeoutOverride: Long? = null
 ) : TestRunner {
 
     internal constructor(
-            testGenerator: TestGenerator, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
+        testGenerator: TestGenerator,
+        submissionClass: Class<*>,
+        cdaResult: List<AnalysisOutput> = listOf(),
+        testRunnerArgs: TestRunnerArgs = defaultArgs
     ) : this(testGenerator, submissionClass, cdaResult, testRunnerArgs, null)
 
     internal constructor(
-            referenceClass: Class<*>, submissionClass: Class<*>, cdaResult: List<AnalysisOutput> = listOf(), testRunnerArgs: TestRunnerArgs = defaultArgs
+        referenceClass: Class<*>,
+        submissionClass: Class<*>,
+        cdaResult: List<AnalysisOutput> = listOf(),
+        testRunnerArgs: TestRunnerArgs = defaultArgs
     ) : this(TestGenerator(referenceClass), submissionClass, cdaResult, testRunnerArgs)
 
     /**
@@ -261,10 +298,10 @@ class PassedClassDesignRunner internal constructor(
 
         // Store reference class static field values so that the next run against this solution doesn't break
         val refStaticFieldValues = testGenerator.usableReferenceClass.declaredFields
-                .filter { Modifier.isStatic(it.modifiers) && !Modifier.isFinal(it.modifiers) }.map {
-            it.isAccessible = true
-            it to it.get(null)
-        }
+            .filter { Modifier.isStatic(it.modifiers) && !Modifier.isFinal(it.modifiers) }.map {
+                it.isAccessible = true
+                it to it.get(null)
+            }
 
         val testSteps = mutableListOf<TestStep>()
         val testingBlockCounts = TestingBlockCounts()
@@ -280,29 +317,30 @@ class PassedClassDesignRunner internal constructor(
         refStaticFieldValues.forEach { (field, value) -> field.set(null, value) }
 
         return TestRunOutput(
-                seed = seed,
-                referenceClass = testGenerator.referenceClass,
-                testedClass = submissionClass,
-                solutionName = testGenerator.solutionName,
-                startTime = startTime,
-                endTime = endTime,
-                timedOut = timedOut,
-                numDiscardedTests = testingBlockCounts.discardedTests,
-                numTests = testingBlockCounts.numTests,
-                numEdgeCaseTests = testingBlockCounts.edgeTests,
-                numSimpleCaseTests = testingBlockCounts.simpleTests,
-                numSimpleAndEdgeCaseTests = testingBlockCounts.simpleEdgeMixedTests,
-                numMixedTests = testingBlockCounts.generatedMixedTests,
-                numAllGeneratedTests = testingBlockCounts.allGeneratedTests,
-                classDesignAnalysisResult = cachedClassDesignAnalysisResult,
-                testSteps = synchronized(testSteps) { testSteps.toList() }
+            seed = seed,
+            referenceClass = testGenerator.referenceClass,
+            testedClass = submissionClass,
+            solutionName = testGenerator.solutionName,
+            startTime = startTime,
+            endTime = endTime,
+            timedOut = timedOut,
+            numDiscardedTests = testingBlockCounts.discardedTests,
+            numTests = testingBlockCounts.numTests,
+            numEdgeCaseTests = testingBlockCounts.edgeTests,
+            numSimpleCaseTests = testingBlockCounts.simpleTests,
+            numSimpleAndEdgeCaseTests = testingBlockCounts.simpleEdgeMixedTests,
+            numMixedTests = testingBlockCounts.generatedMixedTests,
+            numAllGeneratedTests = testingBlockCounts.allGeneratedTests,
+            classDesignAnalysisResult = cachedClassDesignAnalysisResult,
+            testSteps = synchronized(testSteps) { testSteps.toList() }
         )
     }
 
     /**
      * [TestRunner.runTests] overload which uses the [TestRunnerArgs] that this [PassedClassDesignRunner] was constructed with.
      */
-    override fun runTests(seed: Long, environment: TestEnvironment) = runTests(seed, environment, this.testRunnerArgs) // to expose the overload to Java
+    override fun runTests(seed: Long, environment: TestEnvironment) =
+        runTests(seed, environment, this.testRunnerArgs) // to expose the overload to Java
 }
 
 internal class TestRunWorker internal constructor(
@@ -319,7 +357,8 @@ internal class TestRunWorker internal constructor(
 
     private val submissionTypePool = TypePool(bytecodeProvider, usableSubmissionClass.classLoader)
     private val adapterTypePool = TypePool(testGenerator.typePool, submissionTypePool)
-    private val usableSubmissionMethod = usableSubmissionClass.findSolutionAttemptMethod(usableReferenceMethod, usableReferenceClass)
+    private val usableSubmissionMethod =
+        usableSubmissionClass.findSolutionAttemptMethod(usableReferenceMethod, usableReferenceClass)
 
     private val params = testGenerator.params
     private val paramsWithReceiver = testGenerator.paramsWithReceiver
@@ -333,7 +372,12 @@ internal class TestRunWorker internal constructor(
     private val mirrorToStudentClass = if (testGenerator.usableControlClass == testGenerator.usableReferenceClass) {
         mkGeneratorMirrorClass(usableReferenceClass, usableSubmissionClass, adapterTypePool, "genmirror_")
     } else {
-        mkOpenMirrorClass(usableControlClass, mapOf(usableReferenceClass to usableSubmissionClass), adapterTypePool, "controlgenmirror_")
+        mkOpenMirrorClass(
+            usableControlClass,
+            mapOf(usableReferenceClass to usableSubmissionClass),
+            adapterTypePool,
+            "controlgenmirror_"
+        )
     }
 
     private val referenceAtNext = testGenerator.atNextMethod
@@ -399,7 +443,8 @@ internal class TestRunWorker internal constructor(
                     case[0] = null
                     continue
                 }
-                val typeCasesArr = typeCases.array as? Array<*> ?: throw IllegalStateException("Answerable thinks a receiver type is primitive. Please report a bug.")
+                val typeCasesArr = typeCases.array as? Array<*>
+                    ?: throw IllegalStateException("Answerable thinks a receiver type is primitive. Please report a bug.")
                 val typeCasesLst = typeCasesArr.filterNotNull() // receivers can't be null
 
                 if (typeCasesLst.isEmpty()) {
@@ -496,7 +541,7 @@ internal class TestRunWorker internal constructor(
     }
 
     private fun testWith(
-        iteration: Int,
+        iteration: Int, testType: TestType,
         refReceiver: Any?,
         subReceiver: Any?,
         refMethodArgs: Array<Any?>,
@@ -509,7 +554,7 @@ internal class TestRunWorker internal constructor(
             subProxy = mkProxy(usableReferenceClass, usableSubmissionClass, subReceiver!!, testGenerator.typePool)
         }
 
-        return test(iteration, refReceiver, subReceiver, subProxy, refMethodArgs, subMethodArgs)
+        return test(iteration, testType, refReceiver, subReceiver, subProxy, refMethodArgs, subMethodArgs)
     }
 
     private fun mkRefReceiver(iteration: Int, complexity: Int, prevRefReceiver: Any?): Any? =
@@ -529,7 +574,7 @@ internal class TestRunWorker internal constructor(
         }
 
     private fun test(
-        iteration: Int,
+        iteration: Int, testType: TestType,
         refReceiver: Any?,
         subReceiver: Any?,
         subProxy: Any?,
@@ -605,6 +650,7 @@ internal class TestRunWorker internal constructor(
 
         return ExecutedTestStep(
             iteration = iteration,
+            testType = testType,
             refReceiver = refReceiver,
             subReceiver = subReceiver,
             succeeded = assertErr == null,
@@ -613,23 +659,29 @@ internal class TestRunWorker internal constructor(
             assertErr = assertErr
         )
     }
-/* NOTE: [Testing Loop Critical Points]
 
-There are several important bits that the testing loop needs to hit. Obviously, if any particular test case fails,
-that's an out immediately. But because Java is a persistent state language, tests also need to verify that that
-persistent state is handled correctly.
+    /* NOTE: [Testing Loop Critical Points]
 
-One important piece of that is regression testing. We need to ensure that student objects work when re-used.
-To clarify, let's refer to receiver objects by their index in the sequence of receiver objects used by Answerable.
-We see sequences like 0 1 2 3 4 5 6 7 8... and 0 0 0 0 ... 0 1 1 1 ... 1 2 2 2 ..., in other words,
-linear progressions. But we need to see sequences that reuse old objects.
+    There are several important bits that the testing loop needs to hit. Obviously, if any particular test case fails,
+    that's an out immediately. But because Java is a persistent state language, tests also need to verify that that
+    persistent state is handled correctly.
 
-Regression test count should be configurable in DefaultTestRunArguments and insert evenly-spaced regression tests
-throughout the whole testing loop. @Next methods need to receive objects that are *not* from regression tests,
-so those have to be saved across iterations.
+    One important piece of that is regression testing. We need to ensure that student objects work when re-used.
+    To clarify, let's refer to receiver objects by their index in the sequence of receiver objects used by Answerable.
+    We see sequences like 0 1 2 3 4 5 6 7 8... and 0 0 0 0 ... 0 1 1 1 ... 1 2 2 2 ..., in other words,
+    linear progressions. But we need to see sequences that reuse old objects.
 
-*/
-    fun runTests(seed: Long, testRunnerArgs: TestRunnerArgs, testStepList: MutableList<TestStep>, testingBlockCounts: TestingBlockCounts) {
+    Regression test count is configurable in DefaultTestRunArguments and inserts evenly-spaced regression tests
+    throughout the whole testing loop. @Next methods need to receive objects that are *not* from regression tests,
+    so those have to be saved across iterations.
+
+    */
+    fun runTests(
+        seed: Long,
+        testRunnerArgs: TestRunnerArgs,
+        testStepList: MutableList<TestStep>,
+        testingBlockCounts: TestingBlockCounts
+    ) {
         val resolvedArgs = testRunnerArgs.resolve() // All properties are non-null
         val numTests = resolvedArgs.numTests!!
         val numEdgeCombinations = calculateNumCases(referenceEdgeCases)
@@ -647,22 +699,23 @@ so those have to be saved across iterations.
         val simpleExhaustive = numSimpleCombinations <= resolvedArgs.maxOnlySimpleCaseTests!!
         val numSimpleEdgeMixedTests = resolvedArgs.numSimpleEdgeMixedTests!!
         val numAllGeneratedTests = resolvedArgs.numAllGeneratedTests!!
+        val numRegressionTests = resolvedArgs.numRegressionTests!!
 
-        val simpleCaseUpperBound = numEdgeCaseTests + numSimpleCaseTests
-        val simpleEdgeMixedUpperBound = simpleCaseUpperBound + numSimpleEdgeMixedTests
-
-        val numGeneratedMixedTests: Int
-                by lazy { numTests -
-                        numAllGeneratedTests -
-                        testingBlockCounts.let { it.edgeTests + it.simpleTests + it.simpleEdgeMixedTests }
-                }
+        val numGeneratedMixedTests: Int =numTests -
+                    numEdgeCaseTests - numSimpleCaseTests - numSimpleEdgeMixedTests -
+                    numRegressionTests - numAllGeneratedTests
 
         setOf(randomForReference, randomForSubmission, testRunnerRandom).forEach { it.setSeed(seed) }
 
         var refReceiver: Any? = null
         var subReceiver: Any? = null
 
-        var block: Int
+        val regressRefReceivers: MutableList<Any?> = mutableListOf()
+        val regressSubReceivers: MutableList<Any?> = mutableListOf()
+
+        var block: TestType
+        var edgeIdx = 0
+        var simpleIdx = 0
         var generatedMixedIdx = 0
         var allGeneratedIdx = 0
 
@@ -671,11 +724,24 @@ so those have to be saved across iterations.
             val refMethodArgs: Array<Any?>
             val subMethodArgs: Array<Any?>
             when {
-                i in 1 .. numEdgeCaseTests -> {
-                    block = 0
+                (testingBlockCounts.numTests + 1) % 16 == 0 -> {
+                    block = TestType.Regression
+
+                    val comp = testRunnerRandom.nextInt(5) // 0 to 4, basically simple
+
+                    val receiverIx = testRunnerRandom.nextInt(regressRefReceivers.size)
+                    refReceiver = regressRefReceivers[receiverIx]
+                    subReceiver = regressSubReceivers[receiverIx]
+
+                    refMethodArgs = params.map { referenceGens[it]?.generate(comp) }.toTypedArray()
+                    subMethodArgs = params.map { submissionGens[it]?.generate(comp) }.toTypedArray()
+                }
+                testingBlockCounts.edgeTests < numEdgeCaseTests -> {
+                    block = TestType.Edge
 
                     // if we can't exhaust the cases, duplicates are less impactful
-                    val idx = if (edgeExhaustive) (i - 1) else testRunnerRandom.nextInt(numEdgeCombinations)
+                    val idx = if (edgeExhaustive) (testingBlockCounts.edgeTests)
+                        else testRunnerRandom.nextInt(numEdgeCombinations)
 
                     val refCase = calculateCase(idx, numEdgeCombinations, referenceEdgeCases, referenceGens)
                     val subCase = calculateCase(idx, numEdgeCombinations, submissionEdgeCases, submissionGens)
@@ -685,13 +751,11 @@ so those have to be saved across iterations.
 
                     refReceiver = if (refCase[0] != null) refCase[0] else mkRefReceiver(i, 0, refReceiver)
                     subReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, subReceiver)
-
                 }
-                i in (numEdgeCaseTests + 1) .. simpleCaseUpperBound -> {
-                    block = 1
-
-                    val idxInSegment = i - numEdgeCaseTests - 1
-                    val idx = if (simpleExhaustive) idxInSegment else testRunnerRandom.nextInt(numSimpleCombinations)
+                testingBlockCounts.simpleTests < numSimpleCaseTests -> {
+                    block = TestType.Simple
+                    val idx = if (simpleExhaustive) (testingBlockCounts.simpleTests)
+                        else testRunnerRandom.nextInt(numSimpleCombinations)
 
                     val refCase = calculateCase(idx, numSimpleCombinations, referenceSimpleCases, referenceGens)
                     val subCase = calculateCase(idx, numSimpleCombinations, submissionSimpleCases, submissionGens)
@@ -703,19 +767,32 @@ so those have to be saved across iterations.
                     subReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, subReceiver)
 
                 }
-                i in (simpleCaseUpperBound + 1) .. simpleEdgeMixedUpperBound -> {
-                    block = 2
+                testingBlockCounts.simpleEdgeMixedTests < numSimpleEdgeMixedTests -> {
+                    block = TestType.EdgeSimpleMixed
 
                     refReceiver = mkRefReceiver(i, 2, refReceiver)
                     subReceiver = mkSubReceiver(i, 2, subReceiver)
 
-                    refMethodArgs = mkSimpleEdgeMixedCase(referenceEdgeCases, referenceSimpleCases, referenceGens, randomForReference)
-                    subMethodArgs = mkSimpleEdgeMixedCase(submissionEdgeCases, submissionSimpleCases, submissionGens, randomForSubmission)
+                    refMethodArgs = mkSimpleEdgeMixedCase(
+                        referenceEdgeCases,
+                        referenceSimpleCases,
+                        referenceGens,
+                        randomForReference
+                    )
+                    subMethodArgs = mkSimpleEdgeMixedCase(
+                        submissionEdgeCases,
+                        submissionSimpleCases,
+                        submissionGens,
+                        randomForSubmission
+                    )
                 }
                 testingBlockCounts.allGeneratedTests < numAllGeneratedTests -> {
-                    block = 3
+                    block = TestType.Generated
 
-                    val comp = min((resolvedArgs.maxComplexity!! * allGeneratedIdx) / numAllGeneratedTests, resolvedArgs.maxComplexity)
+                    val comp = min(
+                        (resolvedArgs.maxComplexity!! * allGeneratedIdx) / numAllGeneratedTests,
+                        resolvedArgs.maxComplexity
+                    )
 
                     refReceiver = mkRefReceiver(i, comp, refReceiver)
                     subReceiver = mkSubReceiver(i, comp, subReceiver)
@@ -726,22 +803,37 @@ so those have to be saved across iterations.
                     allGeneratedIdx++
                 }
                 testingBlockCounts.numTests < numTests -> {
-                    block = 4
+                    block = TestType.GeneratedMixed
 
-                    val comp = min((resolvedArgs.maxComplexity!! * generatedMixedIdx) / numGeneratedMixedTests, resolvedArgs.maxComplexity)
+                    val comp = min(
+                        (resolvedArgs.maxComplexity!! * generatedMixedIdx) / numGeneratedMixedTests,
+                        resolvedArgs.maxComplexity
+                    )
 
                     refReceiver = mkRefReceiver(i, comp, refReceiver)
                     subReceiver = mkSubReceiver(i, comp, subReceiver)
 
-                    refMethodArgs = mkGeneratedMixedCase(referenceEdgeCases, referenceSimpleCases, referenceGens, comp, randomForReference)
-                    subMethodArgs = mkGeneratedMixedCase(submissionEdgeCases, submissionSimpleCases, submissionGens, comp, randomForSubmission)
+                    refMethodArgs = mkGeneratedMixedCase(
+                        referenceEdgeCases,
+                        referenceSimpleCases,
+                        referenceGens,
+                        comp,
+                        randomForReference
+                    )
+                    subMethodArgs = mkGeneratedMixedCase(
+                        submissionEdgeCases,
+                        submissionSimpleCases,
+                        submissionGens,
+                        comp,
+                        randomForSubmission
+                    )
 
                     generatedMixedIdx++
                 }
 
                 else ->
                     throw IllegalStateException(
-                            "Answerable somehow lost proper track of test block counts. Please report a bug."
+                        "Answerable somehow lost proper track of test block counts. Please report a bug."
                     )
             }
 
@@ -749,16 +841,27 @@ so those have to be saved across iterations.
 
             val result: TestStep
             if (preconditionMet) {
-                result = testWith(i, refReceiver, subReceiver, refMethodArgs, subMethodArgs)
+                result = testWith(i, block, refReceiver, subReceiver, refMethodArgs, subMethodArgs)
+                regressRefReceivers.add(refReceiver)
+                regressSubReceivers.add(subReceiver)
                 when (block) {
-                    0 -> testingBlockCounts.edgeTests++
-                    1 -> testingBlockCounts.simpleTests++
-                    2 -> testingBlockCounts.simpleEdgeMixedTests++
-                    3 -> testingBlockCounts.allGeneratedTests++
-                    4 -> testingBlockCounts.generatedMixedTests++
+                    TestType.Edge            -> testingBlockCounts.edgeTests++
+                    TestType.Simple          -> testingBlockCounts.simpleTests++
+                    TestType.EdgeSimpleMixed -> testingBlockCounts.simpleEdgeMixedTests++
+                    TestType.Generated       -> testingBlockCounts.allGeneratedTests++
+                    TestType.GeneratedMixed  -> testingBlockCounts.generatedMixedTests++
+                    TestType.Regression      -> testingBlockCounts.regressionTests++
                 }
             } else {
-                result = DiscardedTestStep(i, refReceiver, refMethodArgs)
+                // We have to increment these if the precondition fails because otherwise we
+                // will keep trying the same cases and end up killing the testing loop by discarding
+                // the same case 1000 times.
+                when (block) {
+                    TestType.Edge   -> testingBlockCounts.edgeTests++
+                    TestType.Simple -> testingBlockCounts.simpleTests++
+                    else -> Unit
+                }
+                result = DiscardedTestStep(i, block, refReceiver, refMethodArgs)
                 testingBlockCounts.discardedTests++
             }
             synchronized(testStepList) {
@@ -786,26 +889,27 @@ class FailedClassDesignTestRunner(
     private val failedCDAResult: List<AnalysisOutput>
 ) : TestRunner {
     override fun runTests(seed: Long, environment: TestEnvironment): TestRunOutput =
-            TestRunOutput(
-                seed = seed,
-                referenceClass = referenceClass,
-                testedClass = submissionClass,
-                solutionName = solutionName,
-                startTime = System.currentTimeMillis(),
-                endTime = System.currentTimeMillis(),
-                timedOut = false,
-                numDiscardedTests = 0,
-                numTests = 0,
-                numEdgeCaseTests = 0,
-                numSimpleCaseTests = 0,
-                numSimpleAndEdgeCaseTests = 0,
-                numMixedTests = 0,
-                numAllGeneratedTests = 0,
-                classDesignAnalysisResult = failedCDAResult,
-                testSteps = listOf()
-            )
+        TestRunOutput(
+            seed = seed,
+            referenceClass = referenceClass,
+            testedClass = submissionClass,
+            solutionName = solutionName,
+            startTime = System.currentTimeMillis(),
+            endTime = System.currentTimeMillis(),
+            timedOut = false,
+            numDiscardedTests = 0,
+            numTests = 0,
+            numEdgeCaseTests = 0,
+            numSimpleCaseTests = 0,
+            numSimpleAndEdgeCaseTests = 0,
+            numMixedTests = 0,
+            numAllGeneratedTests = 0,
+            classDesignAnalysisResult = failedCDAResult,
+            testSteps = listOf()
+        )
 
-    override fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestRunOutput = runTests(seed, environment)
+    override fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestRunOutput =
+        runTests(seed, environment)
 }
 
 operator fun <T> MutableMap<Pair<Type, String?>, T>.get(type: Type): T? = this[Pair(type, null)]
@@ -816,10 +920,14 @@ operator fun <T> MutableMap<Pair<Type, String?>, T>.set(type: Type, newVal: T) {
 // NOTE: [Generator Keys]
 // goalTypes holds types that we need generators for. @UseGenerator annotations allow specifying a specific generator.
 // The string in the Pair is non-null iff a specific generator is requested.
-private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, private val random: Random, private val pool: TypePool,
-                                  private val receiverType: Class<*>?, languageMode: LanguageMode) {
+private class GeneratorMapBuilder(
+    goalTypes: Collection<Pair<Type, String?>>, private val random: Random, private val pool: TypePool,
+    private val receiverType: Class<*>?, languageMode: LanguageMode
+) {
     private var knownGenerators: MutableMap<Pair<Type, String?>, Lazy<Gen<*>>> = mutableMapOf()
-    private val defaultGenerators: Map<Pair<Class<*>, String?>, Gen<*>> = languageMode.defaultGenerators.mapKeys { (k, _) -> Pair(k, null) }
+    private val defaultGenerators: Map<Pair<Class<*>, String?>, Gen<*>> =
+        languageMode.defaultGenerators.mapKeys { (k, _) -> Pair(k, null) }
+
     init {
         defaultGenerators.forEach { (k, v) -> accept(k, v) }
         knownGenerators[String::class.java] = lazy { DefaultStringGen(knownGenerators[Char::class.java]!!.value) }
@@ -873,7 +981,7 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
             is ParameterizedType -> when (known) {
                 is ParameterizedType -> requested.rawType == known.rawType
                         && requested.actualTypeArguments.indices
-                            .all { generatorCompatible(requested.actualTypeArguments[it], known.actualTypeArguments[it]) }
+                    .all { generatorCompatible(requested.actualTypeArguments[it], known.actualTypeArguments[it]) }
                 else -> false
             }
             is WildcardType -> when (known) {
@@ -902,9 +1010,10 @@ private class GeneratorMapBuilder(goalTypes: Collection<Pair<Type, String?>>, pr
                 known.second == goal.second && generatorCompatible(goal.first, known.first)
             }.toList().firstOrNull()?.second?.value
         }
+
         val discovered = mutableMapOf(*requiredGenerators
-                .map { it to (GenWrapper(selectGenerator(it) ?: throw lazyGenError(it.first), random)) }
-                .toTypedArray())
+            .map { it to (GenWrapper(selectGenerator(it) ?: throw lazyGenError(it.first), random)) }
+            .toTypedArray())
         if (receiverType != null) {
             // Add a receiver generator if possible - don't fail here if not found because there might be a default constructor
             val receiverTarget = Pair(receiverType, null)
@@ -927,6 +1036,7 @@ internal class GenWrapper<T>(val gen: Gen<T>, private val random: Random) {
 internal interface Gen<out T> {
     fun generate(complexity: Int, random: Random): T
 }
+
 @Suppress("NOTHING_TO_INLINE")
 internal inline operator fun <T> Gen<T>.invoke(complexity: Int, random: Random): T = generate(complexity, random)
 
@@ -954,11 +1064,11 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: 
 internal class DefaultListGen<T>(private val tGen: Gen<T>) : Gen<List<T>> {
     override fun generate(complexity: Int, random: Random): List<T> {
         fun genList(complexity: Int, length: Int): List<T> =
-                if (length <= 0) {
-                    listOf()
-                } else {
-                    listOf(tGen(random.nextInt(complexity + 1), random)) + genList(complexity, length - 1)
-                }
+            if (length <= 0) {
+                listOf()
+            } else {
+                listOf(tGen(random.nextInt(complexity + 1), random)) + genList(complexity, length - 1)
+            }
         return genList(complexity, random.nextInt(complexity + 1))
     }
 }
@@ -968,13 +1078,16 @@ internal class ArrayWrapper(val array: Any) {
     operator fun get(index: Int): Any? {
         return ReflectArray.get(array, index)
     }
+
     operator fun set(index: Int, value: Any?) {
         ReflectArray.set(array, index, value)
     }
+
     fun random(random: Random): Any? {
         return get(random.nextInt(size))
     }
 }
+
 internal fun ArrayWrapper?.isNullOrEmpty() = this == null || this.size == 0
 
 /**
@@ -989,14 +1102,16 @@ abstract class TestStep(
     /** The number of the test represented by this [TestStep]. */
     val testNumber: Int,
     /** Whether or not this test case was discarded. */
-    val wasDiscarded: Boolean
+    val wasDiscarded: Boolean,
+    /** The test type */
+    val testType: TestType
 ) : DefaultSerializable
 
 /**
  * Represents a test case that was executed.
  */
 class ExecutedTestStep(
-    iteration: Int,
+    iteration: Int, testType: TestType,
     /** The receiver object passed to the reference. */
     val refReceiver: Any?,
     /** The receiver object passed to the submission. */
@@ -1009,7 +1124,7 @@ class ExecutedTestStep(
     val subOutput: TestOutput<Any?>,
     /** The assertion error thrown, if any, by the verifier. */
     val assertErr: Throwable?
-) : TestStep(iteration, false) {
+) : TestStep(iteration, false, testType) {
     override fun toJson() = defaultToJson()
 }
 
@@ -1017,12 +1132,12 @@ class ExecutedTestStep(
  * Represents a discarded test case.
  */
 class DiscardedTestStep(
-    iteration: Int,
+    iteration: Int, testType: TestType,
     /** The receiver object that was passed to the precondition. */
     val receiver: Any?,
     /** The other arguments that were passed to the precondition. */
     val args: Array<Any?>
-) : TestStep(iteration, true) {
+) : TestStep(iteration, true, testType) {
     override fun toJson() = defaultToJson()
 
     override fun equals(other: Any?): Boolean {
@@ -1084,14 +1199,25 @@ data class TestRunOutput(
     override fun toJson() = defaultToJson()
 }
 
+enum class TestType {
+    Edge,
+    Simple,
+    EdgeSimpleMixed,
+    Generated,
+    GeneratedMixed,
+    Regression
+}
+
 data class TestingBlockCounts(
     var discardedTests: Int = 0,
     var edgeTests: Int = 0,
     var simpleTests: Int = 0,
     var simpleEdgeMixedTests: Int = 0,
     var generatedMixedTests: Int = 0,
-    var allGeneratedTests: Int = 0) {
+    var allGeneratedTests: Int = 0,
+    var regressionTests: Int = 0
+) {
 
     val numTests: Int
-        get() = edgeTests + simpleTests + simpleEdgeMixedTests + generatedMixedTests + allGeneratedTests
+        get() = edgeTests + simpleTests + simpleEdgeMixedTests + generatedMixedTests + allGeneratedTests + regressionTests
 }

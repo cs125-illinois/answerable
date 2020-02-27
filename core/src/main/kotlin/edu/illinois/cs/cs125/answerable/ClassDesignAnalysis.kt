@@ -13,7 +13,7 @@ import java.util.*
  * Analyzer that determines that a submission class is equivalent in design to a reference class.
  *
  * The reference class for a question defines a "contract," a specification of the public members that any
- * implementation must expose. Answerable's job is to acertain that a submission meets the specification both on the
+ * implementation must expose. Answerable's job is to ascertain that a submission meets the specification both on the
  * surface, in API, and behaviorally. This is the API component.
  */
 class ClassDesignAnalysis(private val solutionName: String, private val reference: Class<*>, private val attempt: Class<*>) {
