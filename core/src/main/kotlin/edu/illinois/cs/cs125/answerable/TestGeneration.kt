@@ -4,7 +4,6 @@ import edu.illinois.cs.cs125.answerable.TestGenerator.ReceiverGenStrategy.*
 import edu.illinois.cs.cs125.answerable.api.*
 import edu.illinois.cs.cs125.answerable.typeManagement.*
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Test
 import org.opentest4j.AssertionFailedError
 import java.util.*
 import kotlin.math.min
@@ -707,15 +706,15 @@ internal class TestRunWorker internal constructor(
 
         setOf(randomForReference, randomForSubmission, testRunnerRandom).forEach { it.setSeed(seed) }
 
-        var refReceiver: Any? = null
-        var subReceiver: Any? = null
+        var useRefReceiver: Any? // the receiver that should be used for the current test iteration
+        var useSubReceiver: Any? // ^
+        var nonRegressRefReceiver: Any? = null // the most recent receiver used in a non-regression test
+        var nonRegressSubReceiver: Any? = null // ^
 
-        val regressRefReceivers: MutableList<Any?> = mutableListOf()
-        val regressSubReceivers: MutableList<Any?> = mutableListOf()
+        val regressRefReceivers: MutableList<Any?> = mutableListOf() // receivers available for use in regression tests
+        val regressSubReceivers: MutableList<Any?> = mutableListOf() // ^
 
         var block: TestType
-        var edgeIdx = 0
-        var simpleIdx = 0
         var generatedMixedIdx = 0
         var allGeneratedIdx = 0
 
@@ -727,12 +726,13 @@ internal class TestRunWorker internal constructor(
                 (testingBlockCounts.numTests + 1) % 16 == 0 -> {
                     block = TestType.Regression
 
-                    val comp = testRunnerRandom.nextInt(5) // 0 to 4, basically simple
-
+                    // TODO: Smarter way to pick regression receivers?
                     val receiverIx = testRunnerRandom.nextInt(regressRefReceivers.size)
-                    refReceiver = regressRefReceivers[receiverIx]
-                    subReceiver = regressSubReceivers[receiverIx]
+                    useRefReceiver = regressRefReceivers[receiverIx]
+                    useSubReceiver = regressSubReceivers[receiverIx]
 
+                    // TODO: Use more complex arguments?
+                    val comp = testRunnerRandom.nextInt(5) // 0 to 4, basically simple
                     refMethodArgs = params.map { referenceGens[it]?.generate(comp) }.toTypedArray()
                     subMethodArgs = params.map { submissionGens[it]?.generate(comp) }.toTypedArray()
                 }
@@ -749,8 +749,8 @@ internal class TestRunWorker internal constructor(
                     refMethodArgs = refCase.slice(1..refCase.indices.last).toTypedArray()
                     subMethodArgs = subCase.slice(1..subCase.indices.last).toTypedArray()
 
-                    refReceiver = if (refCase[0] != null) refCase[0] else mkRefReceiver(i, 0, refReceiver)
-                    subReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, subReceiver)
+                    useRefReceiver = if (refCase[0] != null) refCase[0] else mkRefReceiver(i, 0, nonRegressRefReceiver)
+                    useSubReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, nonRegressSubReceiver)
                 }
                 testingBlockCounts.simpleTests < numSimpleCaseTests -> {
                     block = TestType.Simple
@@ -763,15 +763,15 @@ internal class TestRunWorker internal constructor(
                     refMethodArgs = refCase.slice(1..refCase.indices.last).toTypedArray()
                     subMethodArgs = subCase.slice(1..subCase.indices.last).toTypedArray()
 
-                    refReceiver = if (refCase[0] != null) refCase[0] else mkRefReceiver(i, 0, refReceiver)
-                    subReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, subReceiver)
+                    useRefReceiver = if (refCase[0] != null) refCase[0] else mkRefReceiver(i, 0, nonRegressRefReceiver)
+                    useSubReceiver = if (subCase[0] != null) subCase[0] else mkSubReceiver(i, 0, nonRegressSubReceiver)
 
                 }
                 testingBlockCounts.simpleEdgeMixedTests < numSimpleEdgeMixedTests -> {
                     block = TestType.EdgeSimpleMixed
 
-                    refReceiver = mkRefReceiver(i, 2, refReceiver)
-                    subReceiver = mkSubReceiver(i, 2, subReceiver)
+                    useRefReceiver = mkRefReceiver(i, 2, nonRegressRefReceiver)
+                    useSubReceiver = mkSubReceiver(i, 2, nonRegressSubReceiver)
 
                     refMethodArgs = mkSimpleEdgeMixedCase(
                         referenceEdgeCases,
@@ -794,8 +794,8 @@ internal class TestRunWorker internal constructor(
                         resolvedArgs.maxComplexity
                     )
 
-                    refReceiver = mkRefReceiver(i, comp, refReceiver)
-                    subReceiver = mkSubReceiver(i, comp, subReceiver)
+                    useRefReceiver = mkRefReceiver(i, comp, nonRegressRefReceiver)
+                    useSubReceiver = mkSubReceiver(i, comp, nonRegressSubReceiver)
 
                     refMethodArgs = params.map { referenceGens[it]?.generate(comp) }.toTypedArray()
                     subMethodArgs = params.map { submissionGens[it]?.generate(comp) }.toTypedArray()
@@ -810,8 +810,8 @@ internal class TestRunWorker internal constructor(
                         resolvedArgs.maxComplexity
                     )
 
-                    refReceiver = mkRefReceiver(i, comp, refReceiver)
-                    subReceiver = mkSubReceiver(i, comp, subReceiver)
+                    useRefReceiver = mkRefReceiver(i, comp, nonRegressRefReceiver)
+                    useSubReceiver = mkSubReceiver(i, comp, nonRegressSubReceiver)
 
                     refMethodArgs = mkGeneratedMixedCase(
                         referenceEdgeCases,
@@ -837,13 +837,20 @@ internal class TestRunWorker internal constructor(
                     )
             }
 
-            val preconditionMet: Boolean = (precondition?.invoke(refReceiver, *refMethodArgs) ?: true) as Boolean
+            val preconditionMet: Boolean = (precondition?.invoke(useRefReceiver, *refMethodArgs) ?: true) as Boolean
 
             val result: TestStep
             if (preconditionMet) {
-                result = testWith(i, block, refReceiver, subReceiver, refMethodArgs, subMethodArgs)
-                regressRefReceivers.add(refReceiver)
-                regressSubReceivers.add(subReceiver)
+                result = testWith(i, block, useRefReceiver, useSubReceiver, refMethodArgs, subMethodArgs)
+                when (block) {
+                    TestType.Regression -> Unit
+                    else -> {
+                        regressRefReceivers.add(useRefReceiver)
+                        regressSubReceivers.add(useSubReceiver)
+                        nonRegressRefReceiver = useRefReceiver
+                        nonRegressSubReceiver = useSubReceiver
+                    }
+                }
                 when (block) {
                     TestType.Edge            -> testingBlockCounts.edgeTests++
                     TestType.Simple          -> testingBlockCounts.simpleTests++
@@ -861,7 +868,7 @@ internal class TestRunWorker internal constructor(
                     TestType.Simple -> testingBlockCounts.simpleTests++
                     else -> Unit
                 }
-                result = DiscardedTestStep(i, block, refReceiver, refMethodArgs)
+                result = DiscardedTestStep(i, block, useRefReceiver, refMethodArgs)
                 testingBlockCounts.discardedTests++
             }
             synchronized(testStepList) {
