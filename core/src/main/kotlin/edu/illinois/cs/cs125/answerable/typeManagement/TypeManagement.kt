@@ -187,12 +187,15 @@ private fun mkProxy(presentationClass: Class<*>, outermostPresentationClass: Cla
     return subProxy
 }
 
+/** Replace qualified class name dots with forward slashes to match format in .class files. */
 private fun Class<*>.slashName() = name.replace('.', '/')
 
 /**
- * Creates a mirror class containing only enough of the reference class to generate submission classes.
+ * Creates a mirror class containing copies of generators from the [originalClass], retargeted
+ * so that references to the [originalClass] have been replaced with references to the [targetClass].
+ *
  * @param originalClass the original reference class
- * @param targetClass the class the generator should make instances of
+ * @param targetClass the class the generators should refer to instead of [originalClass]
  * @param pool the type pool to get bytecode from
  * @return a mirror class suitable only for generation
  */
@@ -202,6 +205,9 @@ internal fun mkGeneratorMirrorClass(originalClass: Class<*>, targetClass: Class<
             "answerablemirror.$namePrefix" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), pool)
 }
 
+// [Note: "scalar"]
+// The "scalar" of a type is the underlying type of a nested array type; or just the type if it is not an array type.
+// Ex: the scalar of int[] is int, the scalar of Object[][] is Object, the scalar of String is String.
 /**
  * Mirrors one class, which may be an inner class. (Recursive helper for mkGeneratorMirrorClass.)
  * @param baseClass the class to mirror
@@ -221,12 +227,22 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
     val mirrorSlashName = mirrorName.replace('.', '/')
     val refLBase = "L${referenceClass.slashName()}$"
     val mirrorLBase = "L${mirrorSlashName.split("$", limit = 2)[0]}$"
+
+    val classGen = ClassGen(pool.getBcelClassForClass(baseClass))
+    val constantPoolGen = classGen.constantPool
+    val constantPool = constantPoolGen.constantPool
+
+    @Suppress("CascadeIf")
     fun fixType(type: Type): Type {
+        // trim [ from the type signature because we care about what is in arrays, not that it is an array
         val newName = if (type.signature.trimStart('[') == refLName) {
+            // If the (scalar of the) type is the reference, use the target's qualified name
             targetClass.canonicalName
         } else if (type.signature.trimStart('[').startsWith(refLBase)) {
+            // above but inner class
             type.signature.trimStart('[').trimEnd(';').replace(refLBase, mirrorLBase).trimStart('L')
         } else {
+            // Nothing to do.
             return type
         }
         return if (type is ArrayType) {
@@ -235,22 +251,38 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
             ObjectType(newName)
         }
     }
-    val atVerifyName = baseClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
 
-    val classGen = ClassGen(pool.getBcelClassForClass(baseClass))
-
-    val constantPoolGen = classGen.constantPool
-    val constantPool = constantPoolGen.constantPool
-    val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
-    val mirrorClassIdx = constantPoolGen.addClass(mirrorSlashName)
-    val refMirrorClassIdx = constantPoolGen.addClass(mirrorSlashName.split("$", limit = 2)[0])
-    classGen.classNameIndex = mirrorClassIdx
-
+    /**
+     * Take the name of an inner class of the reference class, and return the name
+     * of the corresponding inner class of the submission class. (Protected by CDA)
+     */
     fun fixOuterClassName(innerName: String): String {
         val topLevelMirrorName = mirrorName.split("$", limit = 2)[0]
         val innerPath = innerName.split("$", limit = 2)[1]
         return "$topLevelMirrorName\$$innerPath"
     }
+
+    fun classIndexReplacement(currentIndex: Int): Int? {
+        val classConst = constantPool.getConstant(currentIndex) as? ConstantClass ?: return null
+        val className = (constantPool.getConstant(classConst.nameIndex) as? ConstantUtf8)?.bytes ?: return null
+        val curType = if (className.startsWith("[")) Type.getType(className) else ObjectType(className)
+        val newType = fixType(curType)
+        return if (newType.signature == curType.signature) {
+            currentIndex
+        } else if (newType is ArrayType) {
+            constantPoolGen.addArrayClass(newType)
+        } else {
+            constantPoolGen.addClass(newType as ObjectType)
+        }
+    }
+    val atVerifyName = baseClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
+
+
+    val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
+    val mirrorClassIdx = constantPoolGen.addClass(mirrorSlashName)
+    val refMirrorClassIdx = constantPoolGen.addClass(mirrorSlashName.split("$", limit = 2)[0])
+    classGen.classNameIndex = mirrorClassIdx
+
 
     for (i in 1 until constantPoolGen.size) {
         val constant = constantPoolGen.getConstant(i)
@@ -295,19 +327,7 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
         }
     }
 
-    fun classIndexReplacement(currentIndex: Int): Int? {
-        val classConst = constantPool.getConstant(currentIndex) as? ConstantClass ?: return null
-        val className = (constantPool.getConstant(classConst.nameIndex) as? ConstantUtf8)?.bytes ?: return null
-        val curType = if (className.startsWith("[")) Type.getType(className) else ObjectType(className)
-        val newType = fixType(curType)
-        return if (newType.signature == curType.signature) {
-            currentIndex
-        } else if (newType is ArrayType) {
-            constantPoolGen.addArrayClass(newType)
-        } else {
-            constantPoolGen.addClass(newType as ObjectType)
-        }
-    }
+
 
     classGen.methods.forEach {
         classGen.removeMethod(it)

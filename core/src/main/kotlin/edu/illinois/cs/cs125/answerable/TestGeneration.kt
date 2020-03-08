@@ -38,6 +38,9 @@ class TestGenerator(
     constructor(referenceClass: Class<*>, solutionName: String) : this(referenceClass, solutionName, defaultArgs)
 
     init {
+        if ('$' in referenceClass.name) {
+            throw AnswerableMisuseException("Reference class names cannot contain '$', sorry.")
+        }
         validateStaticSignatures(referenceClass)
     }
 
@@ -842,14 +845,11 @@ internal class TestRunWorker internal constructor(
             val result: TestStep
             if (preconditionMet) {
                 result = testWith(i, block, useRefReceiver, useSubReceiver, refMethodArgs, subMethodArgs)
-                when (block) {
-                    TestType.Regression -> Unit
-                    else -> {
-                        regressRefReceivers.add(useRefReceiver)
-                        regressSubReceivers.add(useSubReceiver)
-                        nonRegressRefReceiver = useRefReceiver
-                        nonRegressSubReceiver = useSubReceiver
-                    }
+                if (block != TestType.Regression) {
+                    regressRefReceivers.add(useRefReceiver)
+                    regressSubReceivers.add(useSubReceiver)
+                    nonRegressRefReceiver = useRefReceiver
+                    nonRegressSubReceiver = useSubReceiver
                 }
                 when (block) {
                     TestType.Edge            -> testingBlockCounts.edgeTests++
