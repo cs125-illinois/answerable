@@ -21,11 +21,11 @@ import java.util.*
 private val objenesis = ObjenesisStd()
 
 /**
-    Lots of modifications done in this file affect the bytecode of a class, so we need a way to hot-reload those classes
-    and get them back into the JVM. Here we can take a bytearray (class file) and load it.
+Lots of modifications done in this file affect the bytecode of a class, so we need a way to hot-reload those classes
+and get them back into the JVM. Here we can take a bytearray (class file) and load it.
  */
-private open class BytesClassLoader(parentLoader: ClassLoader? = null)
-    : ClassLoader(parentLoader ?: getSystemClassLoader()), EnumerableBytecodeLoader {
+private open class BytesClassLoader(parentLoader: ClassLoader? = null) :
+    ClassLoader(parentLoader ?: getSystemClassLoader()), EnumerableBytecodeLoader {
     private val bytecodeLoaded = mutableMapOf<Class<*>, ByteArray>()
     private val definedClasses = mutableMapOf<String, Class<*>>()
     fun loadBytes(name: String, bytes: ByteArray): Class<*> {
@@ -33,22 +33,28 @@ private open class BytesClassLoader(parentLoader: ClassLoader? = null)
             defineClass(name, bytes, 0, bytes.size).also { bytecodeLoaded[it] = bytes }
         })
     }
+
     override fun getBytecode(clazz: Class<*>): ByteArray {
-        return bytecodeLoaded[clazz] ?: throw ClassNotFoundException("This BytesClassLoader is not responsible for $clazz")
+        return bytecodeLoaded[clazz]
+            ?: throw ClassNotFoundException("This BytesClassLoader is not responsible for $clazz")
     }
+
     override fun getAllBytecode(): Map<String, ByteArray> {
         return bytecodeLoaded.map { (key, value) -> key.name to value }.toMap()
     }
+
     override fun getLoader(): ClassLoader {
         return this
     }
 }
 
 /**
-    Above; but also can ask other classloaders for classes. Useful in sandboxes.
+Above; but also can ask other classloaders for classes. Useful in sandboxes.
  */
-private class DiamondClassLoader(primaryParent: ClassLoader,
-                                 vararg val otherParents: ClassLoader) : BytesClassLoader(primaryParent) {
+private class DiamondClassLoader(
+    primaryParent: ClassLoader,
+    vararg val otherParents: ClassLoader
+) : BytesClassLoader(primaryParent) {
     override fun loadClass(name: String?): Class<*> {
         try {
             return super.loadClass(name)
@@ -56,7 +62,8 @@ private class DiamondClassLoader(primaryParent: ClassLoader,
             otherParents.forEach {
                 try {
                     return it.loadClass(name)
-                } catch (ignored: ClassNotFoundException) { }
+                } catch (ignored: ClassNotFoundException) {
+                }
             }
         }
         throw ClassNotFoundException(name)
@@ -126,7 +133,11 @@ in this case Reference.Foo, and proxy it as an instance of that.
  * @param pool type pool to look for super classes in
  * @return a TypeMapping that determines what classes to map fields and method between, or null if no proxy is needed
  */
-private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass: Class<*>?, pool: TypePool): TypeMapping? {
+private fun mostDerivedProxyableClass(
+    outermostSuperClass: Class<*>,
+    childClass: Class<*>?,
+    pool: TypePool
+): TypeMapping? {
     if (childClass == null) return null
     if (childClass.enclosingClass == null) return null
     val innerPath = childClass.name.split('$', limit = 2)[1]
@@ -155,9 +166,11 @@ private fun mostDerivedProxyableClass(outermostSuperClass: Class<*>, childClass:
  * @param behaviorInstance The instance of behaviorClass which is being proxied.
  * @param pool A TypePool from which we can get superclasses of the behaviorClass.
  */
-private fun mkProxy(presentationClass: Class<*>, outermostPresentationClass: Class<*>,
-                    behaviorClass: Class<*>, outermostBehaviorClass: Class<*>,
-                    behaviorInstance: Any, pool: TypePool): Any {
+private fun mkProxy(
+    presentationClass: Class<*>, outermostPresentationClass: Class<*>,
+    behaviorClass: Class<*>, outermostBehaviorClass: Class<*>,
+    behaviorInstance: Any, pool: TypePool
+): Any {
     if (presentationClass == behaviorClass) return behaviorInstance
 
     val subProxy = pool.getProxyInstantiator(presentationClass).newInstance()
@@ -169,14 +182,18 @@ private fun mkProxy(presentationClass: Class<*>, outermostPresentationClass: Cla
         behaviorClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(behaviorInstance)) }
         // proxy result if necessary
         if (result != null && result.javaClass.enclosingClass != null
-                && result.javaClass.name.startsWith("${outermostBehaviorClass.name}$")) {
+            && result.javaClass.name.startsWith("${outermostBehaviorClass.name}$")
+        ) {
             val innerMap = mostDerivedProxyableClass(outermostPresentationClass, result.javaClass, pool)
             if (innerMap == null) {
                 return@setHandler result
             } else {
-                val innerProxy = mkProxy(innerMap.presentation,
-                    outermostPresentationClass, innerMap.behavior, outermostBehaviorClass, result, pool)
-                innerMap.behavior.getPublicFields().forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
+                val innerProxy = mkProxy(
+                    innerMap.presentation,
+                    outermostPresentationClass, innerMap.behavior, outermostBehaviorClass, result, pool
+                )
+                innerMap.behavior.getPublicFields()
+                    .forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
                 return@setHandler innerProxy
             }
         } else {
@@ -190,6 +207,22 @@ private fun mkProxy(presentationClass: Class<*>, outermostPresentationClass: Cla
 /** Replace qualified class name dots with forward slashes to match format in .class files. */
 private fun Class<*>.slashName() = name.replace('.', '/')
 
+private val String.slashName: String
+    get() = this.replace('.', '/')
+private val String.dotName: String
+    get() = this.replace('/', '.')
+
+private val generationAnnotationTypes: Set<Class<out Annotation>> =
+    setOf(
+        Helper::class.java,
+        Generator::class.java,
+        Next::class.java,
+        EdgeCase::class.java,
+        SimpleCase::class.java
+    )
+
+private val verifyAnnotationType: Set<Class<out Annotation>> = setOf(Verify::class.java)
+
 /**
  * Creates a mirror class containing copies of generators from the [originalClass], retargeted
  * so that references to the [originalClass] have been replaced with references to the [targetClass].
@@ -199,10 +232,14 @@ private fun Class<*>.slashName() = name.replace('.', '/')
  * @param pool the type pool to get bytecode from
  * @return a mirror class suitable only for generation
  */
-internal fun mkGeneratorMirrorClass(originalClass: Class<*>, targetClass: Class<*>,
-                                    pool: TypePool = TypePool(null), namePrefix: String = "m"): Class<*> {
-    return mkGeneratorMirrorClass(originalClass, originalClass, targetClass,
-            "answerablemirror.$namePrefix" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), pool)
+internal fun mkGeneratorMirrorClass(
+    originalClass: Class<*>, targetClass: Class<*>,
+    pool: TypePool = TypePool(null), namePrefix: String = "m"
+): Class<*> {
+    return mkGeneratorMirrorClass(
+        originalClass, originalClass, targetClass,
+        "answerablemirror.$namePrefix" + UUID.randomUUID().toString().replace("-", ""), mutableMapOf(), pool
+    )
 }
 
 // [Note: "scalar"]
@@ -218,8 +255,10 @@ internal fun mkGeneratorMirrorClass(originalClass: Class<*>, targetClass: Class<
  * @param pool the type pool to get bytecode from
  * @return the mirrored class
  */
-private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String,
-                                   mirrorsMade: MutableMap<String, Class<*>>, pool: TypePool): Class<*> {
+private fun mkGeneratorMirrorClass(
+    baseClass: Class<*>, referenceClass: Class<*>, targetClass: Class<*>, mirrorName: String,
+    mirrorsMade: MutableMap<String, Class<*>>, pool: TypePool
+): Class<*> {
     mirrorsMade[mirrorName]?.let { return it }
 
     val refLName = "L${referenceClass.slashName()};"
@@ -231,6 +270,11 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
     val classGen = ClassGen(pool.getBcelClassForClass(baseClass))
     val constantPoolGen = classGen.constantPool
     val constantPool = constantPoolGen.constantPool
+
+    val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
+    val mirrorClassIdx = constantPoolGen.addClass(mirrorSlashName)
+    val refMirrorClassIdx = constantPoolGen.addClass(mirrorSlashName.split("$", limit = 2)[0])
+    classGen.classNameIndex = mirrorClassIdx
 
     @Suppress("CascadeIf")
     fun fixType(type: Type): Type {
@@ -253,15 +297,10 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
     }
 
     /**
-     * Take the name of an inner class of the reference class, and return the name
-     * of the corresponding inner class of the submission class. (Protected by CDA)
+     * Take the current working index inside the constant pool. If the type needs to be fixed (c.f. fixType)
+     * Then a replacement class constant is inserted into the constant pool replacement index is returned.
+     * Else, returns null.
      */
-    fun fixOuterClassName(innerName: String): String {
-        val topLevelMirrorName = mirrorName.split("$", limit = 2)[0]
-        val innerPath = innerName.split("$", limit = 2)[1]
-        return "$topLevelMirrorName\$$innerPath"
-    }
-
     fun classIndexReplacement(currentIndex: Int): Int? {
         val classConst = constantPool.getConstant(currentIndex) as? ConstantClass ?: return null
         val className = (constantPool.getConstant(classConst.nameIndex) as? ConstantUtf8)?.bytes ?: return null
@@ -275,76 +314,122 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
             constantPoolGen.addClass(newType as ObjectType)
         }
     }
-    val atVerifyName = baseClass.declaredMethods.firstOrNull { it.isAnnotationPresent(Verify::class.java) }?.name
+
+    /**
+     * Take the name of an inner class of the reference class, and return the name
+     * of the corresponding inner class of the submission class. (Protected by CDA)
+     */
+    fun fixOuterClassName(innerName: String): String {
+        val topLevelMirrorName = mirrorName.split("$", limit = 2)[0]
+        val innerPath = innerName.split("$", limit = 2)[1]
+        return "$topLevelMirrorName\$$innerPath"
+    }
+
+    fun methodHasAnnotation(memberName: String, annotations: Set<Class<out Annotation>>): Boolean =
+        referenceClass.declaredMethods.firstOrNull {
+            Modifier.isStatic(it.modifiers) && it.name == memberName
+        }?.let { method ->
+            annotations.any { annotation -> method.isAnnotationPresent(annotation) }
+        } ?: false
+    fun methodHasGenerationAnnotation(memberName: String) = methodHasAnnotation(memberName, generationAnnotationTypes)
+    fun methodHasVerifyAnnotation(memberName: String) = methodHasAnnotation(memberName, verifyAnnotationType)
+
+    fun fieldHasGenerationAnnotation(memberName: String): Boolean =
+        referenceClass.declaredFields.firstOrNull {
+            Modifier.isStatic(it.modifiers) && it.name == memberName
+        }?.let { field ->
+            generationAnnotationTypes.any { annotation -> field.isAnnotationPresent(annotation) }
+        } ?: false
 
 
-    val newClassIdx = constantPoolGen.addClass(targetClass.canonicalName)
-    val mirrorClassIdx = constantPoolGen.addClass(mirrorSlashName)
-    val refMirrorClassIdx = constantPoolGen.addClass(mirrorSlashName.split("$", limit = 2)[0])
-    classGen.classNameIndex = mirrorClassIdx
 
+    /**
+     * Handles the case for mirroring where a constant pool constant is a ConstantCP,
+     * specifically, a reference to a field, method, or interface method.
+     */
+    fun handleConstantCP(constant: ConstantCP) {
+        if (!(constant is ConstantFieldref
+                    || constant is ConstantMethodref
+                    || constant is ConstantInterfaceMethodref)
+        ) return
+        if (constant.classIndex == 0 || constantPool.getConstant(constant.classIndex) !is ConstantClass) return
 
-    for (i in 1 until constantPoolGen.size) {
-        val constant = constantPoolGen.getConstant(i)
-        if (constant is ConstantCP && (constant is ConstantFieldref || constant is ConstantMethodref || constant is ConstantInterfaceMethodref)) {
-            if (constant.classIndex == 0 || constantPool.getConstant(constant.classIndex) !is ConstantClass) continue
-            val className = constant.getClass(constantPool)
-            if (className == referenceClass.canonicalName) {
-                var shouldReplace = false
-                val memberName = (constantPool.getConstant(constant.nameAndTypeIndex) as ConstantNameAndType).getName(constantPool)
+        val className = constant.getClass(constantPool)
+
+        if (className == referenceClass.canonicalName) {
+            // if the constant is the name of the reference class, it is something that might need to be mirrored
+            val memberName = (constantPool.getConstant(constant.nameAndTypeIndex)
+                    as ConstantNameAndType).getName(constantPool)
+            val shouldReplace: Boolean =
                 if (constant is ConstantMethodref || constant is ConstantInterfaceMethodref) {
-                    val helperAnnotations = setOf(Helper::class.java, Generator::class.java, Next::class.java, EdgeCase::class.java, SimpleCase::class.java)
-                    shouldReplace = !(referenceClass.declaredMethods.firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.let { method ->
-                        helperAnnotations.any { annotation -> method.isAnnotationPresent(annotation) }
-                    } ?: false) && !memberName.contains('$')
+                    // if it contains a '$' it's a synthetic accessor, which needs to be mirrored
+                    // TODO: why?
+                    methodHasGenerationAnnotation(memberName) || memberName.contains('$')
                 } else if (constant is ConstantFieldref) {
-                    val helperAnnotations = setOf(Helper::class.java, EdgeCase::class.java, SimpleCase::class.java)
-                    shouldReplace = !(referenceClass.declaredFields
-                        .firstOrNull { Modifier.isStatic(it.modifiers) && it.name == memberName }?.let { field ->
-                            helperAnnotations.any { annotation -> field.isAnnotationPresent(annotation) }
-                        } ?: false)
-                }
-                constant.classIndex = if (shouldReplace) newClassIdx else refMirrorClassIdx
-            } else if (className.startsWith("${referenceClass.canonicalName}$")) {
-                constant.classIndex = constantPoolGen.addClass(fixOuterClassName(className).replace('.', '/'))
-            }
-        } else if (constant is ConstantNameAndType) {
-            val typeSignature = constant.getSignature(constantPool)
-            if (typeSignature.contains(refLName) || typeSignature.contains(refLBase)) {
-                val fixedSignature = typeSignature.replace(refLName, subLName).replace(refLBase, mirrorLBase)
-                constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(fixedSignature))
-            }
-        } else if (constant is ConstantClass) {
-            val name = constant.getBytes(constantPool)
-            if (name.startsWith("${baseClass.slashName()}\$")) {
-                val inner = pool.classForName(name.replace('/', '.'))
-                val innerMirror = mkGeneratorMirrorClass(inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade, pool)
-                constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(innerMirror.slashName()))
-            } else if (name.startsWith("${referenceClass.slashName()}\$")) {
-                // Shouldn't merge this with the above condition because of possible mutual reference (infinite recursion)
-                constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(fixOuterClassName(name).replace('.', '/')))
-            }
+                    fieldHasGenerationAnnotation(memberName)
+                } else error("The impossible happened! handleConstantCP: bad constant type.\nPlease report a bug.")
+            constant.classIndex = if (shouldReplace) refMirrorClassIdx else newClassIdx
+        } else if (className.startsWith("${referenceClass.canonicalName}$")) {
+            // inner class that needs to be duplicated.
+            constant.classIndex = constantPoolGen.addClass(fixOuterClassName(className).slashName)
         }
     }
 
-
-
-    classGen.methods.forEach {
-        classGen.removeMethod(it)
-        if ((!it.isStatic || it.name == atVerifyName) && baseClass == referenceClass) return@forEach
-
-        val newMethod = MethodGen(it, classGen.className, constantPoolGen)
-        newMethod.argumentTypes = it.argumentTypes.map(::fixType).toTypedArray()
-        newMethod.returnType = fixType(it.returnType)
-        newMethod.instructionList.map { handle -> handle.instruction }.filterIsInstance<CPInstruction>().forEach { instr ->
-            classIndexReplacement(instr.index)?.let { newIdx -> instr.index = newIdx }
+    /**
+     * Handle the signature of something, which may need to have references to the reference class mirrored.
+     */
+    fun handleConstantNameAndType(constant: ConstantNameAndType) {
+        val typeSignature = constant.getSignature(constantPool)
+        if (typeSignature.contains(refLName) || typeSignature.contains(refLBase)) {
+            val fixedSignature = typeSignature.replace(refLName, subLName).replace(refLBase, mirrorLBase)
+            // clobber the constant holding the old signature, we don't need it
+            constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(fixedSignature))
         }
+    }
+
+    /**
+     * Handle a class constant.
+     */
+    fun handleConstantClass(constant: ConstantClass) {
+        val name = constant.getBytes(constantPool)
+        if (name.startsWith("${baseClass.slashName()}\$")) {
+            // if the referred class is an inner class of the current class, recurse and make mirrors in it as well.
+            val inner = pool.classForName(name.dotName)
+            val innerMirror = mkGeneratorMirrorClass(
+                inner, referenceClass, targetClass, fixOuterClassName(name), mirrorsMade, pool
+            )
+            constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(innerMirror.slashName()))
+        } else if (name.startsWith("${referenceClass.slashName()}\$")) {
+            // inner class of the outermost class, which is not inside of the current inner class.
+            // Shouldn't merge this with the above condition
+            // because of possible mutual reference (infinite recursion)
+            constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(fixOuterClassName(name).slashName))
+        }
+    }
+
+    /**
+     * Handle a method on the mirror class. Either:
+     *   (1) it is not needed for generation purposes, and it is dropped; or
+     *   (2) it is needed, and all references to the reference class are mirrored.
+     */
+    fun handleMethod(method: Method) {
+        classGen.removeMethod(method)
+        if ((!method.isStatic || methodHasVerifyAnnotation(method.name)) && baseClass == referenceClass) return
+
+        val newMethod = MethodGen(method, classGen.className, constantPoolGen)
+        newMethod.argumentTypes = method.argumentTypes.map(::fixType).toTypedArray()
+        newMethod.returnType = fixType(method.returnType)
+        newMethod.instructionList.map { handle -> handle.instruction }.filterIsInstance<CPInstruction>()
+            .forEach { instr ->
+                classIndexReplacement(instr.index)?.let { newIdx -> instr.index = newIdx }
+            }
 
         newMethod.codeAttributes.filterIsInstance<StackMap>().firstOrNull()?.let { stackMap ->
             stackMap.stackMap.forEach { stackEntry ->
-                stackEntry.typesOfLocals.plus(stackEntry.typesOfStackItems).filter { local -> local.type == Const.ITEM_Object }.forEach { local ->
-                    classIndexReplacement(local.index)?.let { newIdx -> local.index = newIdx }
-                }
+                stackEntry.typesOfLocals.plus(stackEntry.typesOfStackItems)
+                    .filter { local -> local.type == Const.ITEM_Object }.forEach { local ->
+                        classIndexReplacement(local.index)?.let { newIdx -> local.index = newIdx }
+                    }
             }
         }
         newMethod.localVariables.forEach { localVariableGen ->
@@ -353,28 +438,48 @@ private fun mkGeneratorMirrorClass(baseClass: Class<*>, referenceClass: Class<*>
 
         classGen.addMethod(newMethod.method)
     }
-    classGen.fields.forEach {
-        classGen.removeField(it)
+    fun handleField(field: org.apache.bcel.classfile.Field) {
+        classGen.removeField(field)
 
-        val newField = FieldGen(it, constantPoolGen)
-        newField.type = fixType(it.type)
+        val newField = FieldGen(field, constantPoolGen)
+        newField.type = fixType(field.type)
 
         classGen.addField(newField.field)
     }
-
-    classGen.attributes.filterIsInstance<InnerClasses>().firstOrNull()?.innerClasses?.forEach { innerClass ->
-        val outerName = (constantPool.getConstant(innerClass.outerClassIndex) as? ConstantClass)?.getBytes(constantPool)
+    fun handleInnerClass(innerClass: InnerClass) {
+        val outerName =
+            (constantPool.getConstant(innerClass.outerClassIndex) as? ConstantClass)?.getBytes(constantPool)
         if (outerName == baseClass.slashName()) {
             innerClass.outerClassIndex = mirrorClassIdx
         }
     }
 
+    // THE ACTUAL FUNCTION BODY
+    // finally
+
+    // Mirror all references to the reference class in the constant pool.
+    (1 until constantPoolGen.size).map(constantPoolGen::getConstant).forEach { constant ->
+        when (constant) {
+            is ConstantCP          -> handleConstantCP(constant)
+            is ConstantClass       -> handleConstantClass(constant)
+            is ConstantNameAndType -> handleConstantNameAndType(constant)
+        }
+    }
+
+    // Mirror all references to the reference class in the class methods.
+    classGen.methods.forEach(::handleMethod)
+    // Mirror all references to the reference class in the class fields.
+    classGen.fields.forEach(::handleField)
+    // Mirror all references to the reference class in the inner class table.
+    // there is at most one InnerClasses attribute on any classGen.
+    classGen.attributes.filterIsInstance<InnerClasses>().firstOrNull()?.innerClasses?.forEach(::handleInnerClass)
     // Mirror Java 11 nesting attributes
     classGen.attributes.filterIsInstance<NestHost>().firstOrNull()?.let { nestHost ->
         nestHost.hostClassIndex = refMirrorClassIdx
     }
     classGen.attributes.filterIsInstance<NestMembers>().firstOrNull()?.let { nestMembers ->
-        nestMembers.classes = nestMembers.classNames.map { constantPoolGen.addClass(fixOuterClassName(it)) }.toIntArray()
+        nestMembers.classes =
+            nestMembers.classNames.map { constantPoolGen.addClass(fixOuterClassName(it)) }.toIntArray()
     }
 
     //classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
@@ -398,18 +503,22 @@ internal fun mkOpenMirrorClass(clazz: Class<*>, pool: TypePool, namePrefix: Stri
  * @param pool the type pool to get bytecode from and load classes into
  * @return a non-final version of the class with non-final members/classes
  */
-internal fun mkOpenMirrorClass(clazz: Class<*>, classRenames: Map<Class<*>, Class<*>>,
-                               pool: TypePool, namePrefix: String = "o"): Class<*> {
+internal fun mkOpenMirrorClass(
+    clazz: Class<*>, classRenames: Map<Class<*>, Class<*>>,
+    pool: TypePool, namePrefix: String = "o"
+): Class<*> {
     val newName = "answerablemirror.$namePrefix" + UUID.randomUUID().toString().replace("-", "")
     val allRenames = classRenames
-            .map { (inClass, outClass) -> Pair(inClass.name, outClass.name) }
-            .plus(Pair(clazz.name, newName))
-            .map { Pair(it.first.replace('.', '/'), it.second.replace('.', '/')) }
+        .map { (inClass, outClass) -> Pair(inClass.name, outClass.name) }
+        .plus(Pair(clazz.name, newName))
+        .map { Pair(it.first.replace('.', '/'), it.second.replace('.', '/')) }
     return mkOpenMirrorClass(clazz, clazz, newName, allRenames.toMap(), mutableListOf(), pool)!!
 }
 
-private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: String,
-                              classRenames: Map<String, String>, alreadyDone: MutableList<String>, pool: TypePool): Class<*>? {
+private fun mkOpenMirrorClass(
+    clazz: Class<*>, baseClass: Class<*>, newName: String,
+    classRenames: Map<String, String>, alreadyDone: MutableList<String>, pool: TypePool
+): Class<*>? {
     if (alreadyDone.contains(newName)) return null
     alreadyDone.add(newName)
 
@@ -427,12 +536,16 @@ private fun mkOpenMirrorClass(clazz: Class<*>, baseClass: Class<*>, newName: Str
     // Recursively mirror inner classes
     val newBase = newName.split('$', limit = 2)[0]
     classGen.attributes.filterIsInstance<InnerClasses>().firstOrNull()?.innerClasses?.forEach { innerClass ->
-        val innerName = (constantPool.getConstant(innerClass.innerClassIndex) as? ConstantClass)?.getBytes(constantPool) ?: return@forEach
+        val innerName =
+            (constantPool.getConstant(innerClass.innerClassIndex) as? ConstantClass)?.getBytes(constantPool)
+                ?: return@forEach
         if (innerName.startsWith(baseClass.slashName() + "$")) {
             if (Modifier.isFinal(innerClass.innerAccessFlags)) innerClass.innerAccessFlags -= Modifier.FINAL
             val innerPath = innerName.split('$', limit = 2)[1]
-            mkOpenMirrorClass(pool.classForName(innerName.replace('/', '.')), baseClass,
-                    "$newBase\$$innerPath", classRenames, alreadyDone, pool)
+            mkOpenMirrorClass(
+                pool.classForName(innerName.replace('/', '.')), baseClass,
+                "$newBase\$$innerPath", classRenames, alreadyDone, pool
+            )
         }
     }
 
@@ -490,24 +603,34 @@ internal fun verifyMemberAccess(referenceClass: Class<*>, pool: TypePool = TypeP
  * @param dangerousAccessors members whose access will cause the given problem
  * @param pool the type pool to get bytecode from
  */
-private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>, checked: MutableSet<Class<*>>,
-                               dangerousAccessors: Map<String, AnswerableBytecodeVerificationException>, pool: TypePool) {
+private fun verifyMemberAccess(
+    currentClass: Class<*>, referenceClass: Class<*>, checked: MutableSet<Class<*>>,
+    dangerousAccessors: Map<String, AnswerableBytecodeVerificationException>, pool: TypePool
+) {
     if (checked.contains(currentClass)) return
     checked.add(currentClass)
 
     val toCheck = pool.getBcelClassForClass(currentClass)
     val methodsToCheck = if (currentClass == referenceClass) {
-        toCheck.methods.filter { it.annotationEntries.any {
-            ae -> ae.annotationType in setOf(Generator::class.java.name, Next::class.java.name, Helper::class.java.name).map { t -> ObjectType(t).signature }
-        } }.toTypedArray()
+        toCheck.methods.filter {
+            it.annotationEntries.any { ae ->
+                ae.annotationType in setOf(
+                    Generator::class.java.name,
+                    Next::class.java.name,
+                    Helper::class.java.name
+                ).map { t -> ObjectType(t).signature }
+            }
+        }.toTypedArray()
     } else {
         toCheck.methods
     }
 
     val constantPool = toCheck.constantPool
-    val innerClassIndexes = toCheck.attributes.filterIsInstance<InnerClasses>().firstOrNull()?.innerClasses?.filter { innerClass ->
-        (constantPool.getConstant(innerClass.innerClassIndex) as ConstantClass).getBytes(constantPool).startsWith("${toCheck.className.replace('.', '/')}$")
-    }?.map { it.innerClassIndex } ?: listOf()
+    val innerClassIndexes =
+        toCheck.attributes.filterIsInstance<InnerClasses>().firstOrNull()?.innerClasses?.filter { innerClass ->
+            (constantPool.getConstant(innerClass.innerClassIndex) as ConstantClass).getBytes(constantPool)
+                .startsWith("${toCheck.className.replace('.', '/')}$")
+        }?.map { it.innerClassIndex } ?: listOf()
 
     val dangersToInnerClasses = dangerousAccessors.toMutableMap()
 
@@ -516,50 +639,77 @@ private fun verifyMemberAccess(currentClass: Class<*>, referenceClass: Class<*>,
         if (methodsChecked.contains(method)) return
         methodsChecked.add(method)
 
-        InstructionList(method.code.code).map { it.instruction }.filterIsInstance<CPInstruction>().forEach eachInstr@{ instr ->
-            if (instr is FieldOrMethod) {
-                if (instr is INVOKEDYNAMIC) return@eachInstr
-                val refConstant = constantPool.getConstant(instr.index) as? ConstantCP ?: return@eachInstr
-                if (refConstant.getClass(constantPool) != referenceClass.name) return@eachInstr
-                val signatureConstant = constantPool.getConstant(refConstant.nameAndTypeIndex) as ConstantNameAndType
-                if (instr is FieldInstruction) {
-                    val field = try {
-                        referenceClass.getDeclaredField(signatureConstant.getName(constantPool))
-                    } catch (e: NoSuchFieldException) {
-                        return@eachInstr
-                    }
-                    if (Modifier.isStatic(field.modifiers) && field.isAnnotationPresent(Helper::class.java)) return@eachInstr
-                    if (!Modifier.isPublic(field.modifiers))
-                        throw AnswerableBytecodeVerificationException(method.name, currentClass, field)
-                } else if (instr is InvokeInstruction) {
-                    val name = signatureConstant.getName(constantPool)
-                    val signature = signatureConstant.getSignature(constantPool)
-                    if (name == "<init>") {
-                        referenceClass.declaredConstructors.filter { dc ->
-                            !Modifier.isPublic(dc.modifiers)
-                                    && signature == "(${dc.parameterTypes.joinToString(separator = "") { Type.getType(it).signature }})V"
-                        }.forEach { candidate ->
-                            throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
+        InstructionList(method.code.code).map { it.instruction }.filterIsInstance<CPInstruction>()
+            .forEach eachInstr@{ instr ->
+                if (instr is FieldOrMethod) {
+                    if (instr is INVOKEDYNAMIC) return@eachInstr
+                    val refConstant = constantPool.getConstant(instr.index) as? ConstantCP ?: return@eachInstr
+                    if (refConstant.getClass(constantPool) != referenceClass.name) return@eachInstr
+                    val signatureConstant =
+                        constantPool.getConstant(refConstant.nameAndTypeIndex) as ConstantNameAndType
+                    if (instr is FieldInstruction) {
+                        val field = try {
+                            referenceClass.getDeclaredField(signatureConstant.getName(constantPool))
+                        } catch (e: NoSuchFieldException) {
+                            return@eachInstr
                         }
-                    } else {
-                        referenceClass.declaredMethods.filter { dm ->
-                            dm.name == name
-                                    && !Modifier.isPublic(dm.modifiers)
-                                    && Type.getSignature(dm) == signature
-                                    && (setOf(Generator::class.java, Next::class.java, Helper::class.java).none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
-                        }.forEach { candidate ->
-                            dangerousAccessors[candidate.name]?.let { throw AnswerableBytecodeVerificationException(it, method.name, currentClass) }
-                            if (!candidate.name.contains('$')) throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
+                        if (Modifier.isStatic(field.modifiers) && field.isAnnotationPresent(Helper::class.java)) return@eachInstr
+                        if (!Modifier.isPublic(field.modifiers))
+                            throw AnswerableBytecodeVerificationException(method.name, currentClass, field)
+                    } else if (instr is InvokeInstruction) {
+                        val name = signatureConstant.getName(constantPool)
+                        val signature = signatureConstant.getSignature(constantPool)
+                        if (name == "<init>") {
+                            referenceClass.declaredConstructors.filter { dc ->
+                                !Modifier.isPublic(dc.modifiers)
+                                        && signature == "(${dc.parameterTypes.joinToString(separator = "") {
+                                    Type.getType(
+                                        it
+                                    ).signature
+                                }})V"
+                            }.forEach { candidate ->
+                                throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
+                            }
+                        } else {
+                            referenceClass.declaredMethods.filter { dm ->
+                                dm.name == name
+                                        && !Modifier.isPublic(dm.modifiers)
+                                        && Type.getSignature(dm) == signature
+                                        && (setOf(
+                                    Generator::class.java,
+                                    Next::class.java,
+                                    Helper::class.java
+                                ).none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
+                            }.forEach { candidate ->
+                                dangerousAccessors[candidate.name]?.let {
+                                    throw AnswerableBytecodeVerificationException(
+                                        it,
+                                        method.name,
+                                        currentClass
+                                    )
+                                }
+                                if (!candidate.name.contains('$')) throw AnswerableBytecodeVerificationException(
+                                    method.name,
+                                    currentClass,
+                                    candidate
+                                )
+                            }
                         }
                     }
-                }
-            } else if (checkInner) {
-                val classConstant = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
-                if (innerClassIndexes.contains(instr.index)) {
-                    verifyMemberAccess(pool.classForName(classConstant.getBytes(constantPool).replace('/', '.')), referenceClass, checked, dangersToInnerClasses, pool)
+                } else if (checkInner) {
+                    val classConstant = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
+                    if (innerClassIndexes.contains(instr.index)) {
+                        verifyMemberAccess(
+                            pool.classForName(
+                                classConstant.getBytes(constantPool).replace(
+                                    '/',
+                                    '.'
+                                )
+                            ), referenceClass, checked, dangersToInnerClasses, pool
+                        )
+                    }
                 }
             }
-        }
     }
 
     if (referenceClass == currentClass) {
@@ -586,7 +736,11 @@ internal fun getDefiningKotlinFileClass(forClass: Class<*>, typePool: TypePool):
     }
 }
 
-internal class AnswerableBytecodeVerificationException(val blameMethod: String, val blameClass: Class<*>, val member: Member) : AnswerableVerificationException("Bytecode error not specified. Please report a bug.") {
+internal class AnswerableBytecodeVerificationException(
+    val blameMethod: String,
+    val blameClass: Class<*>,
+    val member: Member
+) : AnswerableVerificationException("Bytecode error not specified. Please report a bug.") {
 
     override val message: String?
         get() {
@@ -605,7 +759,11 @@ internal class AnswerableBytecodeVerificationException(val blameMethod: String, 
         } ?: "")
     }
 
-    constructor(fromInner: AnswerableBytecodeVerificationException, blameMethod: String, blameClass: Class<*>) : this(blameMethod, blameClass, fromInner.member) {
+    constructor(
+        fromInner: AnswerableBytecodeVerificationException,
+        blameMethod: String,
+        blameClass: Class<*>
+    ) : this(blameMethod, blameClass, fromInner.member) {
         initCause(fromInner)
     }
 
@@ -628,13 +786,15 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
     private val bytecode = mutableMapOf<Class<*>, ByteArray>()
     private val mirrorOriginalTypes = mutableMapOf<Class<*>, Class<*>>()
 
-    constructor(bytecodeProvider: BytecodeProvider?, parentPool: TypePool?): this(bytecodeProvider) {
+    constructor(bytecodeProvider: BytecodeProvider?, parentPool: TypePool?) : this(bytecodeProvider) {
         parent = parentPool
         loader = BytesClassLoader(parent?.loader)
     }
+
     constructor(bytecodeProvider: BytecodeProvider?, commonLoader: ClassLoader) : this(bytecodeProvider) {
         loader = BytesClassLoader(commonLoader)
     }
+
     constructor(primaryParent: TypePool, vararg otherParents: TypePool) : this(null) {
         parent = primaryParent
         loader = DiamondClassLoader(primaryParent.loader, *otherParents.map { it.loader }.toTypedArray())

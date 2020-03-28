@@ -371,7 +371,7 @@ internal class TestRunWorker internal constructor(
     private val randomForReference = testGenerator.random
     private val randomForSubmission = Random(0)
 
-    private val mirrorToStudentClass = if (testGenerator.usableControlClass == testGenerator.usableReferenceClass) {
+    private val generatorMirrorToStudentClass = if (testGenerator.usableControlClass == testGenerator.usableReferenceClass) {
         mkGeneratorMirrorClass(usableReferenceClass, usableSubmissionClass, adapterTypePool, "genmirror_")
     } else {
         mkOpenMirrorClass(
@@ -383,7 +383,7 @@ internal class TestRunWorker internal constructor(
     }
 
     private val referenceAtNext = testGenerator.atNextMethod
-    private val submissionAtNext = mirrorToStudentClass.getAtNext(testGenerator.enabledNames)
+    private val submissionAtNext = generatorMirrorToStudentClass.getAtNext(testGenerator.enabledNames)
     private val referenceDefaultCtor = testGenerator.defaultConstructor
     private val submissionDefaultCtor = usableSubmissionClass.constructors.firstOrNull { it.parameterCount == 0 }
 
@@ -395,7 +395,7 @@ internal class TestRunWorker internal constructor(
         .toMutableMap().apply {
             replace(
                 usableReferenceClass,
-                mirrorToStudentClass.getEnabledEdgeCases(testGenerator.enabledNames)[usableSubmissionClass]
+                generatorMirrorToStudentClass.getEnabledEdgeCases(testGenerator.enabledNames)[usableSubmissionClass]
             )
         }
     private val submissionSimpleCases: Map<Type, ArrayWrapper?> = referenceSimpleCases
@@ -403,12 +403,12 @@ internal class TestRunWorker internal constructor(
         .toMutableMap().apply {
             replace(
                 usableReferenceClass,
-                mirrorToStudentClass.getEnabledSimpleCases(testGenerator.enabledNames)[usableSubmissionClass]
+                generatorMirrorToStudentClass.getEnabledSimpleCases(testGenerator.enabledNames)[usableSubmissionClass]
             )
         }
 
     private val referenceGens = testGenerator.generators
-    private val submissionGens = mirrorToStudentClass
+    private val submissionGens = generatorMirrorToStudentClass
         .getEnabledGenerators(testGenerator.enabledNames)
         .find { it.returnType == usableSubmissionClass }
         .let { testGenerator.buildGeneratorMap(randomForSubmission, it) }
