@@ -98,4 +98,10 @@ internal class ProxyingTest {
         assertAllSucceeded(tg.runTestsUnsecured(0x0403))
     }
 
+    @Test
+    fun testCollidingSubclassInnerClassWidget() {
+        val tg = PassedClassDesignRunner(examples.proxy.reference.CollidingInnerClassWidget::class.java, examples.proxy.CollidingInnerClassWidget::class.java)
+        assertAllSucceeded(tg.runTestsUnsecured(0x0403))
+    }
+
 }

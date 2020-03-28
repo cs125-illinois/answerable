@@ -117,7 +117,7 @@ class Submission {
 If we aren't careful, this will lead to trying to proxy instances of Submission.Bar as instances of Reference.Bar.
 But Reference.Bar doesn't exist and that would be bad.
 
-So instead, we find the nearest parent class which exists in Reference and is part of the contract, (TODO)
+So instead, we find the nearest parent class which exists in Reference and is part of the contract,
 in this case Reference.Foo, and proxy it as an instance of that.
 
  */
@@ -142,11 +142,14 @@ private fun mostDerivedProxyableClass(
     if (childClass.enclosingClass == null) return null
     val innerPath = childClass.name.split('$', limit = 2)[1]
     val correspondingSuper = "${outermostSuperClass.name}\$$innerPath"
-    try {
-        return TypeMapping(presentation = pool.classForName(correspondingSuper), behavior = childClass)
+    val usableMatch = try {
+        val match = pool.classForName(correspondingSuper)
+        if (Modifier.isPrivate(match.modifiers)) null else
+            TypeMapping(presentation = pool.classForName(correspondingSuper), behavior = childClass)
     } catch (e: ClassNotFoundException) {
-        return mostDerivedProxyableClass(outermostSuperClass, childClass.superclass, pool)
+        null
     }
+    return usableMatch ?: mostDerivedProxyableClass(outermostSuperClass, childClass.superclass, pool)
 }
 
 /**
