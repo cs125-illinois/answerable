@@ -23,7 +23,7 @@ dependencies {
     api(project(":core"))
 
     // Jeed and dependencies
-    api("com.github.cs125-illinois:jeed:master-SNAPSHOT") { isChanging = true }
+    api("com.github.cs125-illinois:jeed:answerable_stable-SNAPSHOT") { isChanging = true }
     implementation("com.github.ben-manes.caffeine:caffeine:2.8.1")
 }
 
