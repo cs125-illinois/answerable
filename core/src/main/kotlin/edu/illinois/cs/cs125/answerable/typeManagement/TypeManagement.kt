@@ -29,9 +29,9 @@ private open class BytesClassLoader(parentLoader: ClassLoader? = null) :
     private val bytecodeLoaded = mutableMapOf<Class<*>, ByteArray>()
     private val definedClasses = mutableMapOf<String, Class<*>>()
     fun loadBytes(name: String, bytes: ByteArray): Class<*> {
-        return definedClasses.getOrPut(name, {
+        return definedClasses.getOrPut(name) {
             defineClass(name, bytes, 0, bytes.size).also { bytecodeLoaded[it] = bytes }
-        })
+        }
     }
 
     override fun getBytecode(clazz: Class<*>): ByteArray {
@@ -486,11 +486,12 @@ private fun mkGeneratorMirrorClass(
     }
 
     //classGen.javaClass.dump("Fiddled${mirrorsMade.size}.class") // Uncomment for debugging
-    return pool.loadBytes(mirrorName, classGen.javaClass, baseClass).also { mirrorsMade[mirrorName] = it }
+    return pool.loadMirrorBytes(mirrorName, classGen.javaClass, baseClass).also { mirrorsMade[mirrorName] = it }
 }
 
 /**
  * Creates a mirror of an outer class with `final` members removed from classes and methods.
+ * This allows making proxies (which have to inherit and override) for final classes or classes with final members.
  * @param clazz an outer class
  * @param pool the type pool to get bytecode from and load classes into
  * @return a non-final version of the class with non-final members/classes
@@ -500,11 +501,12 @@ internal fun mkOpenMirrorClass(clazz: Class<*>, pool: TypePool, namePrefix: Stri
 }
 
 /**
- * Creates an open mirror, with the specified class references remapped.
+ * Creates a renamed open mirror, with the specified class references remapped.
  * @param clazz an outer class
- * @param classRenames replacements to make
+ * @param classRenames replacements to make (current class to replacement class)
  * @param pool the type pool to get bytecode from and load classes into
- * @return a non-final version of the class with non-final members/classes
+ * @return a non-final version of the class with non-final members/classes,
+ *         and references to all renamed classes updated
  */
 internal fun mkOpenMirrorClass(
     clazz: Class<*>, classRenames: Map<Class<*>, Class<*>>,
@@ -518,6 +520,16 @@ internal fun mkOpenMirrorClass(
     return mkOpenMirrorClass(clazz, clazz, newName, allRenames.toMap(), mutableListOf(), pool)!!
 }
 
+/**
+ * Worker function for opening a class and remapping references.
+ * @param clazz one class to transform
+ * @param baseClass the outer class of the class to transform (may be the same as clazz)
+ * @param newName the new name for the transformed equivalent of clazz
+ * @param classRenames all class renames to perform
+ * @param alreadyDone list of names of classes already processed (to avoid infinite recursion)
+ * @param pool the type pool to get bytecode from and load classes into
+ * @return the transformed version of clazz, or null if it was already handled by a different call
+ */
 private fun mkOpenMirrorClass(
     clazz: Class<*>, baseClass: Class<*>, newName: String,
     classRenames: Map<String, String>, alreadyDone: MutableList<String>, pool: TypePool
@@ -552,7 +564,11 @@ private fun mkOpenMirrorClass(
         }
     }
 
-    // Rename the class by changing all strings used by class or signature constants
+    /**
+     * Transforms a signature to refer to the new names.
+     * @param signature a signature from a NameAndType constant or a compound type name (so L names are involved)
+     * @return the signature with class mentions remapped according to classRenames
+     */
     fun fixSignature(signature: String): String {
         var editedSignature = signature
         classRenames.forEach { (orig, new) ->
@@ -560,25 +576,33 @@ private fun mkOpenMirrorClass(
         }
         return editedSignature
     }
+
+    // Rename the class by changing all strings used by class or signature constants
     (1 until constantPool.length).forEach { idx ->
         val constant = constantPool.getConstant(idx)
         if (constant is ConstantClass) {
             val className = constant.getBytes(constantPool)
             val classNameParts = className.split('$', limit = 2)
             val newConstantValue = if (classNameParts[0] in classRenames.keys) {
+                // Reference to a plain class (not L-named)
                 val newSlashBase = classRenames[classNameParts[0]]
                 if (classNameParts.size > 1) "$newSlashBase\$${classNameParts[1]}" else newSlashBase
             } else if (className.contains(';')) {
+                // Compound class name (like an array or generic type, includes an L name)
                 fixSignature(className)
             } else {
+                // Primitive array type or something similarly irrelevant
                 className
             }
             constantPoolGen.setConstant(constant.nameIndex, ConstantUtf8(newConstantValue))
         } else if (constant is ConstantNameAndType) {
+            // An actual signature, which will always L-name classes
             val signature = constant.getSignature(constantPool)
             constantPoolGen.setConstant(constant.signatureIndex, ConstantUtf8(fixSignature(signature)))
         }
     }
+
+    // Rewrite signatures of all methods and fields
     classGen.methods.map { it.signatureIndex }.union(classGen.fields.map { it.signatureIndex }).forEach { sigIdx ->
         val signature = (constantPool.getConstant(sigIdx) as ConstantUtf8).bytes
         constantPoolGen.setConstant(sigIdx, ConstantUtf8(fixSignature(signature)))
@@ -586,11 +610,14 @@ private fun mkOpenMirrorClass(
 
     // Create and load the modified class
     //classGen.javaClass.dump("Opened${alreadyDone.indexOf(newName)}.class") // Uncomment for debugging
-    return pool.loadBytes(newName, classGen.javaClass, clazz)
+    return pool.loadMirrorBytes(newName, classGen.javaClass, clazz)
 }
 
+private fun modifierIsSynthetic(flags: Int) = (flags and 0x00001000) != 0
+
 /**
- * Throws AnswerableBytecodeVerificationException if a mirror of the given generator class would fail with an illegal or absent member access.
+ * Throws AnswerableBytecodeVerificationException if a mirror of the given generator class would fail with an
+ * illegal or absent member access.
  * @param referenceClass the original, non-mirrored reference class
  * @param pool the type pool to get bytecode from
  */
@@ -615,16 +642,14 @@ private fun verifyMemberAccess(
 
     val toCheck = pool.getBcelClassForClass(currentClass)
     val methodsToCheck = if (currentClass == referenceClass) {
+        // On the outer class, we only need to check functions involved in generation
         toCheck.methods.filter {
             it.annotationEntries.any { ae ->
-                ae.annotationType in setOf(
-                    Generator::class.java.name,
-                    Next::class.java.name,
-                    Helper::class.java.name
-                ).map { t -> ObjectType(t).signature }
+                ae.annotationType in generationAnnotationTypes.map { t -> ObjectType(t.name).signature }
             }
         }.toTypedArray()
     } else {
+        // Anything in an inner class could be involved in generation
         toCheck.methods
     }
 
@@ -638,7 +663,7 @@ private fun verifyMemberAccess(
     val dangersToInnerClasses = dangerousAccessors.toMutableMap()
 
     val methodsChecked = mutableSetOf<Method>()
-    fun checkMethod(method: Method, checkInner: Boolean) {
+    fun checkMethod(method: Method, checkInner: Boolean) { // TODO: Comment and refactor
         if (methodsChecked.contains(method)) return
         methodsChecked.add(method)
 
@@ -666,9 +691,7 @@ private fun verifyMemberAccess(
                             referenceClass.declaredConstructors.filter { dc ->
                                 !Modifier.isPublic(dc.modifiers)
                                         && signature == "(${dc.parameterTypes.joinToString(separator = "") {
-                                    Type.getType(
-                                        it
-                                    ).signature
+                                    Type.getType(it).signature
                                 }})V"
                             }.forEach { candidate ->
                                 throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
@@ -678,24 +701,13 @@ private fun verifyMemberAccess(
                                 dm.name == name
                                         && !Modifier.isPublic(dm.modifiers)
                                         && Type.getSignature(dm) == signature
-                                        && (setOf(
-                                    Generator::class.java,
-                                    Next::class.java,
-                                    Helper::class.java
-                                ).none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
+                                        && (generationAnnotationTypes.none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
                             }.forEach { candidate ->
                                 dangerousAccessors[candidate.name]?.let {
-                                    throw AnswerableBytecodeVerificationException(
-                                        it,
-                                        method.name,
-                                        currentClass
-                                    )
+                                    throw AnswerableBytecodeVerificationException(it, method.name, currentClass)
                                 }
-                                if (!candidate.name.contains('$')) throw AnswerableBytecodeVerificationException(
-                                    method.name,
-                                    currentClass,
-                                    candidate
-                                )
+                                if (!modifierIsSynthetic(candidate.modifiers))
+                                    throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
                             }
                         }
                     }
@@ -703,12 +715,8 @@ private fun verifyMemberAccess(
                     val classConstant = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
                     if (innerClassIndexes.contains(instr.index)) {
                         verifyMemberAccess(
-                            pool.classForName(
-                                classConstant.getBytes(constantPool).replace(
-                                    '/',
-                                    '.'
-                                )
-                            ), referenceClass, checked, dangersToInnerClasses, pool
+                            pool.classForName(classConstant.getBytes(constantPool).dotName),
+                                referenceClass, checked, dangersToInnerClasses, pool
                         )
                     }
                 }
@@ -716,18 +724,28 @@ private fun verifyMemberAccess(
     }
 
     if (referenceClass == currentClass) {
-        toCheck.methods.filter { it.name.contains('$') }.forEach {
+        toCheck.methods.filter { modifierIsSynthetic(it.modifiers) }.forEach {
+            // Check synthetic functions
             try {
                 checkMethod(it, false)
             } catch (e: AnswerableBytecodeVerificationException) {
-                dangersToInnerClasses.put(it.name, e)
+                // Remember the problem this function will cause if used from a generation function
+                // Don't throw it immediately because it might harmlessly be used elsewhere
+                dangersToInnerClasses[it.name] = e
             }
         }
     }
 
+    // Check generation functions, exploding if there's a hazard
     methodsToCheck.forEach { checkMethod(it, true) }
 }
 
+/**
+ * Finds the Kotlin file class for the file in which a class was defined.
+ * @param forClass a non-file class whose file class to find
+ * @param typePool the type pool to load bytecode from
+ * @return the Kotlin file class, or null if no such class
+ */
 internal fun getDefiningKotlinFileClass(forClass: Class<*>, typePool: TypePool): Class<*>? {
     val bcelClass = typePool.getBcelClassForClass(forClass)
     val sourceFile = bcelClass.attributes.filterIsInstance<SourceFile>().firstOrNull() ?: return null
@@ -739,13 +757,14 @@ internal fun getDefiningKotlinFileClass(forClass: Class<*>, typePool: TypePool):
     }
 }
 
-internal class AnswerableBytecodeVerificationException(
+@Suppress("MemberVisibilityCanBePrivate")
+class AnswerableBytecodeVerificationException internal constructor(
     val blameMethod: String,
     val blameClass: Class<*>,
     val member: Member
 ) : AnswerableVerificationException("Bytecode error not specified. Please report a bug.") {
 
-    override val message: String?
+    override val message: String
         get() {
             return "\nMirrorable method `$blameMethod' in ${describeClass(blameClass)} " +
                     when (member) {
@@ -762,7 +781,7 @@ internal class AnswerableBytecodeVerificationException(
         } ?: "")
     }
 
-    constructor(
+    internal constructor(
         fromInner: AnswerableBytecodeVerificationException,
         blameMethod: String,
         blameClass: Class<*>
@@ -772,6 +791,13 @@ internal class AnswerableBytecodeVerificationException(
 
 }
 
+/**
+ * Manages a collection of types: their object instantiators, their bytecode, and the classes themselves.
+ * One type pool represents one source of classes, e.g. there would be one type pool for the reference and
+ * another for a submission.
+ *
+ * Like classloaders, type pools can have a parent which they will ask for types they don't themselves have.
+ */
 internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
 
     /*
@@ -782,11 +808,16 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
      * We map from 'superClass' instead of directly from 'proxyClass' as we won't have access to
      * the same reference to 'proxyClass' on future calls.
      */
-    private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<out Any?>> = mutableMapOf()
+    private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<*>> = mutableMapOf()
 
     private var parent: TypePool? = null
     private var loader: BytesClassLoader = BytesClassLoader()
     private val bytecode = mutableMapOf<Class<*>, ByteArray>()
+
+    /**
+     * Tracks the original class from which each class was mirrored.
+     * Used to get nicer error messages from TestGeneration.
+     */
     private val mirrorOriginalTypes = mutableMapOf<Class<*>, Class<*>>()
 
     constructor(bytecodeProvider: BytecodeProvider?, parentPool: TypePool?) : this(bytecodeProvider) {
@@ -804,13 +835,13 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
     }
 
     fun getBcelClassForClass(clazz: Class<*>): JavaClass {
-        try {
-            return parent!!.getBcelClassForClass(clazz)
+        return try {
+            parent!!.getBcelClassForClass(clazz)
         } catch (e: Exception) {
-            // Ignored - parent couldn't find it
+            // Parent couldn't find it, look for it here
+            val bytecode = bytecode[clazz] ?: localGetBytecodeForClass(clazz).also { bytecode[clazz] = it }
+            ClassParser(bytecode.inputStream(), clazz.name).parse()
         }
-        val bytecode = bytecode[clazz] ?: localGetBytecodeForClass(clazz).also { bytecode[clazz] = it }
-        return ClassParser(bytecode.inputStream(), clazz.name).parse()
     }
 
     private fun localGetBytecodeForClass(clazz: Class<*>): ByteArray {
@@ -822,7 +853,7 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
         }
     }
 
-    fun loadBytes(name: String, bcelClass: JavaClass, mirroredFrom: Class<*>): Class<*> {
+    fun loadMirrorBytes(name: String, bcelClass: JavaClass, mirroredFrom: Class<*>): Class<*> {
         val bytes = bcelClass.bytes
         return loader.loadBytes(name, bytes).also {
             bytecode[it] = bytes
@@ -831,18 +862,17 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
     }
 
     fun classForName(name: String): Class<*> {
-        return Class.forName(name, true, loader)
+        // TODO: Unsure whether it's good to initialize the class immediately
+        return Class.forName(name, false, loader)
     }
 
-    fun getProxyInstantiator(superClass: Class<*>): ObjectInstantiator<out Any> {
-        return proxyInstantiators[superClass] ?: run {
+    fun getProxyInstantiator(superClass: Class<*>): ObjectInstantiator<*> {
+        return proxyInstantiators.getOrPut(superClass) {
             val factory = ProxyFactory()
-
             factory.superclass = superClass
             factory.setFilter { it.name != "finalize" }
             val proxyClass = factory.createClass()
-
-            objenesis.getInstantiatorOf(proxyClass).also { proxyInstantiators[superClass] = it }
+            objenesis.getInstantiatorOf(proxyClass)
         }
     }
 
