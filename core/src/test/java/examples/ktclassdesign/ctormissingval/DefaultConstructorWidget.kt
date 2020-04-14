@@ -1,3 +1,3 @@
 package examples.ktclassdesign.ctormissingval
 
-class DefaultConstructorWidget(springs: Int)
+class DefaultConstructorWidget(@Suppress("UNUSED_PARAMETER") springs: Int)
