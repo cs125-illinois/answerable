@@ -366,7 +366,7 @@ private fun mkGeneratorMirrorClass(
             val shouldReplace: Boolean =
                 if (constant is ConstantMethodref || constant is ConstantInterfaceMethodref) {
                     // if it contains a '$' it's a synthetic accessor, which needs to be mirrored
-                    // TODO: why?
+                    // they could be helper functions involved in needed inner classes, but the user can't @Helper them
                     methodHasGenerationAnnotation(memberName) || memberName.contains('$')
                 } else if (constant is ConstantFieldref) {
                     fieldHasGenerationAnnotation(memberName)

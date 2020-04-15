@@ -117,4 +117,26 @@ class TestSandbox {
         Assert.assertTrue(result.timedOut)
     }
 
+    @Test
+    fun testReferenceUnconstrained() {
+        val result = testFromStrings(reference = """
+            import edu.illinois.cs.cs125.answerable.api.*;
+            public class Example {
+                @Solution
+                public static int getThing() {
+                    System.getProperty("__nonsense_property__");
+                    return 5;
+                }
+            }
+        """.trimIndent(), submission = """
+            public class Example {
+                public static int getThing() {
+                    return 5;
+                }
+            }
+        """.trimIndent(), className = "Example")
+        Assert.assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.refOutput.threw is SecurityException })
+        Assert.assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+    }
+
 }

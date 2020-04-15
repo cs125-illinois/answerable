@@ -2,8 +2,6 @@ package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.api.Answerable
 import examples.binarytree.size.YourBinaryTree
-import examples.testgeneration.timeout.reference.TimeOut
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.*
 import examples.binarytree.reference.YourBinaryTree as ReferenceYBT
 import org.junit.jupiter.api.BeforeEach

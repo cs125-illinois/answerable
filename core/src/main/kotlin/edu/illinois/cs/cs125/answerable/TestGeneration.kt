@@ -198,10 +198,9 @@ class TestGenerator(
             dryRunOutput.testSteps.filterIsInstance(ExecutedTestStep::class.java).forEach {
                 if (!it.succeeded) {
                     throw AnswerableVerificationException(
-                        "Testing reference against itself failed on inputs: ${Arrays.deepToString(
-                            it.refOutput.args
-                        )}"
-                    ).initCause(it.assertErr)
+                        "Testing reference against itself failed on inputs: ${it.refOutput.args.contentDeepToString()}",
+                        it.assertErr
+                    )
                 }
             }
         }
