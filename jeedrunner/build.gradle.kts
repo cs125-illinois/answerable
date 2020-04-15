@@ -25,6 +25,9 @@ dependencies {
     // Jeed and dependencies
     api("com.github.cs125-illinois:jeed:answerable_stable-SNAPSHOT") { isChanging = true }
     implementation("com.github.ben-manes.caffeine:caffeine:2.8.1")
+
+    // Tests
+    testImplementation("junit:junit:4.13")
 }
 
 tasks.withType<KotlinCompile> {

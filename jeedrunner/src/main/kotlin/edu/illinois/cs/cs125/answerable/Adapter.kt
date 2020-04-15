@@ -9,6 +9,7 @@ import edu.illinois.cs.cs125.jeed.core.Sandbox
 import edu.illinois.cs.cs125.jeed.core.sandbox
 
 import kotlinx.coroutines.*
+import kotlin.math.min
 
 val jeedOutputCapturer = object : OutputCapturer {
 
@@ -27,7 +28,8 @@ val jeedOutputCapturer = object : OutputCapturer {
 }
 
 fun jeedSandbox(loaderConfig: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLoaderConfiguration(),
-                executeConfig: Sandbox.ExecutionArguments = Sandbox.ExecutionArguments()): edu.illinois.cs.cs125.answerable.api.Sandbox {
+                executeConfig: Sandbox.ExecutionArguments = Sandbox.ExecutionArguments(),
+                maxTimeout: Long = 2000L): edu.illinois.cs.cs125.answerable.api.Sandbox {
     return object : edu.illinois.cs.cs125.answerable.api.Sandbox {
         private lateinit var sandboxedLoader: Sandbox.SandboxedClassLoader
         override fun transformLoader(loader: EnumerableBytecodeLoader): BytecodeClassProvider {
@@ -45,7 +47,7 @@ fun jeedSandbox(loaderConfig: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLo
             }
         }
         override fun run(timeout: Long?, callback: Runnable): Boolean {
-            val timeoutConfig = Sandbox.ExecutionArguments(timeout ?: Long.MAX_VALUE,
+            val timeoutConfig = Sandbox.ExecutionArguments(min(timeout ?: Long.MAX_VALUE, maxTimeout),
                     executeConfig.permissions, executeConfig.maxExtraThreads, classLoaderConfiguration = loaderConfig)
             val job: (Pair<ClassLoader, (() -> Unit) -> Pair<String, String>>) -> Any? = { callback.run() }
             val result = runBlocking {
