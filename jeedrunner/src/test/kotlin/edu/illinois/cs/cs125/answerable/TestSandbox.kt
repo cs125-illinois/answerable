@@ -60,6 +60,7 @@ class TestSandbox {
             }
         """.trimIndent(), className = "Example")
         Assert.assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.subOutput.threw is SecurityException })
+        Assert.assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
     @Test
