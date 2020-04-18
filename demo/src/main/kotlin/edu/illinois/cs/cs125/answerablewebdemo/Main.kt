@@ -1,8 +1,6 @@
 package edu.illinois.cs.cs125.answerablewebdemo
 
-
 import edu.illinois.cs.cs125.answerable.*
-import edu.illinois.cs.cs125.answerable.api.Solution
 import edu.illinois.cs.cs125.jeed.core.*
 import io.ktor.application.*
 import io.ktor.features.ContentNegotiation
@@ -13,13 +11,12 @@ import io.ktor.response.header
 import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
-import java.lang.IllegalStateException
 import kotlin.random.Random
 
 fun main1() {
 
-    val server = embeddedServer(Netty, 8080 /*System.getenv("ANSWERABLE_DEMO_PORT")?.toInt()*/
-        ?: throw IllegalStateException("ANSWERABLE_DEMO_PORT not provided.")) {
+    val server = embeddedServer(Netty, 8080 /*System.getenv("ANSWERABLE_DEMO_PORT")?.toInt()
+        ?: throw IllegalStateException("ANSWERABLE_DEMO_PORT not provided.")*/) {
 
         install(ContentNegotiation) {
             jackson()
@@ -85,19 +82,19 @@ public class Test {
     ))
 
     val common = try {
-        commonSource.compile(CompilationArguments(previewLevel = null))
+        commonSource.compile()
     } catch (e: CompilationFailed) {
         e.errors.forEach { println("${it.location}: ${it.message}\n") }
         throw e
     }
     val refCL = try {
-        referenceSource.compile(CompilationArguments(parentClassLoader = common.classLoader, parentFileManager = common.fileManager, previewLevel = null))
+        referenceSource.compile(CompilationArguments(parentClassLoader = common.classLoader, parentFileManager = common.fileManager))
     } catch (e: CompilationFailed) {
         e.errors.forEach { println("${it.location}: ${it.message}\n") }
         throw e
     }.classLoader
     val subCL = try {
-        submissionSource.compile(CompilationArguments(parentClassLoader = common.classLoader, parentFileManager = common.fileManager, previewLevel = null))
+        submissionSource.compile(CompilationArguments(parentClassLoader = common.classLoader, parentFileManager = common.fileManager))
     } catch (e: CompilationFailed) {
         e.errors.forEach { println("${it.location}: ${it.message}\n") }
         throw e
@@ -110,6 +107,5 @@ public class Test {
             .toJson()
     )
 
-    // FIXME: Jeed removed this method, so the process won't exit automatically
-    // Sandbox.shutdownThreadPool()
+    Sandbox.shutdownThreadPool()
 }

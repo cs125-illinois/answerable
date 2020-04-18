@@ -14,7 +14,7 @@ internal fun AnalysisOutput.toErrorMsg() = when (this.result) {
         AnalysisTag.SUPERCLASSES -> ::mkSuperClassError
         AnalysisTag.FIELDS -> ::mkFieldError
         AnalysisTag.METHODS -> ::mkMethodError
-    }(this.result as Mismatched<*>)
+    }(this.result)
 }
 
 /** Expects Mismatched<String> */

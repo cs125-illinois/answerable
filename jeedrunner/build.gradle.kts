@@ -21,7 +21,13 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.0-M1")
     api(project(":core"))
-    api("com.github.cs125-illinois:jeed:master-SNAPSHOT") { isChanging = true }
+
+    // Jeed and dependencies
+    api("com.github.cs125-illinois:jeed:answerable_stable-SNAPSHOT") { isChanging = true }
+    implementation("com.github.ben-manes.caffeine:caffeine:2.8.1")
+
+    // Tests
+    testImplementation("junit:junit:4.13")
 }
 
 tasks.withType<KotlinCompile> {

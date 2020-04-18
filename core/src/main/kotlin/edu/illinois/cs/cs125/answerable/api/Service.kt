@@ -43,11 +43,9 @@ class Answerable(private val environment: TestEnvironment) {
         try {
             testgen = TestGenerator(referenceClass, solutionName, testRunnerArgs, bytecodeProvider)
         } catch (ame: AnswerableMisuseException) {
-            throw AnswerableMisuseException("${ame.message?.trim()}\nWhile trying to load new question: $questionName.")
-                .initCause(ame)
+            throw AnswerableMisuseException("${ame.message?.trim()}\nWhile trying to load new question: $questionName.", ame)
         } catch (ave: AnswerableVerificationException) {
-            throw AnswerableVerificationException("${ave.message?.trim()}\nWhile trying to load new question: $questionName.")
-                .initCause(ave)
+            throw AnswerableVerificationException("${ave.message?.trim()}\nWhile trying to load new question: $questionName.", ave)
         }
 
         existingQuestions[questionName] = testgen

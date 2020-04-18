@@ -9,6 +9,7 @@ import edu.illinois.cs.cs125.jeed.core.Sandbox
 import edu.illinois.cs.cs125.jeed.core.sandbox
 
 import kotlinx.coroutines.*
+import kotlin.math.min
 
 val jeedOutputCapturer = object : OutputCapturer {
 
@@ -27,7 +28,8 @@ val jeedOutputCapturer = object : OutputCapturer {
 }
 
 fun jeedSandbox(loaderConfig: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLoaderConfiguration(),
-                executeConfig: Sandbox.ExecutionArguments = Sandbox.ExecutionArguments()): edu.illinois.cs.cs125.answerable.api.Sandbox {
+                executeConfig: Sandbox.ExecutionArguments = Sandbox.ExecutionArguments(),
+                maxTimeout: Long = 2000L): edu.illinois.cs.cs125.answerable.api.Sandbox {
     return object : edu.illinois.cs.cs125.answerable.api.Sandbox {
         private lateinit var sandboxedLoader: Sandbox.SandboxedClassLoader
         override fun transformLoader(loader: EnumerableBytecodeLoader): BytecodeClassProvider {
@@ -39,20 +41,21 @@ fun jeedSandbox(loaderConfig: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLo
             return object : BytecodeClassProvider {
                 override fun getLoader() = sandboxedLoader
                 override fun getBytecode(clazz: Class<*>): ByteArray {
-                    // FIXME: Jeed doesn't have a stable API for getting bytecode for a class
-                    // Remove this hack when possible
-                    val knownClassesField = sandboxedLoader.javaClass.getDeclaredField("knownClasses")
-                    knownClassesField.isAccessible = true
-                    val knownClasses = knownClassesField.get(sandboxedLoader) as Map<*, *>
-                    return knownClasses[clazz.name] as ByteArray
+                    return sandboxedLoader.knownClasses[clazz.name]
+                            ?: throw ClassNotFoundException("Jeed did not provide $clazz")
                 }
             }
         }
         override fun run(timeout: Long?, callback: Runnable): Boolean {
-            val timeoutConfig = Sandbox.ExecutionArguments(timeout ?: Long.MAX_VALUE,
-                    executeConfig.permissions, executeConfig.maxExtraThreads, classLoaderConfiguration = loaderConfig)
+            val timeoutConfig = Sandbox.ExecutionArguments(
+                    timeout = min(timeout ?: Long.MAX_VALUE, maxTimeout),
+                    permissions = executeConfig.permissions,
+                    maxExtraThreads = executeConfig.maxExtraThreads,
+                    classLoaderConfiguration = loaderConfig,
+                    maxOutputLines = Int.MAX_VALUE)
+            val job: (Pair<ClassLoader, (() -> Unit) -> Pair<String, String>>) -> Any? = { callback.run() }
             val result = runBlocking {
-                Sandbox.execute(sandboxedLoader, timeoutConfig) { callback.run() }
+                Sandbox.execute(sandboxedLoader, timeoutConfig, job)
             }
             return !result.timeout
         }

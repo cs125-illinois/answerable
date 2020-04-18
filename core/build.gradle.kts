@@ -11,7 +11,7 @@ buildscript {
 plugins {
     java
     kotlin("jvm")
-    kotlin("plugin.serialization") version "1.3.61"
+    kotlin("plugin.serialization") version "1.3.70"
     id("org.jetbrains.dokka") version "0.9.18"
     id("com.github.ben-manes.versions") version "0.21.0"
 }
