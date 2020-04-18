@@ -670,8 +670,8 @@ internal class TestRunWorker internal constructor(
 
     One important piece of that is regression testing. We need to ensure that student objects work when re-used.
     To clarify, let's refer to receiver objects by their index in the sequence of receiver objects used by Answerable.
-    We see sequences like 0 1 2 3 4 5 6 7 8... and 0 0 0 0 ... 0 1 1 1 ... 1 2 2 2 ..., in other words,
-    linear progressions. But we need to see sequences that reuse old objects.
+    We might expect to see sequences like 0 1 2 3 4 5 6 7 8... and 0 0 0 0 ... 0 1 1 1 ... 1 2 2 2 ..., in other words,
+    linear progressions. But actually, we need to see sequences that reuse old objects.
 
     Regression test count is configurable in DefaultTestRunArguments and inserts evenly-spaced regression tests
     throughout the whole testing loop. @Next methods need to receive objects that are *not* from regression tests,
