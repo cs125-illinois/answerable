@@ -1,6 +1,7 @@
 package edu.illinois.cs.cs125.answerable.api
 
 import edu.illinois.cs.cs125.answerable.Behavior
+import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
 
 /**
  * A wrapper class used to pass data to custom verification methods.
@@ -24,8 +25,7 @@ data class TestOutput<T>(
     val stdOut: String?,
     /** The log of stdErr during the method invocation. Only non-null if [Solution.prints] is true. */
     val stdErr: String?
-) : DefaultSerializable {
-    override fun toJson() = defaultToJson()
+) {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -51,5 +51,94 @@ data class TestOutput<T>(
         result = 31 * result + (stdOut?.hashCode() ?: 0)
         result = 31 * result + (stdErr?.hashCode() ?: 0)
         return result
+    }
+
+    internal fun ossify(pool: TypePool): OssifiedTestOutput {
+        return OssifiedTestOutput(
+            typeOfBehavior = typeOfBehavior,
+            receiver = receiver.ossify(pool),
+            args = args.map { it.ossify(pool) }.toTypedArray(),
+            output = output.ossify(pool),
+            threw = threw.ossify(pool),
+            stdOut = stdOut,
+            stdErr = stdErr
+        )
+    }
+
+}
+
+/**
+ * A version of [TestOutput] containing no live objects from the testing run.
+ */
+data class OssifiedTestOutput(
+    val typeOfBehavior: Behavior,
+    val receiver: OssifiedValue?,
+    val args: Array<OssifiedValue?>,
+    val output: OssifiedValue?,
+    val threw: OssifiedValue?,
+    val stdOut: String?,
+    val stdErr: String?
+) : DefaultSerializable {
+
+    override fun toJson() = defaultToJson()
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as OssifiedTestOutput
+
+        if (typeOfBehavior != other.typeOfBehavior) return false
+        if (receiver != other.receiver) return false
+        if (!args.contentEquals(other.args)) return false
+        if (output != other.output) return false
+        if (threw != other.threw) return false
+        if (stdOut != other.stdOut) return false
+        if (stdErr != other.stdErr) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = typeOfBehavior.hashCode()
+        result = 31 * result + (receiver?.hashCode() ?: 0)
+        result = 31 * result + args.contentHashCode()
+        result = 31 * result + (output?.hashCode() ?: 0)
+        result = 31 * result + (threw?.hashCode() ?: 0)
+        result = 31 * result + (stdOut?.hashCode() ?: 0)
+        result = 31 * result + (stdErr?.hashCode() ?: 0)
+        return result
+    }
+
+}
+
+data class OssifiedValue internal constructor(
+    val type: String,
+    val value: String,
+    val identity: Int
+)
+
+internal fun Any?.ossify(pool: TypePool): OssifiedValue? {
+    return when (this) {
+        null -> {
+            null
+        }
+        is Array<*> -> {
+            var componentType = this.javaClass.componentType
+            var nestingLevel = 1
+            while (componentType.isArray) {
+                componentType = componentType.componentType
+                nestingLevel++
+            }
+            OssifiedValue(
+                pool.getOriginalClass(componentType).typeName + "[]".repeat(nestingLevel),
+                this.contentDeepToString(),
+                System.identityHashCode(this))
+        }
+        else -> {
+            OssifiedValue(pool.getOriginalClass(this.javaClass).typeName,
+                this.toString(),
+                System.identityHashCode(this))
+        }
     }
 }

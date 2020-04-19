@@ -652,11 +652,15 @@ internal class TestRunWorker internal constructor(
         return ExecutedTestStep(
             iteration = iteration,
             testType = testType,
-            refReceiver = refReceiver,
-            subReceiver = subReceiver,
+            refReceiver = refReceiver.ossify(testGenerator.typePool),
+            subReceiver = subReceiver.ossify(submissionTypePool),
+            refLiveReceiver = refReceiver,
+            subDangerousLiveReceiver = subReceiver,
             succeeded = assertErr == null,
-            refOutput = refBehavior,
-            subOutput = subBehavior,
+            refOutput = refBehavior.ossify(testGenerator.typePool),
+            subOutput = subBehavior.ossify(submissionTypePool),
+            refLiveOutput = refBehavior,
+            subDangerousLiveOutput = subBehavior,
             assertErr = assertErr
         )
     }
@@ -1119,15 +1123,24 @@ abstract class TestStep(
 class ExecutedTestStep(
     iteration: Int, testType: TestType,
     /** The receiver object passed to the reference. */
-    val refReceiver: Any?,
+    val refReceiver: OssifiedValue?,
     /** The receiver object passed to the submission. */
-    val subReceiver: Any?,
+    val subReceiver: OssifiedValue?,
+    /** The receiver object passed to the reference. */
+    val refLiveReceiver: Any?,
+    /** The receiver object passed to the submission. */
+    val subDangerousLiveReceiver: Any?,
     /** Whether or not the test case succeeded. */
     val succeeded: Boolean,
-    /** The return value of the reference solution. */
-    val refOutput: TestOutput<Any?>,
-    /** The return value of the submission. */
-    val subOutput: TestOutput<Any?>,
+    /** The behavior of the reference solution. */
+    val refOutput: OssifiedTestOutput,
+    /** The behavior of the submission. */
+    val subOutput: OssifiedTestOutput,
+    /** The behavior of the reference solution,
+     * including live objects with potentially computationally expensive behaviors. */
+    val refLiveOutput: TestOutput<Any?>,
+    /** The behavior of the submission, including live (untrusted!) objects. */
+    val subDangerousLiveOutput: TestOutput<Any?>,
     /** The assertion error thrown, if any, by the verifier. */
     val assertErr: Throwable?
 ) : TestStep(iteration, false, testType) {
