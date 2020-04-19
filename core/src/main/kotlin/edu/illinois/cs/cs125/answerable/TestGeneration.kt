@@ -294,7 +294,7 @@ class PassedClassDesignRunner internal constructor(
         val untrustedSubMirror = mkOpenMirrorClass(submissionClass, submissionTypePool, "opensub_")
         val loader = environment.sandbox.transformLoader(submissionTypePool.getLoader())
         val sandboxedSubMirror = Class.forName(untrustedSubMirror.name, false, loader.getLoader())
-        val worker = TestRunWorker(testGenerator, sandboxedSubMirror, environment, loader)
+        val worker = TestRunWorker(testGenerator, sandboxedSubMirror, environment, loader, submissionTypePool)
         val timeLimit = timeoutOverride ?: testGenerator.timeout
 
         // Store reference class static field values so that the next run against this solution doesn't break
@@ -348,7 +348,8 @@ internal class TestRunWorker internal constructor(
     private val testGenerator: TestGenerator,
     private val usableSubmissionClass: Class<*>,
     private val environment: TestEnvironment,
-    private val bytecodeProvider: BytecodeProvider?
+    private val bytecodeProvider: BytecodeProvider?,
+    private val untrustedSubmissionTypePool: TypePool
 ) {
     private val usableReferenceClass = testGenerator.usableReferenceClass
     private val usableControlClass = testGenerator.usableControlClass
@@ -357,6 +358,7 @@ internal class TestRunWorker internal constructor(
     private val passRandomToVerify = usableCustomVerifier?.parameters?.size == 3
 
     private val submissionTypePool = TypePool(bytecodeProvider, usableSubmissionClass.classLoader)
+            .also { it.takeOriginalClassMappings(untrustedSubmissionTypePool, usableSubmissionClass.classLoader) }
     private val adapterTypePool = TypePool(testGenerator.typePool, submissionTypePool)
     private val usableSubmissionMethod =
         usableSubmissionClass.findSolutionAttemptMethod(usableReferenceMethod, usableReferenceClass)

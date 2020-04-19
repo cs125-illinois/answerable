@@ -16,6 +16,7 @@ import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Member
 import java.lang.reflect.Modifier
+import java.lang.reflect.Type as ReflectType
 import java.util.*
 
 private val objenesis = ObjenesisStd()
@@ -667,7 +668,7 @@ private fun verifyMemberAccess(
     fun checkMethod(method: Method, checkInner: Boolean) {
         methodsChecked.add(method)
 
-        fun checkFieldAccessInstruction(instr: FieldInstruction, signatureConstant: ConstantNameAndType) {
+        fun checkFieldAccessInstruction(signatureConstant: ConstantNameAndType) {
             // Assume the field is actually present, if not, the user is asking for trouble
             // The compiler is always right here
             val field = referenceClass.getDeclaredField(signatureConstant.getName(constantPool))
@@ -678,7 +679,7 @@ private fun verifyMemberAccess(
                 throw AnswerableBytecodeVerificationException(method.name, currentClass, field)
         }
 
-        fun checkMethodCallInstruction(instr: InvokeInstruction, signatureConstant: ConstantNameAndType) {
+        fun checkMethodCallInstruction(signatureConstant: ConstantNameAndType) {
             val name = signatureConstant.getName(constantPool)
             val signature = signatureConstant.getSignature(constantPool)
             if (name == "<init>") {
@@ -722,11 +723,11 @@ private fun verifyMemberAccess(
                     if (refConstant.getClass(constantPool) != referenceClass.name) return@eachInstr
                     // Now that we know it's mentioning the reference class,
                     // we need to make sure the member access is valid
-                    val signature = constantPool.getConstant(refConstant.nameAndTypeIndex) as ConstantNameAndType
+                    val signatureConst = constantPool.getConstant(refConstant.nameAndTypeIndex) as ConstantNameAndType
                     if (instr is FieldInstruction) {
-                        checkFieldAccessInstruction(instr, signature)
+                        checkFieldAccessInstruction(signatureConst)
                     } else if (instr is InvokeInstruction) {
-                        checkMethodCallInstruction(instr, signature)
+                        checkMethodCallInstruction(signatureConst)
                     }
                 } else if (checkInner) {
                     // At the first instantiation of an inner class in a generation-related method,
@@ -839,7 +840,7 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
      * Tracks the original class from which each class was mirrored.
      * Used to get nicer error messages from TestGeneration.
      */
-    private val mirrorOriginalTypes = mutableMapOf<Class<*>, Class<*>>()
+    private val mirrorOriginalTypes = mutableMapOf<Class<*>, ReflectType>()
 
     constructor(bytecodeProvider: BytecodeProvider?, parentPool: TypePool?) : this(bytecodeProvider) {
         parent = parentPool
@@ -874,16 +875,16 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
         }
     }
 
-    fun loadMirrorBytes(name: String, bcelClass: JavaClass, mirroredFrom: Class<*>): Class<*> {
+    fun loadMirrorBytes(name: String, bcelClass: JavaClass, mirroredFrom: ReflectType): Class<*> {
         val bytes = bcelClass.bytes
         return loader.loadBytes(name, bytes).also {
             bytecode[it] = bytes
-            mirrorOriginalTypes[it] = mirroredFrom
+            mirrorOriginalTypes[it] = getOriginalClass(mirroredFrom)
         }
     }
 
     fun classForName(name: String): Class<*> {
-        // TODO: Unsure whether it's good to initialize the class immediately
+        // TODO: Unsure whether it's useful to initialize the class immediately
         return Class.forName(name, false, loader)
     }
 
@@ -901,9 +902,15 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
         return loader
     }
 
-    fun getOriginalClass(type: java.lang.reflect.Type): java.lang.reflect.Type {
+    fun getOriginalClass(type: ReflectType): ReflectType {
         if (type !is Class<*>) return type
         return mirrorOriginalTypes[type] ?: parent?.getOriginalClass(type) ?: type
+    }
+
+    fun takeOriginalClassMappings(otherPool: TypePool, transformedLoader: ClassLoader) {
+        otherPool.mirrorOriginalTypes.forEach { (transformed, original) ->
+            mirrorOriginalTypes[transformedLoader.loadClass(transformed.name)] = original
+        }
     }
 
 }

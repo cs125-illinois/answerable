@@ -130,14 +130,16 @@ internal fun Any?.ossify(pool: TypePool): OssifiedValue? {
                 componentType = componentType.componentType
                 nestingLevel++
             }
+            val originalName = pool.getOriginalClass(componentType).typeName
             OssifiedValue(
-                pool.getOriginalClass(componentType).typeName + "[]".repeat(nestingLevel),
-                this.contentDeepToString(),
+                originalName + "[]".repeat(nestingLevel),
+                this.contentDeepToString().replace(this.javaClass.name, originalName),
                 System.identityHashCode(this))
         }
         else -> {
-            OssifiedValue(pool.getOriginalClass(this.javaClass).typeName,
-                this.toString(),
+            val originalName = pool.getOriginalClass(this.javaClass).typeName
+            OssifiedValue(originalName,
+                this.toString().replace(this.javaClass.name, originalName),
                 System.identityHashCode(this))
         }
     }
