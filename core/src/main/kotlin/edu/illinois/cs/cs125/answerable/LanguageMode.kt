@@ -158,7 +158,7 @@ internal val defaultBooleanGen = object : Gen<Boolean> {
     override fun generate(complexity: Int, random: Random): Boolean = random.nextBoolean()
 }
 
-private val primitiveGenerators = mapOf(
+private val primitiveGenerators: Map<Class<*>, Gen<*>> = mapOf(
         Int::class.java     to defaultIntGen,
         Double::class.java  to defaultDoubleGen,
         Float::class.java   to defaultFloatGen,
