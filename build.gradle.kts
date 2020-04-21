@@ -1,13 +1,13 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    val kotlinVersion = "1.3.71"
-    kotlin("jvm") version "1.3.71" apply false
+    val kotlinVersion = "1.3.72"
+    kotlin("jvm") version kotlinVersion apply false
+    kotlin("plugin.serialization") version kotlinVersion apply false
     id("org.jmailen.kotlinter") version "2.3.2" apply false
-    id("org.jetbrains.dokka") version "0.9.18" apply false
-    kotlin("plugin.serialization") version "1.3.70" apply false
+    id("org.jetbrains.dokka") version "0.10.1" apply false
     id("com.github.ben-manes.versions") version "0.28.0"
-    id("io.gitlab.arturbosch.detekt") version "1.7.4"
+    id("io.gitlab.arturbosch.detekt") version "1.8.0"
 }
 allprojects {
     repositories {
