@@ -16,7 +16,8 @@ import java.util.*
  * implementation must expose. Answerable's job is to ascertain that a submission meets the specification both on the
  * surface, in API, and behaviorally. This is the API component.
  */
-class ClassDesignAnalysis(private val solutionName: String, private val reference: Class<*>, private val attempt: Class<*>) {
+class ClassDesignAnalysis(private val solutionName: String? = null,
+                          private val reference: Class<*>, private val attempt: Class<*>) {
     fun runSuite(
         name: Boolean = true,
         classStatus: Boolean = true,
@@ -140,9 +141,8 @@ class ClassDesignAnalysis(private val solutionName: String, private val referenc
         val refMethodData =
             (reference.getPublicMethods() + reference.constructors)
                 .filter { method -> referenceAnnotations.none { method.isAnnotationPresent(it) } }
-                .filter { method ->
-                    !method.isAnnotationPresent(Solution::class.java) ||
-                            method.getAnnotation(Solution::class.java)!!.name == solutionName
+                .filterOut { method ->
+                    method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false
                 }
                 .map { MethodData(it) }
                 .sortedBy { it.signature }
@@ -165,6 +165,9 @@ enum class AnalysisTag {
 
     override fun toString(): String = name.toLowerCase().replace('_', ' ')
 }
+
+// alias filterNot with a more sensible name
+fun <T> Iterable<T>.filterOut(p: (T) -> Boolean) = this.filterNot(p)
 
 class AnalysisOutput(val tag: AnalysisTag, val result: AnalysisResult<*>) : DefaultSerializable {
     override fun toString() = this.toErrorMsg() // see ClassDesignErrors.kt
