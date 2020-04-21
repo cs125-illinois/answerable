@@ -2,7 +2,6 @@ package edu.illinois.cs.cs125.answerable.api
 
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
-import java.nio.charset.StandardCharsets
 
 /**
  * An interface that allows Answerable to run a task and capture its printed output.
@@ -49,8 +48,8 @@ internal val defaultOutputCapturer = object : OutputCapturer {
         } finally {
             System.setOut(oldOut)
             System.setErr(oldErr)
-            outText = newOut.toString(StandardCharsets.UTF_8)
-            errText = newErr.toString(StandardCharsets.UTF_8)
+            outText = newOut.toString("UTF8")
+            errText = newErr.toString("UTF8")
             newOut.close()
             newErr.close()
         }
