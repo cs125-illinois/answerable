@@ -143,7 +143,7 @@ internal class TestGeneratorTest {
 
         out.assertAllSucceeded()
 
-        assertTrue(out.testSteps.any { it as ExecutedTestStep; it.succeeded && it.refOutput.output == true })
+        assertTrue(out.testSteps.any { it as ExecutedTestStep; it.succeeded && it.refOutput.output?.value == "true" })
 
     }
 

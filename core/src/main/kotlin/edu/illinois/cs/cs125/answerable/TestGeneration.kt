@@ -294,7 +294,7 @@ class PassedClassDesignRunner internal constructor(
         val untrustedSubMirror = mkOpenMirrorClass(submissionClass, submissionTypePool, "opensub_")
         val loader = environment.sandbox.transformLoader(submissionTypePool.getLoader())
         val sandboxedSubMirror = Class.forName(untrustedSubMirror.name, false, loader.getLoader())
-        val worker = TestRunWorker(testGenerator, sandboxedSubMirror, environment, loader)
+        val worker = TestRunWorker(testGenerator, sandboxedSubMirror, environment, loader, submissionTypePool)
         val timeLimit = timeoutOverride ?: testGenerator.timeout
 
         // Store reference class static field values so that the next run against this solution doesn't break
@@ -348,7 +348,8 @@ internal class TestRunWorker internal constructor(
     private val testGenerator: TestGenerator,
     private val usableSubmissionClass: Class<*>,
     private val environment: TestEnvironment,
-    private val bytecodeProvider: BytecodeProvider?
+    private val bytecodeProvider: BytecodeProvider?,
+    private val untrustedSubmissionTypePool: TypePool
 ) {
     private val usableReferenceClass = testGenerator.usableReferenceClass
     private val usableControlClass = testGenerator.usableControlClass
@@ -357,6 +358,7 @@ internal class TestRunWorker internal constructor(
     private val passRandomToVerify = usableCustomVerifier?.parameters?.size == 3
 
     private val submissionTypePool = TypePool(bytecodeProvider, usableSubmissionClass.classLoader)
+            .also { it.takeOriginalClassMappings(untrustedSubmissionTypePool, usableSubmissionClass.classLoader) }
     private val adapterTypePool = TypePool(testGenerator.typePool, submissionTypePool)
     private val usableSubmissionMethod =
         usableSubmissionClass.findSolutionAttemptMethod(usableReferenceMethod, usableReferenceClass)
@@ -652,11 +654,15 @@ internal class TestRunWorker internal constructor(
         return ExecutedTestStep(
             iteration = iteration,
             testType = testType,
-            refReceiver = refReceiver,
-            subReceiver = subReceiver,
+            refReceiver = refReceiver.ossify(testGenerator.typePool),
+            subReceiver = subReceiver.ossify(submissionTypePool),
+            refLiveReceiver = refReceiver,
+            subDangerousLiveReceiver = subReceiver,
             succeeded = assertErr == null,
-            refOutput = refBehavior,
-            subOutput = subBehavior,
+            refOutput = refBehavior.ossify(testGenerator.typePool),
+            subOutput = subBehavior.ossify(submissionTypePool),
+            refLiveOutput = refBehavior,
+            subDangerousLiveOutput = subBehavior,
             assertErr = assertErr
         )
     }
@@ -1119,15 +1125,24 @@ abstract class TestStep(
 class ExecutedTestStep(
     iteration: Int, testType: TestType,
     /** The receiver object passed to the reference. */
-    val refReceiver: Any?,
+    val refReceiver: OssifiedValue?,
     /** The receiver object passed to the submission. */
-    val subReceiver: Any?,
+    val subReceiver: OssifiedValue?,
+    /** The receiver object passed to the reference. */
+    val refLiveReceiver: Any?,
+    /** The receiver object passed to the submission. */
+    val subDangerousLiveReceiver: Any?,
     /** Whether or not the test case succeeded. */
     val succeeded: Boolean,
-    /** The return value of the reference solution. */
-    val refOutput: TestOutput<Any?>,
-    /** The return value of the submission. */
-    val subOutput: TestOutput<Any?>,
+    /** The behavior of the reference solution. */
+    val refOutput: OssifiedTestOutput,
+    /** The behavior of the submission. */
+    val subOutput: OssifiedTestOutput,
+    /** The behavior of the reference solution,
+     * including live objects with potentially computationally expensive behaviors. */
+    val refLiveOutput: TestOutput<Any?>,
+    /** The behavior of the submission, including live (untrusted!) objects. */
+    val subDangerousLiveOutput: TestOutput<Any?>,
     /** The assertion error thrown, if any, by the verifier. */
     val assertErr: Throwable?
 ) : TestStep(iteration, false, testType) {

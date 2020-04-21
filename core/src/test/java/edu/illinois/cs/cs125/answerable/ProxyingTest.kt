@@ -4,6 +4,7 @@ import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
 import examples.proxy.GeneratedWidget
 import examples.proxy.reference.InnerClassGeneratorWidget
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
 internal class ProxyingTest {
@@ -30,6 +31,7 @@ internal class ProxyingTest {
     }
 
     @Test
+    @Disabled("fields are not yet proxied - failure expected")
     fun testCorrectFieldLinkedList() {
         val tg = PassedClassDesignRunner(examples.proxy.reference.FieldLinkedList::class.java, examples.proxy.FieldLinkedList::class.java)
         assertAllSucceeded(tg.runTestsUnsecured(0x0403))

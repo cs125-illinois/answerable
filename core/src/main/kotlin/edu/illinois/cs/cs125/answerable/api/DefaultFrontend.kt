@@ -20,16 +20,18 @@ interface DefaultSerializable {
     fun toJson(): String
 }
 
+// TODO: Make all of this valid JSON
+
 /**
  * Convert a [List] of [DefaultSerializable] objects to a [String] representing a JSON list.
  */
 fun <E : DefaultSerializable> List<E>.toJson(): String =
         this.joinToString(prefix = "[", postfix = "]", transform = DefaultSerializable::toJson)
 
-internal fun <T> TestOutput<T>.defaultToJson(): String {
+internal fun OssifiedTestOutput.defaultToJson(): String {
     val specific = when (this.typeOfBehavior) {
-        Behavior.RETURNED -> "  returned: ${output.jsonStringOrNull()}"
-        Behavior.THREW -> "  threw: \"$threw\""
+        Behavior.RETURNED -> "  returned: ${output?.value.jsonStringOrNull()}"
+        Behavior.THREW -> "  threw: ${threw?.value.jsonStringOrNull()}"
         Behavior.VERIFY_ONLY -> ""
     }
 
@@ -44,8 +46,8 @@ internal fun <T> TestOutput<T>.defaultToJson(): String {
     return """
         |{
         |  resultType: "$typeOfBehavior",
-        |  receiver: ${receiver.jsonStringOrNull()},
-        |  args: ${args.joinToString(prefix = "[", postfix = "]", transform = ::fixArrayToString)}${if (specific == "") "" else ","}
+        |  receiver: ${receiver?.value.jsonStringOrNull()},
+        |  args: ${args.map { it?.value }.joinToString(prefix = "[", postfix = "]", transform = ::fixArrayToString)}${if (specific == "") "" else ","}
         |$specific${if (stdOutputs == "") "" else ",\n"}$stdOutputs
         |}
     """.trimMargin()
@@ -57,8 +59,8 @@ internal fun ExecutedTestStep.defaultToJson(): String =
         |  testNumber: $testNumber,
         |  testType: $testType,
         |  discarded: false,
-        |  refReceiver: ${refReceiver.jsonStringOrNull()},
-        |  subReceiver: ${subReceiver.jsonStringOrNull()},
+        |  refReceiver: ${refReceiver?.value.jsonStringOrNull()},
+        |  subReceiver: ${subReceiver?.value.jsonStringOrNull()},
         |  succeeded: $succeeded,
         |  refOutput: ${refOutput.toJson()},
         |  subOutput: ${subOutput.toJson()},

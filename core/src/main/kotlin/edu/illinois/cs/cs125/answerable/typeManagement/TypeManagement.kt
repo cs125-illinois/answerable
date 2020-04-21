@@ -16,6 +16,7 @@ import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Member
 import java.lang.reflect.Modifier
+import java.lang.reflect.Type as ReflectType
 import java.util.*
 
 private val objenesis = ObjenesisStd()
@@ -657,63 +658,84 @@ private fun verifyMemberAccess(
     val innerClassIndexes =
         toCheck.attributes.filterIsInstance<InnerClasses>().firstOrNull()?.innerClasses?.filter { innerClass ->
             (constantPool.getConstant(innerClass.innerClassIndex) as ConstantClass).getBytes(constantPool)
-                .startsWith("${toCheck.className.replace('.', '/')}$")
+                .startsWith("${toCheck.className.slashName}$")
         }?.map { it.innerClassIndex } ?: listOf()
 
+    // Mutable copy of all the dangers to inner classes so we can add items
     val dangersToInnerClasses = dangerousAccessors.toMutableMap()
 
     val methodsChecked = mutableSetOf<Method>()
-    fun checkMethod(method: Method, checkInner: Boolean) { // TODO: Comment and refactor
-        if (methodsChecked.contains(method)) return
+    fun checkMethod(method: Method, checkInner: Boolean) {
         methodsChecked.add(method)
 
+        fun checkFieldAccessInstruction(signatureConstant: ConstantNameAndType) {
+            // Assume the field is actually present, if not, the user is asking for trouble
+            // The compiler is always right here
+            val field = referenceClass.getDeclaredField(signatureConstant.getName(constantPool))
+            // Static helper fields are safe
+            if (Modifier.isStatic(field.modifiers) && field.isAnnotationPresent(Helper::class.java)) return
+            // Nonpublic methods are specific to the implementation and should not be used from generators
+            if (!Modifier.isPublic(field.modifiers))
+                throw AnswerableBytecodeVerificationException(method.name, currentClass, field)
+        }
+
+        fun checkMethodCallInstruction(signatureConstant: ConstantNameAndType) {
+            val name = signatureConstant.getName(constantPool)
+            val signature = signatureConstant.getSignature(constantPool)
+            if (name == "<init>") {
+                // Make sure the specific constructor referenced is public
+                referenceClass.declaredConstructors.firstOrNull { dc ->
+                    !Modifier.isPublic(dc.modifiers)
+                            && signature == "(${dc.parameterTypes.joinToString(separator = "") {
+                        Type.getType(it).signature
+                    }})V"
+                }?.let { candidate ->
+                    throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
+                }
+            } else {
+                // Make sure the specific method overload referenced is usable
+                referenceClass.declaredMethods.firstOrNull { dm ->
+                    // Find the overload mentioned...
+                    dm.name == name
+                            && !Modifier.isPublic(dm.modifiers)
+                            && Type.getSignature(dm) == signature
+                            && (generationAnnotationTypes.none { dm.isAnnotationPresent(it) }
+                            || !Modifier.isStatic(dm.modifiers)) // ...and see if it's unsafe
+                }?.let { candidate ->
+                    // The candidate is extremely sketchy
+                    dangerousAccessors[candidate.name]?.let {
+                        throw AnswerableBytecodeVerificationException(it, method.name, currentClass)
+                    }
+                    // Static synthetic functions can be implicitly @Helper, otherwise it's unsafe
+                    if (!modifierIsSynthetic(candidate.modifiers))
+                        throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
+                }
+            }
+        }
+
+        // Look through the code of the method to make sure it doesn't refer to unsafe members
+        // Instructions that don't reference the constant pool are always safe (never refer to members)
         InstructionList(method.code.code).map { it.instruction }.filterIsInstance<CPInstruction>()
             .forEach eachInstr@{ instr ->
                 if (instr is FieldOrMethod) {
-                    if (instr is INVOKEDYNAMIC) return@eachInstr
+                    if (instr is INVOKEDYNAMIC) return@eachInstr // Invoke-dynamic IDs aren't the same kind of thing
                     val refConstant = constantPool.getConstant(instr.index) as? ConstantCP ?: return@eachInstr
                     if (refConstant.getClass(constantPool) != referenceClass.name) return@eachInstr
-                    val signatureConstant =
-                        constantPool.getConstant(refConstant.nameAndTypeIndex) as ConstantNameAndType
+                    // Now that we know it's mentioning the reference class,
+                    // we need to make sure the member access is valid
+                    val signatureConst = constantPool.getConstant(refConstant.nameAndTypeIndex) as ConstantNameAndType
                     if (instr is FieldInstruction) {
-                        val field = try {
-                            referenceClass.getDeclaredField(signatureConstant.getName(constantPool))
-                        } catch (e: NoSuchFieldException) {
-                            return@eachInstr
-                        }
-                        if (Modifier.isStatic(field.modifiers) && field.isAnnotationPresent(Helper::class.java)) return@eachInstr
-                        if (!Modifier.isPublic(field.modifiers))
-                            throw AnswerableBytecodeVerificationException(method.name, currentClass, field)
+                        checkFieldAccessInstruction(signatureConst)
                     } else if (instr is InvokeInstruction) {
-                        val name = signatureConstant.getName(constantPool)
-                        val signature = signatureConstant.getSignature(constantPool)
-                        if (name == "<init>") {
-                            referenceClass.declaredConstructors.filter { dc ->
-                                !Modifier.isPublic(dc.modifiers)
-                                        && signature == "(${dc.parameterTypes.joinToString(separator = "") {
-                                    Type.getType(it).signature
-                                }})V"
-                            }.forEach { candidate ->
-                                throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
-                            }
-                        } else {
-                            referenceClass.declaredMethods.filter { dm ->
-                                dm.name == name
-                                        && !Modifier.isPublic(dm.modifiers)
-                                        && Type.getSignature(dm) == signature
-                                        && (generationAnnotationTypes.none { dm.isAnnotationPresent(it) } || !Modifier.isStatic(dm.modifiers))
-                            }.forEach { candidate ->
-                                dangerousAccessors[candidate.name]?.let {
-                                    throw AnswerableBytecodeVerificationException(it, method.name, currentClass)
-                                }
-                                if (!modifierIsSynthetic(candidate.modifiers))
-                                    throw AnswerableBytecodeVerificationException(method.name, currentClass, candidate)
-                            }
-                        }
+                        checkMethodCallInstruction(signatureConst)
                     }
                 } else if (checkInner) {
+                    // At the first instantiation of an inner class in a generation-related method,
+                    // we have to consider that inner class involved in generation,
+                    // so it needs to be verified.
                     val classConstant = constantPool.getConstant(instr.index) as? ConstantClass ?: return@eachInstr
                     if (innerClassIndexes.contains(instr.index)) {
+                        // Recursively check the inner class
                         verifyMemberAccess(
                             pool.classForName(classConstant.getBytes(constantPool).dotName),
                                 referenceClass, checked, dangersToInnerClasses, pool
@@ -818,7 +840,7 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
      * Tracks the original class from which each class was mirrored.
      * Used to get nicer error messages from TestGeneration.
      */
-    private val mirrorOriginalTypes = mutableMapOf<Class<*>, Class<*>>()
+    private val mirrorOriginalTypes = mutableMapOf<Class<*>, ReflectType>()
 
     constructor(bytecodeProvider: BytecodeProvider?, parentPool: TypePool?) : this(bytecodeProvider) {
         parent = parentPool
@@ -853,16 +875,16 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
         }
     }
 
-    fun loadMirrorBytes(name: String, bcelClass: JavaClass, mirroredFrom: Class<*>): Class<*> {
+    fun loadMirrorBytes(name: String, bcelClass: JavaClass, mirroredFrom: ReflectType): Class<*> {
         val bytes = bcelClass.bytes
         return loader.loadBytes(name, bytes).also {
             bytecode[it] = bytes
-            mirrorOriginalTypes[it] = mirroredFrom
+            mirrorOriginalTypes[it] = getOriginalClass(mirroredFrom)
         }
     }
 
     fun classForName(name: String): Class<*> {
-        // TODO: Unsure whether it's good to initialize the class immediately
+        // TODO: Unsure whether it's useful to initialize the class immediately
         return Class.forName(name, false, loader)
     }
 
@@ -880,9 +902,15 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
         return loader
     }
 
-    fun getOriginalClass(type: java.lang.reflect.Type): java.lang.reflect.Type {
+    fun getOriginalClass(type: ReflectType): ReflectType {
         if (type !is Class<*>) return type
         return mirrorOriginalTypes[type] ?: parent?.getOriginalClass(type) ?: type
+    }
+
+    fun takeOriginalClassMappings(otherPool: TypePool, transformedLoader: ClassLoader) {
+        otherPool.mirrorOriginalTypes.forEach { (transformed, original) ->
+            mirrorOriginalTypes[transformedLoader.loadClass(transformed.name)] = original
+        }
     }
 
 }
