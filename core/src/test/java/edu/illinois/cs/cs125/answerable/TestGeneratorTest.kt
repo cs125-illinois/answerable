@@ -148,7 +148,7 @@ internal class TestGeneratorTest {
             .loadSubmission(examples.testgeneration.ReceiverEdgeCase::class.java)
             .runTestsUnsecured(Random.nextLong())
 
-        out.assertAllSucceeded()
+        out.assertAllSucceeded(showOutput = false)
 
         assertTrue(out.testSteps.any { it as ExecutedTestStep; it.succeeded && it.refOutput.output?.value == "true" })
     }
