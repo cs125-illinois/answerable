@@ -46,12 +46,12 @@ data class TestRunnerArgs(
         return TestRunnerArgs(
             numTests = resolvedNumTests,
             maxDiscards = maxDiscards ?: DEFAULT_MAX_DISCARDS,
-            maxOnlyEdgeCaseTests = maxOnlyEdgeCaseTests ?: resolvedNumTests * DEFAULT_MAX_FRACTION_EDGE_CASES,
-            maxOnlySimpleCaseTests = maxOnlySimpleCaseTests ?: resolvedNumTests * DEFAULT_MAX_FRACTION_SIMPLE_CASES,
+            maxOnlyEdgeCaseTests = maxOnlyEdgeCaseTests ?: resolvedNumTests / DEFAULT_MAX_FRACTION_EDGE_CASES,
+            maxOnlySimpleCaseTests = maxOnlySimpleCaseTests ?: resolvedNumTests / DEFAULT_MAX_FRACTION_SIMPLE_CASES,
             numSimpleEdgeMixedTests = numSimpleEdgeMixedTests
-                ?: resolvedNumTests * DEFAULT_MAX_FRACTION_SIMPLE_EDGE_MIXED_CASES,
-            numAllGeneratedTests = numAllGeneratedTests ?: resolvedNumTests * DEFAULT_FRACTION_GENERATED_TESTS,
-            numRegressionTests = numRegressionTests ?: resolvedNumTests * DEFAULT_FRACTION_REGRESSION_TESTS,
+                ?: resolvedNumTests / DEFAULT_MAX_FRACTION_SIMPLE_EDGE_MIXED_CASES,
+            numAllGeneratedTests = numAllGeneratedTests ?: resolvedNumTests / DEFAULT_FRACTION_GENERATED_TESTS,
+            numRegressionTests = numRegressionTests ?: resolvedNumTests / DEFAULT_FRACTION_REGRESSION_TESTS,
             maxComplexity = maxComplexity ?: DEFAULT_MAX_COMPLEXITY
         )
     }
@@ -62,8 +62,8 @@ data class TestRunnerArgs(
         const val DEFAULT_MAX_FRACTION_EDGE_CASES = 16
         const val DEFAULT_MAX_FRACTION_SIMPLE_CASES = 16
         const val DEFAULT_MAX_FRACTION_SIMPLE_EDGE_MIXED_CASES = 16
-        const val DEFAULT_FRACTION_GENERATED_TESTS = 1 / 2
-        const val DEFAULT_FRACTION_REGRESSION_TESTS = 1 / 16
+        const val DEFAULT_FRACTION_GENERATED_TESTS = 2
+        const val DEFAULT_FRACTION_REGRESSION_TESTS = 16
         const val DEFAULT_MAX_COMPLEXITY = 100
     }
 }
