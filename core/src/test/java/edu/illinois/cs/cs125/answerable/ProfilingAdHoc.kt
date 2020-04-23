@@ -1,6 +1,6 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.api.Answerable
+import edu.illinois.cs.cs125.answerable.api.Service
 import examples.binarytree.reference.YourBinaryTree
 import examples.binarytree.size.ClassicBinaryTreeSizeTest
 import examples.sorting.ClassicSortTest
@@ -19,7 +19,7 @@ fun main() {
 }
 
 fun testAnswerable(repeats: Int) {
-    val answerableService = Answerable(defaultEnvironment)
+    val answerableService = Service(defaultEnvironment)
     answerableService.loadNewQuestion("size", YourBinaryTree::class.java, "size", TestRunnerArgs(numTests = 259, maxComplexity = 1024))
     repeat(repeats) {
         val result = answerableService.submitAndTest("size", examples.binarytree.size.YourBinaryTree::class.java)
@@ -34,7 +34,7 @@ fun testClassic(repeats: Int) {
 }
 
 fun testSortingAnswerable(repeats: Int) {
-    val answerableService = Answerable(defaultEnvironment)
+    val answerableService = Service(defaultEnvironment)
     answerableService.loadNewQuestion("sort", ArraySorter::class.java,
             TestRunnerArgs(maxComplexity = 1024, numSimpleEdgeMixedTests = 0, maxOnlySimpleCaseTests = 0, maxOnlyEdgeCaseTests = 0, numAllGeneratedTests = 1024))
     repeat(repeats) {

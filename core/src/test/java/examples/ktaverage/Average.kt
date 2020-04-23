@@ -7,5 +7,4 @@ class Average {
         numbers.forEach { sum += it }
         return sum / numbers.size
     }
-
 }

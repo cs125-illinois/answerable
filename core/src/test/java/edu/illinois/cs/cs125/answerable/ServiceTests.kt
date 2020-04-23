@@ -1,9 +1,11 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.api.Answerable
-import examples.binarytree.size.YourBinaryTree
-import org.junit.jupiter.api.Assertions.*
+import edu.illinois.cs.cs125.answerable.api.Service
 import examples.binarytree.reference.YourBinaryTree as ReferenceYBT
+import examples.binarytree.size.YourBinaryTree
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -22,11 +24,11 @@ fun TestRunOutput.assertAllSucceeded(showOutput: Boolean = true) {
 
 internal class ServiceTests {
 
-    var answerableService: Answerable = Answerable(defaultEnvironment)
+    private var answerableService: Service = Service(defaultEnvironment)
 
     @BeforeEach
     fun setUp() {
-        answerableService = Answerable(defaultEnvironment)
+        answerableService = Service(defaultEnvironment)
     }
 
     @Test
@@ -38,8 +40,12 @@ internal class ServiceTests {
             )
         }.message!!
 
-        assertEquals("\nA generator for type `java.lang.StringBuilder' was requested, but no generator for that type was found.\n" +
-                "While trying to load new question: MissingGenerator.", errMsg)
+        assertEquals(
+            "\nA generator for type `java.lang.StringBuilder' was requested, " +
+            "but no generator for that type was found.\n" +
+            "While trying to load new question: MissingGenerator.",
+            errMsg
+        )
     }
 
     @Test
@@ -64,8 +70,12 @@ internal class ServiceTests {
             )
         }.message!!
 
-        assertEquals("\nMirrorable method `generate' in `BadFieldAccessWidget' uses non-public submission field: numSprings\n" +
-                "While trying to load new question: BadFieldAccessWidget.", errMsg)
+        assertEquals(
+            "\nMirrorable method `generate' in `BadFieldAccessWidget' uses non-public submission field: " +
+                "numSprings\n" +
+                "While trying to load new question: BadFieldAccessWidget.",
+            errMsg
+        )
     }
 
     @Test

@@ -2,10 +2,12 @@ package edu.illinois.cs.cs125.answerable
 
 import examples.testgeneration.validation.reference.Adder
 import examples.testgeneration.validation.reference.ArgsOnStandaloneVerify
-import org.junit.jupiter.api.Assertions.*
+import kotlin.random.Random
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import kotlin.random.Random
 
 internal class TestGeneratorTest {
 
@@ -13,7 +15,7 @@ internal class TestGeneratorTest {
     fun testMutableArguments() {
         val tg = PassedClassDesignRunner(examples.testgeneration.mutablearguments.reference.Array::class.java, examples.testgeneration.mutablearguments.Array::class.java)
         val output = tg.runTestsUnsecured(0x0403)
-        assertTrue(output.testSteps.all { (it as ExecutedTestStep).succeeded } )
+        assertTrue(output.testSteps.all { (it as ExecutedTestStep).succeeded })
     }
 
     @Test
@@ -102,7 +104,9 @@ internal class TestGeneratorTest {
                 examples.testgeneration.generators.reference.StaticTakesInstance::class.java,
                 examples.testgeneration.generators.StaticTakesInstance::class.java) }.message
 
-        assertEquals("\nA generator for type `examples.testgeneration.generators.reference.StaticTakesInstance' was requested, but no generator for that type was found.", errMsg)
+        assertEquals(
+            "\nA generator for type `examples.testgeneration.generators.reference.StaticTakesInstance' " +
+                "was requested, but no generator for that type was found.", errMsg)
     }
 
     @Test
@@ -111,12 +115,16 @@ internal class TestGeneratorTest {
                 examples.testgeneration.generators.reference.DefaultCtorClassAsParam::class.java,
                 examples.testgeneration.generators.DefaultCtorClassAsParam::class.java) }.message
 
-        assertEquals("\nA generator for type `examples.testgeneration.generators.reference.DefaultCtorClassAsParam' was requested, but no generator for that type was found.", errMsg)
+        assertEquals(
+            "\nA generator for type `examples.testgeneration.generators.reference.DefaultCtorClassAsParam' " +
+                "was requested, but no generator for that type was found.", errMsg)
     }
 
     @Test
     fun testStandaloneVerify() {
-        val tg = TestGenerator(examples.testgeneration.standaloneverify.reference.Standalone::class.java, "standalone test")
+        val tg = TestGenerator(
+            examples.testgeneration.standaloneverify.reference.Standalone::class.java, "standalone test"
+        )
         val tr = tg.loadSubmission(examples.testgeneration.standaloneverify.Standalone::class.java)
 
         val out = tr.runTestsUnsecured(Random.nextLong())
@@ -132,7 +140,6 @@ internal class TestGeneratorTest {
             .runTestsUnsecured(Random.nextLong())
 
         out.assertAllSucceeded()
-
     }
 
     @Test
@@ -144,7 +151,6 @@ internal class TestGeneratorTest {
         out.assertAllSucceeded()
 
         assertTrue(out.testSteps.any { it as ExecutedTestStep; it.succeeded && it.refOutput.output?.value == "true" })
-
     }
 
     @Test
@@ -210,7 +216,7 @@ internal class TestGeneratorTest {
 
         out.assertAllSucceeded()
     }
-    
+
     @Test
     fun testRunnerArgsOverriding() {
         val seed = Random.nextLong()
@@ -290,5 +296,4 @@ internal class TestGeneratorTest {
                 .runTestsUnsecured(Random.nextLong())
         assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
-
 }

@@ -6,7 +6,17 @@ import examples.proxy.reference.GeneratedWidget
 import examples.proxy.reference.InnerClassGeneratorWidget
 import examples.proxy.reference.RequiredInnerClassWidget
 import examples.proxy.reference.StaticInitGeneratorWidget
-import examples.verify.*
+import examples.verify.BadArrayParameterizedMethodAccessWidget
+import examples.verify.BadConstructorAccess
+import examples.verify.BadFieldAccessFromInnerWidget
+import examples.verify.BadFieldAccessWidget
+import examples.verify.BadMethodAccessFromInnerWidget
+import examples.verify.BadMethodAccessWidget
+import examples.verify.BadParameterizedMethodAccessWidget
+import examples.verify.BadPrimitiveArrayParameterizedMethodAccessWidget
+import examples.verify.BadPrimitiveParameterizedMethodAccessWidget
+import examples.verify.IncidentalInnerClassWidget
+import examples.verify.OverloadedSafeMethodAccessWidget
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -39,22 +49,30 @@ internal class VerifyTest {
 
     @Test
     fun verifyBadParameterizedMethodAccessGenerator() {
-        assertThrows<AnswerableBytecodeVerificationException> { verifyMemberAccess(BadParameterizedMethodAccessWidget::class.java) }
+        assertThrows<AnswerableBytecodeVerificationException> {
+            verifyMemberAccess(BadParameterizedMethodAccessWidget::class.java)
+        }
     }
 
     @Test
     fun verifyBadPrimitiveParameterizedMethodAccessNext() {
-        assertThrows<AnswerableBytecodeVerificationException> { verifyMemberAccess(BadPrimitiveParameterizedMethodAccessWidget::class.java) }
+        assertThrows<AnswerableBytecodeVerificationException> {
+            verifyMemberAccess(BadPrimitiveParameterizedMethodAccessWidget::class.java)
+        }
     }
 
     @Test
     fun verifyBadPrimitiveArrayParameterizedMethodAccessNext() {
-        assertThrows<AnswerableBytecodeVerificationException> { verifyMemberAccess(BadPrimitiveArrayParameterizedMethodAccessWidget::class.java) }
+        assertThrows<AnswerableBytecodeVerificationException> {
+            verifyMemberAccess(BadPrimitiveArrayParameterizedMethodAccessWidget::class.java)
+        }
     }
 
     @Test
     fun verifyBadArrayParameterizedMethodAccessNext() {
-        assertThrows<AnswerableBytecodeVerificationException> { verifyMemberAccess(BadArrayParameterizedMethodAccessWidget::class.java) }
+        assertThrows<AnswerableBytecodeVerificationException> {
+            verifyMemberAccess(BadArrayParameterizedMethodAccessWidget::class.java)
+        }
     }
 
     @Test
@@ -64,12 +82,16 @@ internal class VerifyTest {
 
     @Test
     fun verifyBadFieldAccessFromInnerGenerator() {
-        assertThrows<AnswerableBytecodeVerificationException> { verifyMemberAccess(BadFieldAccessFromInnerWidget::class.java) }
+        assertThrows<AnswerableBytecodeVerificationException> {
+            verifyMemberAccess(BadFieldAccessFromInnerWidget::class.java)
+        }
     }
 
     @Test
     fun verifyBadMethodCallFromInnerGenerator() {
-        assertThrows<AnswerableBytecodeVerificationException> { verifyMemberAccess(BadMethodAccessFromInnerWidget::class.java) }
+        assertThrows<AnswerableBytecodeVerificationException> {
+            verifyMemberAccess(BadMethodAccessFromInnerWidget::class.java)
+        }
     }
 
     @Test
@@ -84,7 +106,8 @@ internal class VerifyTest {
 
     @Test
     fun verifyBadConstructorAccess() {
-        assertThrows<AnswerableBytecodeVerificationException> { verifyMemberAccess(BadConstructorAccess::class.java) }
+        assertThrows<AnswerableBytecodeVerificationException> {
+            verifyMemberAccess(BadConstructorAccess::class.java)
+        }
     }
-
 }

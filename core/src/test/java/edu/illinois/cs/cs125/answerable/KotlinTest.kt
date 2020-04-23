@@ -82,5 +82,4 @@ class KotlinTest {
         assertClassesPass(examples.testgeneration.standaloneverify.reference.KtStandaloneVerify::class.java,
                 examples.testgeneration.standaloneverify.KtStandaloneVerify::class.java)
     }
-
 }

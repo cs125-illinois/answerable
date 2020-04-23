@@ -8,5 +8,4 @@ class Average {
     fun average(numbers: DoubleArray): Double {
         return numbers.average()
     }
-
 }

@@ -1,7 +1,9 @@
 package edu.illinois.cs.cs125.answerable
 
+import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
 
 internal class DiscovererTest {
     private val correctAdderReference: String = "examples.adder.correct.reference.Adder"
@@ -60,7 +62,10 @@ internal class DiscovererTest {
         val classDesignReferenceClass = getSolutionClass(correctClassDesignReference)
 
         assertEquals(
-            "[public java.lang.Object examples.classdesign.correct1.reference.ClassDesign.get(int), public static examples.classdesign.correct1.reference.ClassDesign examples.classdesign.correct1.reference.ClassDesign.next(examples.classdesign.correct1.reference.ClassDesign,int)]",
+            "[public java.lang.Object examples.classdesign.correct1.reference.ClassDesign.get(int), " +
+                "public static examples.classdesign.correct1.reference.ClassDesign " +
+                "examples.classdesign.correct1.reference.ClassDesign.next(" +
+                "examples.classdesign.correct1.reference.ClassDesign,int)]",
             classDesignReferenceClass.getPublicMethods().toString()
         )
     }
@@ -69,6 +74,9 @@ internal class DiscovererTest {
     fun testGetEnabledEdgeCases() {
         val reference = getSolutionClass(correctAdderReference)
 
-        assertArrayEquals(intArrayOf(-1, 0, 1), reference.getEnabledEdgeCases(arrayOf())[Int::class.java]!!.array as IntArray)
+        assertArrayEquals(
+            intArrayOf(-1, 0, 1),
+            (reference.getEnabledEdgeCases(arrayOf())[Int::class.java] ?: error("")).array as IntArray
+        )
     }
 }
