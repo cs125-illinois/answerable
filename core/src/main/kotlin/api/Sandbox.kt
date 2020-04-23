@@ -67,8 +67,9 @@ internal val defaultSandbox = object : Sandbox {
             true
         } else {
             var thread: Thread? = null
+            val executor = Executors.newSingleThreadExecutor()
             try {
-                Executors.newSingleThreadExecutor().submit {
+                executor.submit {
                     thread = Thread.currentThread()
                     callback.run()
                 }[timeout, TimeUnit.MILLISECONDS]
@@ -76,6 +77,8 @@ internal val defaultSandbox = object : Sandbox {
             } catch (e: TimeoutException) {
                 @Suppress("DEPRECATION") thread?.stop()
                 false
+            } finally {
+                executor.shutdown()
             }
         }
     }

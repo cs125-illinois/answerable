@@ -1291,6 +1291,17 @@ data class TestRunOutput(
     val testSteps: List<TestStep>
 ) : DefaultSerializable {
     override fun toJson() = defaultToJson()
+
+    fun assertAllSucceeded() {
+        classDesignAnalysisResult.forEach {
+            check(it.result is Matched) { "Class design check failed" }
+        }
+        testSteps.filterIsInstance<ExecutedTestStep>().also {
+            check(it.isNotEmpty()) { "No tests were executed" }
+        }.forEach {
+            check(it.assertErr == null && it.succeeded) { "Test failed: ${it.toJson()}" }
+        }
+    }
 }
 
 enum class TestType {

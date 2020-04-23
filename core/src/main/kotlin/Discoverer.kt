@@ -31,25 +31,24 @@ internal fun getAttemptClass(name: String): Class<*> = findClass(
 )
 
 private fun findClass(name: String, failMsg: String): Class<*> {
-    val solutionClass: Class<*>
-    @Suppress("TooGenericExceptionCaught")
-    try {
-        solutionClass = Class.forName(name)
-    } catch (unused: Exception) {
+    return try {
+        Class.forName(name)
+    } catch (unused: ClassNotFoundException) {
         throw IllegalStateException(failMsg)
     }
-    return solutionClass
 }
 
 internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method? {
-    val methods =
-        this.declaredMethods
-            .filter { it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false }
-
-    if (methods.size > 1) throw AnswerableMisuseException("Can't find singular solution method with tag `$name'.")
-    if (methods.isEmpty()) return null
-    val solution = methods[0]
-    return solution.also { it.isAccessible = true }
+    return this.declaredMethods.filter {
+        it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false
+    }.let { methods ->
+        if (methods.isEmpty()) {
+            return null
+        } else if (methods.size > 1) {
+            throw AnswerableMisuseException("Can't find singular solution method with tag `$name'.")
+        }
+        methods.first().also { it.isAccessible = true }
+    }
 }
 
 internal fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false

@@ -23,7 +23,7 @@ fun testAnswerable(repeats: Int) {
     answerableService.loadNewQuestion("size", YourBinaryTree::class.java, "size", TestRunnerArgs(numTests = 259, maxComplexity = 1024))
     repeat(repeats) {
         val result = answerableService.submitAndTest("size", examples.binarytree.size.YourBinaryTree::class.java)
-        result.assertAllSucceeded(showOutput = false)
+        result.assertAllSucceeded()
     }
 }
 
@@ -39,7 +39,7 @@ fun testSortingAnswerable(repeats: Int) {
             TestRunnerArgs(maxComplexity = 1024, numSimpleEdgeMixedTests = 0, maxOnlySimpleCaseTests = 0, maxOnlyEdgeCaseTests = 0, numAllGeneratedTests = 1024))
     repeat(repeats) {
         val result = answerableService.submitAndTest("sort", examples.sorting.ArraySorter::class.java)
-        result.assertAllSucceeded(showOutput = false)
+        result.assertAllSucceeded()
     }
 }
 

@@ -48,14 +48,14 @@ internal class TestGeneratorTest {
     fun testDefaultConstructor() {
         val out = TestGenerator(examples.testgeneration.generators.defaults.reference.DefaultCtor::class.java)
                 .loadSubmission(examples.testgeneration.generators.defaults.DefaultCtor::class.java).runTestsUnsecured(0x0403)
-        out.assertAllSucceeded(false)
+        out.assertAllSucceeded()
     }
 
     @Test
     fun testOverrideDefaultConstructor() {
         val out = TestGenerator(examples.testgeneration.generators.reference.OverrideDefaultCtor::class.java)
                 .loadSubmission(examples.testgeneration.generators.OverrideDefaultCtor::class.java).runTestsUnsecured(0x0403)
-        out.assertAllSucceeded(false)
+        out.assertAllSucceeded()
     }
 
     @Test
@@ -148,7 +148,7 @@ internal class TestGeneratorTest {
             .loadSubmission(examples.testgeneration.ReceiverEdgeCase::class.java)
             .runTestsUnsecured(Random.nextLong())
 
-        out.assertAllSucceeded(showOutput = false)
+        out.assertAllSucceeded()
 
         assertTrue(out.testSteps.any { it as ExecutedTestStep; it.succeeded && it.refOutput.output?.value == "true" })
     }
@@ -176,9 +176,9 @@ internal class TestGeneratorTest {
     fun testMutatedStaticField() {
         val generator = TestGenerator(examples.testgeneration.mutatestaticfield.reference.Counter::class.java)
         val firstOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.Counter::class.java).runTestsUnsecured(0x0403)
-        firstOut.assertAllSucceeded(showOutput = false)
+        firstOut.assertAllSucceeded()
         val secondOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.another.Counter::class.java).runTestsUnsecured(403)
-        secondOut.assertAllSucceeded(showOutput = false)
+        secondOut.assertAllSucceeded()
     }
 
     @Test
@@ -187,7 +187,7 @@ internal class TestGeneratorTest {
         val firstOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.timesout.Counter::class.java).runTestsUnsecured(0x0403)
         assertTrue(firstOut.timedOut)
         val secondOut = generator.loadSubmission(examples.testgeneration.mutatestaticfield.Counter::class.java).runTestsUnsecured(403)
-        secondOut.assertAllSucceeded(showOutput = false)
+        secondOut.assertAllSucceeded()
     }
 
     @Test
