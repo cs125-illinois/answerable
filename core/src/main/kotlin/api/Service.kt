@@ -6,7 +6,7 @@ import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
 import edu.illinois.cs.cs125.answerable.TestEnvironment
 import edu.illinois.cs.cs125.answerable.TestGenerator
-import edu.illinois.cs.cs125.answerable.TestRunOutput
+import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.TestRunner
 import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.defaultArgs
@@ -161,7 +161,7 @@ class Service(private val environment: TestEnvironment) {
         submissionClass: Class<*>,
         testRunnerArgs: TestRunnerArgs = defaultArgs,
         seed: Long = Random().nextLong()
-    ): TestRunOutput = submit(questionName, submissionClass, testRunnerArgs).runTests(seed, environment)
+    ): TestingResults = submit(questionName, submissionClass, testRunnerArgs).runTests(seed, environment)
     fun submitAndTest(
         questionName: String,
         submissionClass: Class<*>,

@@ -10,7 +10,7 @@ import edu.illinois.cs.cs125.answerable.DiscardedTestStep
 import edu.illinois.cs.cs125.answerable.ExecutedTestStep
 import edu.illinois.cs.cs125.answerable.Matched
 import edu.illinois.cs.cs125.answerable.Mismatched
-import edu.illinois.cs.cs125.answerable.TestRunOutput
+import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.IllegalStateException
 import java.lang.reflect.Type
@@ -99,7 +99,7 @@ internal fun fixArrayToString(thing: Any?): String = when (thing) {
     else -> thing.toString()
 }
 
-internal fun TestRunOutput.defaultToJson(): String =
+internal fun TestingResults.defaultToJson(): String =
     """
         |{
         |  seed: $seed,

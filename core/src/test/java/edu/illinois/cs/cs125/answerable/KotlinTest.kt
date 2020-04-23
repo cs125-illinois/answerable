@@ -49,7 +49,7 @@ class KotlinTest {
                 examples.testgeneration.ktfilter.StringFilterer::class.java)
     }
 
-    private fun assertAllSucceeded(results: TestRunOutput) {
+    private fun assertAllSucceeded(results: TestingResults) {
         results.testSteps.forEach {
             if (it is ExecutedTestStep) {
                 Assertions.assertNull(it.assertErr)

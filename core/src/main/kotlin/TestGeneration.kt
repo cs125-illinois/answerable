@@ -279,8 +279,8 @@ class TestGenerator(
  * Represents a class that can execute tests.
  */
 interface TestRunner {
-    fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestRunOutput
-    fun runTests(seed: Long, environment: TestEnvironment): TestRunOutput
+    fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestingResults
+    fun runTests(seed: Long, environment: TestEnvironment): TestingResults
 }
 
 fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunnerArgs = defaultArgs) =
@@ -323,7 +323,7 @@ class PassedClassDesignRunner internal constructor(
      *
      * When called with the same [seed], [runTests] will always produce the same result.
      */
-    override fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestRunOutput {
+    override fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestingResults {
         val submissionTypePool = TypePool(bytecodeProvider, submissionClass.classLoader)
         val untrustedSubMirror = mkOpenMirrorClass(submissionClass, submissionTypePool, "opensub_")
         val loader = environment.sandbox.transformLoader(submissionTypePool.getLoader())
@@ -351,7 +351,7 @@ class PassedClassDesignRunner internal constructor(
         // Restore reference class static field values
         refStaticFieldValues.forEach { (field, value) -> field.set(null, value) }
 
-        return TestRunOutput(
+        return TestingResults(
             seed = seed,
             referenceClass = testGenerator.referenceClass,
             testedClass = submissionClass,
@@ -951,7 +951,7 @@ internal class TestRunWorker internal constructor(
  * The secondary [TestRunner] subclass representing a [submissionClass] which failed Class Design Analysis
  * against the [referenceClass].
  *
- * [runTests] will always execute 0 tests and produce an empty [TestRunOutput.testSteps].
+ * [runTests] will always execute 0 tests and produce an empty [TestingResults.testSteps].
  * The class design analysis results will be contained in the output.
  */
 class FailedClassDesignTestRunner(
@@ -960,8 +960,8 @@ class FailedClassDesignTestRunner(
     private val submissionClass: Class<*>,
     private val failedCDAResult: List<AnalysisOutput>
 ) : TestRunner {
-    override fun runTests(seed: Long, environment: TestEnvironment): TestRunOutput =
-        TestRunOutput(
+    override fun runTests(seed: Long, environment: TestEnvironment): TestingResults =
+        TestingResults(
             seed = seed,
             referenceClass = referenceClass,
             testedClass = submissionClass,
@@ -980,7 +980,7 @@ class FailedClassDesignTestRunner(
             testSteps = listOf()
         )
 
-    override fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestRunOutput =
+    override fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestingResults =
         runTests(seed, environment)
 }
 
@@ -1256,7 +1256,7 @@ class DiscardedTestStep(
 /**
  * Represents the output of an entire testing run.
  */
-data class TestRunOutput(
+data class TestingResults(
     /** The seed that this testing run used. */
     val seed: Long,
     /** The reference class for this testing run. */
