@@ -1,4 +1,5 @@
 @file: JvmName("Arguments")
+
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.api.DefaultTestRunArguments
@@ -39,18 +40,31 @@ data class TestRunnerArgs(
             maxComplexity = maxComplexity ?: base.maxComplexity
         )
     }
+
     fun resolve(): TestRunnerArgs {
-        val resolvedNumTests = numTests ?: 1024
+        val resolvedNumTests = numTests ?: DEFAULT_NUM_TESTS
         return TestRunnerArgs(
             numTests = resolvedNumTests,
-            maxDiscards = maxDiscards ?: 1024,
-            maxOnlyEdgeCaseTests = maxOnlyEdgeCaseTests ?: resolvedNumTests / 16,
-            maxOnlySimpleCaseTests = maxOnlySimpleCaseTests ?: resolvedNumTests / 16,
-            numSimpleEdgeMixedTests = numSimpleEdgeMixedTests ?: resolvedNumTests / 16,
-            numAllGeneratedTests = numAllGeneratedTests ?: resolvedNumTests / 2,
-            numRegressionTests = numRegressionTests ?: resolvedNumTests / 16,
-            maxComplexity = maxComplexity ?: 100
+            maxDiscards = maxDiscards ?: DEFAULT_MAX_DISCARDS,
+            maxOnlyEdgeCaseTests = maxOnlyEdgeCaseTests ?: resolvedNumTests * DEFAULT_MAX_PERCENT_EDGE_CASES,
+            maxOnlySimpleCaseTests = maxOnlySimpleCaseTests ?: resolvedNumTests * DEFAULT_MAX_PERCENT_SIMPLE_CASES,
+            numSimpleEdgeMixedTests = numSimpleEdgeMixedTests
+                ?: resolvedNumTests * DEFAULT_MAX_PERCENT_SIMPLE_EDGE_MIXED_CASES,
+            numAllGeneratedTests = numAllGeneratedTests ?: resolvedNumTests * DEFAULT_PERCENT_GENERATED_TESTS,
+            numRegressionTests = numRegressionTests ?: resolvedNumTests * DEFAULT_PERCENT_REGRESSION_TESTS,
+            maxComplexity = maxComplexity ?: DEFAULT_MAX_COMPLEXITY
         )
+    }
+
+    companion object {
+        const val DEFAULT_NUM_TESTS = 1024
+        const val DEFAULT_MAX_DISCARDS = 1024
+        const val DEFAULT_MAX_PERCENT_EDGE_CASES = 1 / 16
+        const val DEFAULT_MAX_PERCENT_SIMPLE_CASES = 1 / 16
+        const val DEFAULT_MAX_PERCENT_SIMPLE_EDGE_MIXED_CASES = 1 / 16
+        const val DEFAULT_PERCENT_GENERATED_TESTS = 1 / 2
+        const val DEFAULT_PERCENT_REGRESSION_TESTS = 1 / 16
+        const val DEFAULT_MAX_COMPLEXITY = 100
     }
 }
 
