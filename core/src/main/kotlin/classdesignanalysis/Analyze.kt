@@ -295,7 +295,7 @@ class ClassDesignAnalysis(
 }
 
 enum class AnalysisTag {
-    NAME, STATUS, MODIFIERS, TYPE_PARAMS, SUPERCLASSES, FIELDS, METHODS;
+    NAME, STATUS, MODIFIERS, TYPE_PARAMS, SUPERCLASSES, FIELDS, METHODS, INNER_CLASSES;
 
     override fun toString(): String = name.toLowerCase().replace('_', ' ')
 }
