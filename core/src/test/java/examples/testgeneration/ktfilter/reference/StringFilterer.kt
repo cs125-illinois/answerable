@@ -3,7 +3,7 @@ package examples.testgeneration.ktfilter.reference
 import edu.illinois.cs.cs125.answerable.api.Generator
 import edu.illinois.cs.cs125.answerable.api.Solution
 import edu.illinois.cs.cs125.answerable.api.defaultStringGenerator
-import java.util.*
+import java.util.Random
 
 class StringFilterer(private val strings: List<CharSequence>) {
 
@@ -15,7 +15,6 @@ class StringFilterer(private val strings: List<CharSequence>) {
         }
         return results
     }
-
 }
 
 @Generator

@@ -9,7 +9,6 @@ class KtPrecondition {
     fun firstLetter(text: String): Char {
         return if (text.isEmpty()) '?' else text.toCharArray()[0]
     }
-
 }
 
 @Precondition

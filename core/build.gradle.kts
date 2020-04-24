@@ -1,47 +1,49 @@
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath("com.github.ben-manes:gradle-versions-plugin:0.21.0")
-        classpath("org.jetbrains.dokka:dokka-gradle-plugin:0.9.18")
-    }
-}
+import java.io.File
+import java.io.StringWriter
+import java.util.Properties
+
+group = "com.github.cs125-illinois"
+version = "2020.4.0"
 
 plugins {
-    java
     kotlin("jvm")
-    kotlin("plugin.serialization") version "1.3.70"
-    id("org.jetbrains.dokka") version "0.9.18"
-    id("com.github.ben-manes.versions") version "0.21.0"
-}
-
-repositories {
-    jcenter()
+    java
+    kotlin("plugin.serialization")
+    id("org.jetbrains.dokka")
+    id("org.jmailen.kotlinter")
 }
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-    implementation("org.javassist:javassist:3.25.0-GA")
-    implementation("org.apache.bcel:bcel:6.4.1")
-    implementation("org.junit.jupiter:junit-jupiter:5.4.2")
-    implementation("org.objenesis:objenesis:3.0.1")
-    implementation("com.google.code.gson:gson:2.8.5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.4.2")
     implementation(kotlin("reflect"))
-}
 
-tasks.compileKotlin {
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    implementation("org.javassist:javassist:3.27.0-GA")
+    implementation("org.apache.bcel:bcel:6.4.1")
+    implementation("org.junit.jupiter:junit-jupiter:5.6.2")
+    implementation("org.objenesis:objenesis:3.1")
+    implementation("com.google.code.gson:gson:2.8.6")
 }
-tasks.compileTestKotlin {
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
+tasks.test {
+    useJUnitPlatform()
 }
-
 tasks.dokka {
     outputFormat = "html"
     outputDirectory = "$buildDir/javadoc"
+}
+tasks.compileKotlin {
+    dependsOn("createProperties")
+}
+task("createProperties") {
+    dependsOn(tasks.processResources)
+    doLast {
+        val properties = Properties().also {
+            it["version"] = project.version.toString()
+        }
+        File(projectDir, "src/main/resources/edu.illinois.cs.cs125.answerable.core.version")
+        .printWriter().use { printWriter ->
+            printWriter.print(
+                StringWriter().also { properties.store(it, null) }.buffer.toString()
+                    .lines().drop(1).joinToString(separator = "\n").trim()
+            )
+        }
+    }
 }

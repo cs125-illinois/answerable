@@ -13,12 +13,12 @@ plugins {
 }
 
 dependencies {
-    val ktorVersion = "1.2.1"
+    val ktorVersion = "1.3.2"
     implementation(project(":jeedrunner"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-jackson:$ktorVersion")
-    implementation("io.github.cdimascio:java-dotenv:5.0.1")
+    implementation("io.github.cdimascio:java-dotenv:5.3.1")
 }
 
 configurations.all {

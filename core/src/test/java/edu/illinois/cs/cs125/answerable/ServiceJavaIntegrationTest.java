@@ -1,17 +1,17 @@
 package edu.illinois.cs.cs125.answerable;
 
-import edu.illinois.cs.cs125.answerable.api.Answerable;
+import edu.illinois.cs.cs125.answerable.api.Service;
 import org.junit.jupiter.api.Test;
 
 class ServiceJavaIntegrationTest {
 
     @Test
     void testService() {
-        Answerable answerable = new Answerable(TestEnvironment.getUnsecuredEnvironment());
+        Service service = new Service(TestEnvironment.getUnsecuredEnvironment());
 
-        answerable.loadNewQuestion("LastTen", examples.lastten.correct.reference.LastTen.class);
+        service.loadNewQuestion("LastTen", examples.lastten.correct.reference.LastTen.class);
 
-        System.out.println(answerable
+        System.out.println(service
                 .submitAndTest("LastTen", examples.lastten.correct.LastTen.class).toJson()
         );
     }

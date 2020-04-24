@@ -19,7 +19,7 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.0-M1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.5")
     api(project(":core"))
 
     // Jeed and dependencies
@@ -28,6 +28,11 @@ dependencies {
 
     // Tests
     testImplementation("junit:junit:4.13")
+}
+
+tasks.withType<Test> {
+    @Suppress("UNNECESSARY_NOT_NULL_ASSERTION")
+    jvmArgs!!.add("--enable-preview")
 }
 
 tasks.withType<KotlinCompile> {

@@ -11,7 +11,7 @@ fun testFromStrings(
     common: String? = null,
     className: String,
     solutionName: String = ""
-): TestRunOutput {
+): TestingResults {
 
     val referenceSource: Source = Source(mapOf("Reference.java" to reference))
     val submissionSource: Source = Source(mapOf("Submission.java" to submission))

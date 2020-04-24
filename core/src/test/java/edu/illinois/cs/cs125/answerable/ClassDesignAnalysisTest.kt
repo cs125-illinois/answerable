@@ -1,6 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class ClassDesignAnalysisTest {

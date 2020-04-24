@@ -3,8 +3,8 @@ package examples.testgeneration.standaloneverify.reference
 import edu.illinois.cs.cs125.answerable.api.Generator
 import edu.illinois.cs.cs125.answerable.api.TestOutput
 import edu.illinois.cs.cs125.answerable.api.Verify
+import java.util.Random
 import org.junit.jupiter.api.Assertions
-import java.util.*
 
 class KtStandaloneVerify(private val a: Int) {
 
@@ -15,7 +15,6 @@ class KtStandaloneVerify(private val a: Int) {
     fun squareA(): Int {
         return a * a
     }
-
 }
 
 @Generator

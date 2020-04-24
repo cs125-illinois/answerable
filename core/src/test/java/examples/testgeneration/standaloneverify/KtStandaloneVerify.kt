@@ -9,5 +9,4 @@ class KtStandaloneVerify(private val a: Int) {
     fun squareA(): Int {
         return a * a
     }
-
 }

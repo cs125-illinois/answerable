@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 
 internal class ProxyingTest {
 
-    fun assertAllSucceeded(results: TestRunOutput) {
+    fun assertAllSucceeded(results: TestingResults) {
         results.testSteps.forEach {
             if (it is ExecutedTestStep) {
                 Assertions.assertNull(it.assertErr)
@@ -105,5 +105,4 @@ internal class ProxyingTest {
         val tg = PassedClassDesignRunner(examples.proxy.reference.CollidingInnerClassWidget::class.java, examples.proxy.CollidingInnerClassWidget::class.java)
         assertAllSucceeded(tg.runTestsUnsecured(0x0403))
     }
-
 }
