@@ -1,13 +1,13 @@
-package edu.illinois.cs.cs125.answerable.api
+package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.TestGenerator
-import edu.illinois.cs.cs125.answerable.TestingResults
-import edu.illinois.cs.cs125.answerable.getAttemptClass
-import edu.illinois.cs.cs125.answerable.getSolutionClass
-import edu.illinois.cs.cs125.answerable.runTestsUnsecured
 import kotlin.random.Random
 
-fun checkSubmission(
+/**
+ * Run Answerable on a submission and solution class that already exist in the testing sources.
+ *
+ * Never call this function to run untrusted code. Sandboxing tests belong in the jeedrunner tests.
+ */
+fun runAnswerableTest(
     submissionClass: String,
     solutionClass: String,
     solutionName: String = "",
