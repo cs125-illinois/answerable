@@ -79,6 +79,11 @@ internal fun validateStaticSignatures(referenceClass: Class<*>) {
     }
 }
 
+internal fun Class<*>.checkGenerators() {
+    this.declaredMethods.hasAnnotation<Generator>().forEach {
+
+    }
+}
 private val generatorPTypes = arrayOf(Int::class.java, java.util.Random::class.java)
 private fun validateGenerators(methods: Array<Method>): ValidationResult<String, Unit> {
     val generators = methods.filter { it.isAnnotationPresent(Generator::class.java) }
@@ -277,3 +282,6 @@ private fun validateRunArgs(methods: Array<Method>): ValidationResult<String, Un
 
     return fromErrors(errors, Unit)
 }
+
+inline fun <reified T: Annotation> Array<Method>.hasAnnotation(): List<Method> =
+    this.filter { it.isAnnotationPresent(T::class.java) }
