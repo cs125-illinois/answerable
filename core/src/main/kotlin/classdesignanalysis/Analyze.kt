@@ -35,7 +35,16 @@ fun classDesignAnalysis(
 ): CDAResult = TODO("Not finished refactoring class design analysis.")
 
 // TODO: expose these functions like
-// fun Class<*>.namesMatch(Class<*>): ClassDesignMatch<String>
+fun Class<*>.namesMatch(other: Class<*>): ClassDesignMatch<String> =
+    ClassDesignMatch(AnalysisType.NAME, this.simpleName, other.simpleName)
+
+fun Class<*>.kindsMatch(other: Class<*>): ClassDesignMatch<ClassKind> =
+    ClassDesignMatch(AnalysisType.KIND, this.kind, other.kind)
+
+// TODO: Perhaps we want to ignore transient
+fun Class<*>.modifiersMatch(other: Class<*>): ClassDesignMatch<Int> =
+    ClassDesignMatch(AnalysisType.MODIFIERS, this.modifiers, other.modifiers)
+
 // fun Class<*>.methodsMatch(Class<*>, String?): ClassDesignMatch<String>
 //
 // the runner function looks like //           vvvvvv contains the nullable string
