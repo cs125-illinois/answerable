@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 internal class AdHoc {
     @Test
     fun test() {
-        val answerable = Service(defaultEnvironment)
+        val answerable = Service(unsecuredEnvironment)
 
         answerable.loadNewQuestion("test", examples.testing.reference.Test::class.java)
         val out = answerable.submitAndTest("test", examples.testing.Test::class.java)

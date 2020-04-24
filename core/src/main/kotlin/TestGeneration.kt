@@ -291,8 +291,8 @@ interface TestRunner {
     fun runTests(seed: Long, environment: TestEnvironment): TestingResults
 }
 
-fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunnerArgs = defaultArgs) =
-    this.runTests(seed, defaultEnvironment, testRunnerArgs)
+internal fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunnerArgs = defaultArgs) =
+    this.runTests(seed, unsecuredEnvironment, testRunnerArgs)
 
 /**
  * The primary [TestRunner] subclass which tests classes that have passed Class Design Analysis.
@@ -461,7 +461,7 @@ internal class TestRunWorker internal constructor(
         .let { testGenerator.buildGeneratorMap(randomForSubmission, it) }
 
     private val receiverGenStrategy = testGenerator.receiverGenStrategy
-    private val capturePrint = usableReferenceMethod?.getAnnotation(Solution::class.java)?.prints ?: false
+    private val capturePrint = usableReferenceMethod?.isPrinter() ?: false
     private val isStatic = testGenerator.isStatic
 
     private fun calculateNumCases(cases: Map<Type, ArrayWrapper?>): Int =

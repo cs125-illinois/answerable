@@ -20,24 +20,6 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 
-internal fun getSolutionClass(name: String): Class<*> = findClass(
-    name,
-    "Couldn't find reference solution."
-)
-
-internal fun getAttemptClass(name: String): Class<*> = findClass(
-    name,
-    "Couldn't find student attempt class named $name."
-)
-
-private fun findClass(name: String, failMsg: String): Class<*> {
-    return try {
-        Class.forName(name)
-    } catch (unused: ClassNotFoundException) {
-        throw IllegalStateException(failMsg)
-    }
-}
-
 internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method? {
     return this.declaredMethods.filter {
         it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false

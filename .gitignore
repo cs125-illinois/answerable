@@ -15,6 +15,7 @@ test-output/
 .idea/**/usage.statistics.xml
 .idea/**/dictionaries
 .idea/**/shelf
+.idea/**/checkstyle-idea.xml
 
 # Generated files
 .idea/**/contentModel.xml
@@ -31,3 +32,4 @@ test-output/
 # Gradle
 .idea/**/gradle.xml
 .idea/**/libraries
+.idea/**/compiler.xml

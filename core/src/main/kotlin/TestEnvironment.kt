@@ -16,7 +16,7 @@ data class TestEnvironment(
 ) {
     companion object {
         @JvmStatic
-        fun getUnsecuredEnvironment(): TestEnvironment = defaultEnvironment
+        fun getUnsecuredEnvironment(): TestEnvironment = unsecuredEnvironment
     }
 }
 
@@ -25,4 +25,4 @@ data class TestEnvironment(
  * Output is captured by redirecting [System.out] and [System.err].
  * Timeouts are enforced (on non-pathological submissions), but no security restrictions are applied.
  */
-val defaultEnvironment = TestEnvironment(defaultOutputCapturer, defaultSandbox)
+val unsecuredEnvironment = TestEnvironment(defaultOutputCapturer, defaultSandbox)

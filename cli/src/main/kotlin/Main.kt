@@ -6,7 +6,8 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.long
-import edu.illinois.cs.cs125.answerable.api.checkSubmission
+import edu.illinois.cs.cs125.answerable.TestGenerator
+import edu.illinois.cs.cs125.answerable.unsecuredEnvironment
 import java.util.Properties
 import kotlin.random.Random
 import mu.KotlinLogging
@@ -45,13 +46,34 @@ class Check : CliktCommand(help = "check submission against solution") {
     ).long().default(Random.nextLong())
 
     override fun run() {
-        checkSubmission(solutionClass, submissionClass, solutionName, randomSeed).assertAllSucceeded()
+        TestGenerator(getSolutionClass(solutionClass), solutionName)
+            .loadSubmission(getAttemptClass(submissionClass))
+            .runTests(randomSeed, unsecuredEnvironment)
+            .assertAllSucceeded()
     }
 }
 
 fun main(args: Array<String>) = Answerable()
     .subcommands(Version(), Check())
     .main(args)
+
+private fun getSolutionClass(name: String): Class<*> = findClass(
+    name,
+    "Couldn't find reference solution named $name."
+)
+
+private fun getAttemptClass(name: String): Class<*> = findClass(
+    name,
+    "Couldn't find student attempt class named $name."
+)
+
+private fun findClass(name: String, failMsg: String): Class<*> {
+    return try {
+        Class.forName(name)
+    } catch (unused: ClassNotFoundException) {
+        error(failMsg)
+    }
+}
 
 @Suppress("unused")
 fun assert(block: () -> String): Nothing {

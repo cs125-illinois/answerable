@@ -19,7 +19,7 @@ fun main() {
 }
 
 fun testAnswerable(repeats: Int) {
-    val answerableService = Service(defaultEnvironment)
+    val answerableService = Service(unsecuredEnvironment)
     answerableService.loadNewQuestion("size", YourBinaryTree::class.java, "size", TestRunnerArgs(numTests = 259, maxComplexity = 1024))
     repeat(repeats) {
         val result = answerableService.submitAndTest("size", examples.binarytree.size.YourBinaryTree::class.java)
@@ -34,7 +34,7 @@ fun testClassic(repeats: Int) {
 }
 
 fun testSortingAnswerable(repeats: Int) {
-    val answerableService = Service(defaultEnvironment)
+    val answerableService = Service(unsecuredEnvironment)
     answerableService.loadNewQuestion("sort", ArraySorter::class.java,
             TestRunnerArgs(maxComplexity = 1024, numSimpleEdgeMixedTests = 0, maxOnlySimpleCaseTests = 0, maxOnlyEdgeCaseTests = 0, numAllGeneratedTests = 1024))
     repeat(repeats) {

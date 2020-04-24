@@ -12,28 +12,18 @@ internal class DiscovererTest {
     private val correctClassDesignReference: String = "examples.classdesign.correct1.reference.ClassDesign"
 
     @Test
-    fun testGetSolutionClassAdder() {
-        getSolutionClass(correctAdderReference)
-    }
-
-    @Test
-    fun testGetAttemptClassAdder() {
-        getAttemptClass(correctAdderAttempt)
-    }
-
-    @Test
     fun testGetReferenceSolutionMethod() {
-        val soln = getSolutionClass(correctAdderReference)
+        val soln = findClass(correctAdderReference)
         val ref = soln.getReferenceSolutionMethod()
         assertEquals("add", ref?.name)
     }
 
     @Test
     fun testGetSolutionAttemptMethod() {
-        val soln = getSolutionClass(correctAdderReference)
+        val soln = findClass(correctAdderReference)
         val solnMethod = soln.getReferenceSolutionMethod()
 
-        val attempt = getAttemptClass(correctAdderAttempt)
+        val attempt = findClass(correctAdderAttempt)
         val attemptMethod = attempt.findSolutionAttemptMethod(solnMethod, soln)
 
         assertEquals("add", attemptMethod?.name)
@@ -43,14 +33,14 @@ internal class DiscovererTest {
 
     @Test
     fun testIsPrinter() {
-        val printerReferenceClass = getSolutionClass(correctPrinterReference)
+        val printerReferenceClass = findClass(correctPrinterReference)
         val printerReferenceMethod = printerReferenceClass.getReferenceSolutionMethod()
         assertTrue(printerReferenceMethod?.isPrinter() ?: false)
     }
 
     @Test
     fun testGetPublicFields() {
-        val classDesignReferenceClass = getSolutionClass(correctClassDesignReference)
+        val classDesignReferenceClass = findClass(correctClassDesignReference)
         assertEquals(
             "[public static int examples.classdesign.correct1.reference.ClassDesign.numGets]",
             classDesignReferenceClass.getPublicFields().toString()
@@ -59,7 +49,7 @@ internal class DiscovererTest {
 
     @Test
     fun testGetPublicMethods() {
-        val classDesignReferenceClass = getSolutionClass(correctClassDesignReference)
+        val classDesignReferenceClass = findClass(correctClassDesignReference)
 
         assertEquals(
             "[public java.lang.Object examples.classdesign.correct1.reference.ClassDesign.get(int), " +
@@ -72,7 +62,7 @@ internal class DiscovererTest {
 
     @Test
     fun testGetEnabledEdgeCases() {
-        val reference = getSolutionClass(correctAdderReference)
+        val reference = findClass(correctAdderReference)
 
         assertArrayEquals(
             intArrayOf(-1, 0, 1),
