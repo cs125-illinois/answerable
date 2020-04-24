@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
 import org.junit.Assert
 import org.junit.Test
 

@@ -1,19 +1,31 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.ClassDesignAnalysis
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.Mismatched
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.toErrorMsg
 import examples.adder.correct.reference.Adder
 import examples.testgeneration.KtPrecondition
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 internal fun assertClassDesignPasses(solution: Class<*>, submission: Class<*>) {
-    val result = ClassDesignAnalysis("", solution, submission).runSuite()
+    val result = ClassDesignAnalysis(
+        "",
+        solution,
+        submission
+    ).runSuite()
     result.map { it.result }.filterIsInstance<Mismatched<*>>().forEach {
         Assertions.fail(it.toString())
     }
 }
 
 internal fun assertClassDesignFails(solution: Class<*>, submission: Class<*>) {
-    val results = ClassDesignAnalysis("", solution, submission).runSuite()
+    val results = ClassDesignAnalysis(
+        "",
+        solution,
+        submission
+    ).runSuite()
     Assertions.assertFalse(results.all { it.result is Matched })
     results.filter { it.result is Mismatched }.forEach { println(it.toErrorMsg()) }
 }

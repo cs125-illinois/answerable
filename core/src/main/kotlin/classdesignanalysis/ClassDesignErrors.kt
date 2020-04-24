@@ -1,6 +1,6 @@
 @file: Suppress("UNCHECKED_CAST", "TooManyFunctions")
 
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
 import java.lang.IllegalStateException
 import java.lang.reflect.Type
@@ -150,13 +150,21 @@ private fun <T> Array<out T>.joinToStringLast(
 private fun mkFieldError(result: Mismatched<*>): String {
     result as Mismatched<List<*>>
 
-    return mkPublicApiMismatchMsg(result.expected, result.found, "field")
+    return mkPublicApiMismatchMsg(
+        result.expected,
+        result.found,
+        "field"
+    )
 }
 
 private fun mkMethodError(result: Mismatched<*>): String {
     result as Mismatched<List<*>>
 
-    return mkPublicApiMismatchMsg(result.expected, result.found, "method")
+    return mkPublicApiMismatchMsg(
+        result.expected,
+        result.found,
+        "method"
+    )
 }
 
 private fun <T> mkPublicApiMismatchMsg(allExpected: List<T>, allActual: List<T>, apiTypeName: String): String {
