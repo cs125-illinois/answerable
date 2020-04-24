@@ -8,76 +8,86 @@ import com.marcinmoskala.math.combinations
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.fail
 
+private fun String.example(): Class<*> {
+    return Class.forName("${Analyze::class.java.packageName}.fixtures.$this")
+}
+
+private fun Set<String>.correctPairs(type: String): Set<List<Class<*>>> =
+    mutableSetOf<List<Class<*>>>().also { set ->
+        this.forEach { set.add(listOf("$type.$it".example(), "$type.reference.$it".example())) }
+        this.combinations(2).map { it.toList() }.forEach { (first, second) ->
+            if (first.split("_").first() == second.split("_").first()) {
+                set.add(listOf("$type.$first".example(), "$type.reference.$second".example()))
+                set.add(listOf("$type.$second".example(), "$type.reference.$first".example()))
+            }
+        }
+    }.toSet()
+
+private fun Set<String>.incorrectPairs(type: String): Set<List<Class<*>>> =
+    mutableSetOf<List<Class<*>>>().also { set ->
+        this.combinations(2).map { it.toList() }.forEach { (first, second) ->
+            if (first.split("_").first() != second.split("_").first()) {
+                set.add(listOf("$type.$first".example(), "$type.reference.$second".example()))
+                set.add(listOf("$type.$second".example(), "$type.reference.$first".example()))
+            }
+        }
+    }.toSet()
+
 internal class Analyze {
     @Test
     fun `should check class names correctly`() {
-        "examples.classdesign.correct1.reference.ClassDesign".load().namesMatch(
-            "examples.classdesign.correct1.ClassDesign".load()
-        ).also {
-            assertTrue(it.matched)
+        val klasses = setOf("Foo", "Bar")
+        klasses.correctPairs("names").forEach { (first, second) ->
+            first.namesMatch(second).also {
+                assertTrue(it.matched)
+            }
         }
-        "examples.classdesign.correct1.reference.ClassDesign".load().namesMatch(
-            "examples.classdesign.correct2.IterableList".load()
-        ).also {
-            assertFalse(it.matched)
+        klasses.incorrectPairs("names").forEach { (first, second) ->
+            first.namesMatch(second).also {
+                assertFalse(it.matched)
+            }
         }
     }
 
     @Test
     fun `should check class types correctly`() {
-        "examples.classdesign.correct1.reference.ClassDesign".load().typesMatch(
-            "examples.classdesign.correct1.ClassDesign".load()
-        ).also {
-            assertTrue(it.matched)
+        val klasses = setOf("Klass", "Interfase")
+        klasses.correctPairs("types").forEach { (first, second) ->
+            first.typesMatch(second).also {
+                assertTrue(it.matched)
+            }
         }
-        "examples.classdesign.correct2.reference.IterableList".load().typesMatch(
-            "examples.classdesign.correct2.IterableList".load()
-        ).also {
-            assertTrue(it.matched)
-        }
-        "examples.classdesign.correct1.reference.ClassDesign".load().typesMatch(
-            "examples.classdesign.correct2.IterableList".load()
-        ).also {
-            assertFalse(it.matched)
-        }
-        "examples.classdesign.correct2.reference.IterableList".load().typesMatch(
-            "examples.classdesign.correct1.ClassDesign".load()
-        ).also {
-            assertFalse(it.matched)
-        }
-        "examples.classdesign.statusmismatch.reference.Question".load().typesMatch(
-            "examples.classdesign.statusmismatch.Question".load()
-        ).also {
-            assertFalse(it.matched)
+        klasses.incorrectPairs("types").forEach { (first, second) ->
+            first.typesMatch(second).also {
+                assertFalse(it.matched)
+            }
         }
     }
 
     @Test
     fun `should check class modifiers correctly`() {
-        "examples.classdesign.correct1.reference.ClassDesign".load().modifiersMatch(
-            "examples.classdesign.correct1.ClassDesign".load()
-        ).also {
-            assertTrue(it.matched)
+        val klasses = setOf("Abstrict", "Finol", "StractFp")
+        klasses.correctPairs("modifiers").forEach { (first, second) ->
+            first.modifiersMatch(second).also {
+                assertTrue(it.matched)
+            }
         }
-        "examples.classdesign.modifiers.reference.Final".load().modifiersMatch(
-            "examples.classdesign.modifiers.Abstract".load()
-        ).also {
-            assertFalse(it.matched)
+        klasses.incorrectPairs("modifiers").forEach { (first, second) ->
+            first.modifiersMatch(second).also {
+                assertFalse(it.matched)
+            }
         }
     }
 
     @Test
     fun `should check class parents correctly`() {
-        "examples.classdesign.correct1.reference.ClassDesign".load().parentsMatch(
-            "examples.classdesign.correct1.ClassDesign".load()
-        ).also {
-            assertTrue(it.matched)
+        val klasses = setOf("Parent", "Child", "Parent_ExtendsObject")
+        klasses.correctPairs("parents").forEach { (first, second) ->
+            first.parentsMatch(second).also {
+                assertTrue(it.matched)
+            }
         }
-        setOf(
-            "examples.classdesign.superclassmismatch.classes.reference.OnlyExt",
-            "examples.classdesign.superclassmismatch.classes.OnlyExtNone",
-            "examples.classdesign.superclassmismatch.classes.OnlyExtWrong"
-        ).map { it.load() }.toSet().combinations(2).map { it.toList() }.forEach { (first, second) ->
+        klasses.incorrectPairs("parents").forEach { (first, second) ->
             first.parentsMatch(second).also {
                 assertFalse(it.matched)
             }
@@ -86,21 +96,21 @@ internal class Analyze {
 
     @Test
     fun `should check class interfaces correctly`() {
-        "examples.classdesign.superclassmismatch.interfaces.reference.None".load().interfacesMatch(
-            "examples.classdesign.superclassmismatch.interfaces.None".load()
-        ).also {
-            assertTrue(it.matched)
-        }
-        listOf("Multiple", "One").forEach {
-            "examples.classdesign.superclassmismatch.interfaces.reference.$it".load().interfacesMatch(
-                "examples.classdesign.superclassmismatch.interfaces.$it".load()
-            ).also { classDesignMatch ->
-                assertFalse(classDesignMatch.matched)
+        val klasses = setOf(
+            "None",
+            "ImplementsFoo",
+            "ImplementsBar",
+            "ImplementsFooBar",
+            "ImplementsFoo_Again",
+            "ImplementsBar_Again",
+            "ImplementsFooBar_Again"
+        )
+        klasses.correctPairs("interfaces").forEach { (first, second) ->
+            first.interfacesMatch(second).also {
+                assertTrue(it.matched)
             }
         }
-        setOf("Multiple", "One", "None").map {
-            "examples.classdesign.superclassmismatch.interfaces.$it".load()
-        }.toSet().combinations(2).map { it.toList() }.forEach { (first, second) ->
+        klasses.incorrectPairs("interfaces").forEach { (first, second) ->
             first.interfacesMatch(second).also {
                 assertFalse(it.matched)
             }
