@@ -3,13 +3,13 @@
 package edu.illinois.cs.cs125.answerable.api
 
 import com.google.gson.JsonPrimitive
-import edu.illinois.cs.cs125.answerable.AnalysisOutput
-import edu.illinois.cs.cs125.answerable.AnalysisResult
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.AnalysisOutput
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.AnalysisResult
 import edu.illinois.cs.cs125.answerable.Behavior
 import edu.illinois.cs.cs125.answerable.DiscardedTestStep
 import edu.illinois.cs.cs125.answerable.ExecutedTestStep
-import edu.illinois.cs.cs125.answerable.Matched
-import edu.illinois.cs.cs125.answerable.Mismatched
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.Mismatched
 import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.IllegalStateException

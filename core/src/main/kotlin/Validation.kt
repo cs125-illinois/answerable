@@ -11,6 +11,7 @@ import edu.illinois.cs.cs125.answerable.api.SimpleCase
 import edu.illinois.cs.cs125.answerable.api.Solution
 import edu.illinois.cs.cs125.answerable.api.TestOutput
 import edu.illinois.cs.cs125.answerable.api.Verify
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.MethodData
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -87,14 +88,18 @@ private fun validateGenerators(methods: Array<Method>): ValidationResult<String,
         if (!Modifier.isStatic(method.modifiers)) {
             errors.add("""
                 @Generator methods must be static.
-                While validating generator method `${MethodData(method)}'.
+                While validating generator method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
 
         if (!(method.parameterTypes contentEquals generatorPTypes)) {
             errors.add("""
                 @Generator methods must take parameter types [int, Random].
-                While validating @Generator method `${MethodData(method)}'.
+                While validating @Generator method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
     }
@@ -110,14 +115,18 @@ private fun validateNexts(clazz: Class<*>, methods: Array<Method>): ValidationRe
         if (!Modifier.isStatic(method.modifiers)) {
             errors.add("""
                 @Next methods must be static.
-                While validating @Next method `${MethodData(method)}'.
+                While validating @Next method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
 
         if (!(method.parameterTypes contentEquals arrayOf(clazz, Int::class.java, java.util.Random::class.java))) {
             errors.add("""
                 @Next method must take parameter types [${clazz.sourceName}, int, Random].
-                While validating @Next method `${MethodData(method)}'.
+                While validating @Next method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
     }
@@ -135,7 +144,9 @@ private fun validateVerifiers(methods: Array<Method>): ValidationResult<String, 
         if (!Modifier.isStatic(method.modifiers)) {
             errors.add("""
                 @Verify methods must be static.
-                While validating @Verify method `${MethodData(method)}'.
+                While validating @Verify method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
 
@@ -143,14 +154,18 @@ private fun validateVerifiers(methods: Array<Method>): ValidationResult<String, 
                 (method.parameterTypes contentEquals validatePTypes2))) {
             errors.add("""
                 @Verify methods must take parameter types [TestOutput, TestOutput] and optionally a java.util.Random.
-                While validating @Verify method `${MethodData(method)}'.
+                While validating @Verify method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
 
         if (method.returnType != Void.TYPE) {
             errors.add("""
                 @Verify methods should be void. Throw an exception if verification fails.
-                While validating @Verify method `${MethodData(method)}'.
+                While validating @Verify method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
     }
@@ -166,7 +181,9 @@ private fun validatePreconditions(methods: Array<Method>): ValidationResult<Stri
         if (method.returnType != Boolean::class.java) {
             throw AnswerableMisuseException("""
                 @Precondition methods must return a boolean.
-                While validating @Precondition method `${MethodData(method)}'.
+                While validating @Precondition method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
 
@@ -177,7 +194,9 @@ private fun validatePreconditions(methods: Array<Method>): ValidationResult<Stri
         if (Modifier.isStatic(solution.modifiers) && !Modifier.isStatic(method.modifiers)) {
             errors.add("""
                 @Precondition methods must be static if the corresponding @Solution is static.
-                While validating @Precondition method `${MethodData(method)}'.
+                While validating @Precondition method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
 
@@ -185,7 +204,9 @@ private fun validatePreconditions(methods: Array<Method>): ValidationResult<Stri
         if (!solution.genericParameterTypes!!.contentEquals(method.genericParameterTypes)) {
             errors.add("""
                 @Precondition methods must have the same parameter types as the corresponding @Solution.
-                While validating @Precondition method `${MethodData(method)}'.
+                While validating @Precondition method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
     }
@@ -204,21 +225,27 @@ private fun validateCaseMethods(methods: Array<Method>): ValidationResult<String
         if (!Modifier.isStatic(method.modifiers)) {
             errors.add("""
                 $caseString methods must be static.
-                While validating $caseString method `${MethodData(method)}'.
+                While validating $caseString method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
 
         if (method.parameterTypes.isNotEmpty()) {
             errors.add("""
                 $caseString methods must not take any parameters.
-                While validating $caseString method `${MethodData(method)}'.
+                While validating $caseString method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
 
         if (!method.returnType.isArray) {
             errors.add("""
                 $caseString methods must return an array.
-                While validating $caseString method `${MethodData(method)}'.
+                While validating $caseString method `${MethodData(
+                method
+            )}'.
             """.trimIndent())
         }
     }
@@ -264,7 +291,9 @@ private fun validateRunArgs(methods: Array<Method>): ValidationResult<String, Un
     methods.filter { it.isAnnotationPresent(DefaultTestRunArguments::class.java) }.forEach {
         val message = """
                 @DefaultTestRunArguments can only be applied to a @Solution or standalone @Verify method.
-                While validating method `${MethodData(it)}'.
+                While validating method `${MethodData(
+            it
+        )}'.
             """.trimIndent()
         if (it.isAnnotationPresent(Verify::class.java)) {
             val validateAnnotation = it.getAnnotation(Verify::class.java)

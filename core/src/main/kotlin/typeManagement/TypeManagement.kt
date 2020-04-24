@@ -3,7 +3,7 @@
 package edu.illinois.cs.cs125.answerable.typeManagement
 
 import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
-import edu.illinois.cs.cs125.answerable.MethodData
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.MethodData
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.api.EdgeCase
 import edu.illinois.cs.cs125.answerable.api.EnumerableBytecodeLoader
@@ -13,7 +13,7 @@ import edu.illinois.cs.cs125.answerable.api.Next
 import edu.illinois.cs.cs125.answerable.api.SimpleCase
 import edu.illinois.cs.cs125.answerable.api.Verify
 import edu.illinois.cs.cs125.answerable.getPublicFields
-import edu.illinois.cs.cs125.answerable.simpleName
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.simpleName
 import java.lang.IllegalStateException
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
@@ -854,9 +854,13 @@ class AnswerableBytecodeVerificationException internal constructor(
         get() {
             return "\nMirrorable method `$blameMethod' in ${describeClass(blameClass)} " +
                     when (member) {
-                        is java.lang.reflect.Method -> "calls non-public submission method: ${MethodData(member)}"
+                        is java.lang.reflect.Method -> "calls non-public submission method: ${MethodData(
+                            member
+                        )}"
                         is Field -> "uses non-public submission field: ${member.name}"
-                        is Constructor<*> -> "uses non-public submission constructor: ${MethodData(member)}"
+                        is Constructor<*> -> "uses non-public submission constructor: ${MethodData(
+                            member
+                        )}"
                         else -> throw IllegalStateException(
                             "Invalid type of AnswerableBytecodeVerificationException.member. Please report a bug."
                         )

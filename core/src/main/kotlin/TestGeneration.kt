@@ -14,6 +14,10 @@ import edu.illinois.cs.cs125.answerable.api.Timeout
 import edu.illinois.cs.cs125.answerable.api.Verify
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.api.ossify
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.AnalysisOutput
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.ClassDesignAnalysis
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.MethodData
 import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
 import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
 import edu.illinois.cs.cs125.answerable.typeManagement.mkOpenMirrorClass
@@ -104,7 +108,9 @@ class TestGenerator(
             } else if (!customVerifier.getAnnotation(Verify::class.java)!!.standalone) {
                 throw AnswerableMisuseException(
                     "No @Solution annotation with name `$solutionName' was found.\nPerhaps you meant" +
-                        "to make verifier `${MethodData(customVerifier)}' standalone?"
+                        "to make verifier `${MethodData(
+                            customVerifier
+                        )}' standalone?"
                 )
             }
         }
@@ -258,7 +264,11 @@ class TestGenerator(
         testRunnerArgs: TestRunnerArgs = defaultArgs,
         bytecodeProvider: BytecodeProvider? = null
     ): TestRunner {
-        val cda = ClassDesignAnalysis(solutionName, referenceClass, submissionClass).runSuite()
+        val cda = ClassDesignAnalysis(
+            solutionName,
+            referenceClass,
+            submissionClass
+        ).runSuite()
         val cdaPassed = cda.all { ao -> ao.result is Matched }
 
         return if (cdaPassed) {

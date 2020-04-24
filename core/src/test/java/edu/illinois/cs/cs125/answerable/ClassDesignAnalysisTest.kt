@@ -1,5 +1,9 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.ClassDesignAnalysis
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.Mismatched
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.toErrorMsg
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -505,7 +509,11 @@ internal class ClassDesignAnalysisTest {
     }
 
     private fun analyzer(refName: String, attName: String): ClassDesignAnalysis =
-        ClassDesignAnalysis("", getSolutionClass(refName), getAttemptClass(attName))
+        ClassDesignAnalysis(
+            "",
+            getSolutionClass(refName),
+            getAttemptClass(attName)
+        )
 
     private fun ClassDesignAnalysis.assertMismatchMsg(
         expected: String,
