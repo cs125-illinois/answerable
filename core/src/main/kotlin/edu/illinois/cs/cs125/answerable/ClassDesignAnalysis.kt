@@ -24,6 +24,7 @@ class ClassDesignAnalysis(private val solutionName: String? = null,
         classModifiers: Boolean = true,
         typeParams: Boolean = true,
         superClasses: Boolean = true,
+        innerClasses: Boolean = true,
         fields: Boolean = true,
         methods: Boolean = true
     ): List<AnalysisOutput> {
@@ -34,6 +35,9 @@ class ClassDesignAnalysis(private val solutionName: String? = null,
         if (classModifiers) output.add(classModifiersMatch())
         if (typeParams) output.add(typeParamsMatch())
         if (superClasses) output.add(superClassesMatch())
+        /*if (innerClasses) output.add(
+            innerClassesMatch( name, classStatus, classModifiers, typeParams,
+                superClasses, innerClasses, fields, methods))*/
         if (fields) output.add(publicFieldsMatch())
         if (methods) output.add(publicMethodsMatch())
 
@@ -99,6 +103,42 @@ class ClassDesignAnalysis(private val solutionName: String? = null,
         }
     )
 
+    fun innerClassesMatch(name: Boolean = true,
+                          classStatus: Boolean = true,
+                          classModifiers: Boolean = true,
+                          typeParams: Boolean = true,
+                          superClasses: Boolean = true,
+                          innerClasses: Boolean = true,
+                          fields: Boolean = true,
+                          methods: Boolean = true): AnalysisOutput {
+        val innerClassResults: List<List<AnalysisOutput>> = reference.declaredClasses
+            .filter { Modifier.isPublic(it.modifiers) }
+            .map { rclz -> attempt.declaredClasses
+                .find { it.simpleName == rclz.simpleName }
+                .let { Pair(rclz, it) }
+            }
+            // TODO: get a mismatched in there if second doesn't exist...
+            .map { ClassDesignAnalysis(solutionName, it.first, it.second!!).runSuite(
+                name, classStatus, classModifiers, typeParams, superClasses, innerClasses, fields, methods
+            )}
+
+        // how to structure inner class results?
+        // I see two options:
+        // (1) record the enclosing class name of all entities (using them as "<enclosing class>.<entity name>")
+        //     and then flatten the analysis output lists together such that the results of ALL method analysis,
+        //     both enclosing and inner, are in the same AnalysisOutput, for example.
+        // (2) Have this method return a special subclass of AnalysisOutput which contains a
+        //     Map<String, List<AnalysisOutput>>. This would be a list of analysis results for each inner class,
+        //     by name.
+        //     The Matched/Mismatched expected/found fields would be for the lists of public inner class names.
+        //     To get an error message out of this in an organized manner is significantly easier, simply
+        //     In inner class <name>:
+        //         <error message>
+        // So I think I favor option 2.
+
+        return AnalysisOutput(AnalysisTag.INNERCLASSES, Matched(Unit))
+    }
+
     private val referenceAnnotations = setOf(
         Generator::class.java,
         Verify::class.java,
@@ -139,7 +179,7 @@ class ClassDesignAnalysis(private val solutionName: String? = null,
 
     fun publicMethodsMatch() = AnalysisOutput(AnalysisTag.METHODS, run {
         val refMethodData =
-            (reference.getPublicMethods() + reference.constructors)
+            (reference.getPublicMethods() + reference.constructors) // TODO: double check that this doesn't add private constrs?
                 .filter { method -> referenceAnnotations.none { method.isAnnotationPresent(it) } }
                 .filterOut { method ->
                     method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false
@@ -161,7 +201,7 @@ class ClassDesignAnalysis(private val solutionName: String? = null,
 }
 
 enum class AnalysisTag {
-    NAME, STATUS, MODIFIERS, TYPE_PARAMS, SUPERCLASSES, FIELDS, METHODS;
+    NAME, STATUS, MODIFIERS, TYPE_PARAMS, SUPERCLASSES, INNERCLASSES, FIELDS, METHODS;
 
     override fun toString(): String = name.toLowerCase().replace('_', ' ')
 }

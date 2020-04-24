@@ -12,6 +12,7 @@ internal fun AnalysisOutput.toErrorMsg() = when (this.result) {
         AnalysisTag.MODIFIERS -> ::mkModifierError
         AnalysisTag.TYPE_PARAMS -> ::mkTypeParamError
         AnalysisTag.SUPERCLASSES -> ::mkSuperClassError
+        AnalysisTag.INNERCLASSES -> throw NotImplementedError("Haven't implemented recursive CDA.")
         AnalysisTag.FIELDS -> ::mkFieldError
         AnalysisTag.METHODS -> ::mkMethodError
     }(this.result)
