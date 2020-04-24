@@ -14,15 +14,11 @@ import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.getPublicFields
 import edu.illinois.cs.cs125.answerable.getPublicMethods
 import edu.illinois.cs.cs125.answerable.typeManagement.simpleSourceName
-import java.lang.IllegalStateException
-import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
-import java.lang.reflect.TypeVariable
-import java.util.StringJoiner
 
 // TODO: analyze inner classes recursively
 
@@ -40,7 +36,7 @@ data class ClassDesignMatch(
     val matched: Boolean = reference == other
 ) {
     enum class Type {
-        Names, Types, Modifiers, TypeParameters, Parents, Interfaces, Fields
+        Names, Types, Modifiers, TypeParameters, Parents, Interfaces, Fields, Methods
     }
 }
 
@@ -77,7 +73,11 @@ fun Class<*>.parentsMatch(other: Class<*>) = ClassDesignMatch(
     other.genericSuperclass.toString()
 )
 
-fun Class<*>.interfaces() = this.genericInterfaces.map { it.typeName }.sorted().joinToString(separator = ", ")
+fun Class<*>.interfaces() = this.genericInterfaces
+    .map { it.typeName }
+    .sorted()
+    .joinToString(separator = ", ")
+
 fun Class<*>.interfacesMatch(other: Class<*>) = ClassDesignMatch(
     ClassDesignMatch.Type.Interfaces,
     this.interfaces(),
@@ -87,14 +87,32 @@ fun Class<*>.interfacesMatch(other: Class<*>) = ClassDesignMatch(
 fun Type.simpleName() = this.typeName.split(".").last()
 fun Field.simpleName() = this.name.split(".").last()
 fun Field.answerableName() = "${Modifier.toString(this.modifiers)} ${this.type.simpleName()} ${this.simpleName()}"
-fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
-    this.getPublicFields().filter(filter).map { it.answerableName() }.sorted().joinToString(separator = ",")
+fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) = this.getPublicFields()
+    .filter(filter)
+    .map { it.answerableName() }
+    .sorted()
+    .joinToString(separator = ", ")
 
-fun Class<*>.fieldsMatch(other: Class<*>, filter: (field: Field) -> Boolean = { true }) = ClassDesignMatch(
-    ClassDesignMatch.Type.Fields,
-    this.publicFields(filter),
-    other.publicFields(filter)
-)
+fun Class<*>.publicFieldsMatch(other: Class<*>, filter: (field: Field) -> Boolean = { true }) =
+    ClassDesignMatch(
+        ClassDesignMatch.Type.Fields,
+        this.publicFields(filter),
+        other.publicFields(filter)
+    )
+
+fun Class<*>.publicMethods(filter: (executable: Executable) -> Boolean = { true }) =
+    (this.getPublicMethods() + this.constructors)
+        .filter(filter)
+        .map { it.answerableName() }
+        .sorted()
+        .joinToString(separator = ", ")
+
+fun Class<*>.publicMethodsMatch(other: Class<*>, filter: (executable: Executable) -> Boolean = { true }) =
+    ClassDesignMatch(
+        ClassDesignMatch.Type.Methods,
+        this.publicMethods(filter),
+        other.publicMethods(filter)
+    )
 
 class ClassDesignAnalysis(
     private val solutionName: String? = null,
@@ -257,12 +275,12 @@ class ClassDesignAnalysis(
                     .filterOut { method ->
                         method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false
                     }
-                    .map { MethodData(it) }
-                    .sortedBy { it.signature }
+                    .map { it.answerableName() }
+                    .sorted()
             val attMethodData =
                 (attempt.getPublicMethods() + attempt.constructors)
-                    .map { MethodData(it) }
-                    .sortedBy { it.signature }
+                    .map { it.answerableName() }
+                    .sorted()
 
             // if everything matched, then we're done.
             return@run if (refMethodData == attMethodData) {
@@ -336,99 +354,6 @@ fun Executable.answerableName(
         )
     }
     return parts.joinToString(separator = " ")
-}
-
-class MethodData(
-    val method: Executable
-) {
-    val name: String = method.name.split(".").last()
-    private val typeParams: Array<out TypeVariable<*>> = method.typeParameters
-    private val returnType: Type = when (method) {
-        is Method -> method.genericReturnType
-        is Constructor<*> -> method.declaringClass
-        else -> throw IllegalStateException("This can't happen (non method/constructor in MethodData).")
-    }
-    private val paramTypes: Array<out Type> = method.genericParameterTypes
-    private val exceptionTypes: Array<out Type> = method.genericExceptionTypes
-    private val isDefault: Boolean = when (method) {
-        is Method -> method.isDefault
-        is Constructor<*> -> false
-        else -> false
-    }
-
-    val signature: String = toGenericString(method.modifiers, isDefault)
-
-    // The below two methods are adapted out of openJDK's Executable.java file to Kotlin.
-    // Note the change in creation of the name. We explicitly do *not* fully qualify it.
-    private fun toGenericString(modifierMask: Int, isDefault: Boolean): String {
-        @Suppress("TooGenericExceptionCaught")
-        try {
-            val sb = StringBuilder()
-
-            printModifiersIfNonzero(
-                sb,
-                modifierMask,
-                isDefault
-            )
-
-            val typeparams = typeParams
-            if (typeparams.isNotEmpty()) {
-                sb.append(
-                    typeparams.joinToString(
-                        prefix = "<",
-                        separator = ", ",
-                        postfix = "> ",
-                        transform = { it.simpleSourceName })
-                )
-            }
-
-            if (method is Method) {
-                sb.append(returnType.simpleSourceName).append(" ")
-            }
-            sb.append(name)
-
-            sb.append('(')
-            val sj = StringJoiner(", ")
-            val params = paramTypes
-            for (j in params.indices) {
-                var param = params[j].simpleSourceName
-                if (method.isVarArgs && j == params.size - 1)
-                // replace T[] with T...
-                    param = param.replaceFirst("\\[]$".toRegex(), "...")
-                sj.add(param)
-            }
-            sb.append(sj.toString())
-            sb.append(')')
-
-            val exceptionTypes = exceptionTypes
-            if (exceptionTypes.isNotEmpty()) {
-                sb.append(
-                    exceptionTypes.joinToString(
-                        separator = ", ",
-                        prefix = " throws ",
-                        transform = { it.simpleSourceName })
-                )
-            }
-            return sb.toString()
-        } catch (e: Exception) {
-            return "<$e>"
-        }
-    }
-
-    override fun toString(): String = signature
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is MethodData) return false
-
-        if (signature != other.signature) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return signature.hashCode()
-    }
 }
 
 private fun printModifiersIfNonzero(sb: StringBuilder, mask: Int, isDefault: Boolean) {

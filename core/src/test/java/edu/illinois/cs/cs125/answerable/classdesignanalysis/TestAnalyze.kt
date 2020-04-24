@@ -109,12 +109,12 @@ internal class Analyze {
 
     @Test
     fun `should check class fields correctly`() {
-        "examples.classdesign.publicapi.fields.reference.Simple".load().fieldsMatch(
+        "examples.classdesign.publicapi.fields.reference.Simple".load().publicFieldsMatch(
             "examples.classdesign.publicapi.fields.Simple".load()
         ).also {
             assertTrue(it.matched)
         }
-        "examples.classdesign.publicapi.fields.reference.Simple".load().fieldsMatch(
+        "examples.classdesign.publicapi.fields.reference.Simple".load().publicFieldsMatch(
             "examples.classdesign.publicapi.fields.String".load()
         ).also {
             assertFalse(it.matched)
