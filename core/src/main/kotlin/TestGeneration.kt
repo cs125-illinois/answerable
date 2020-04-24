@@ -291,6 +291,12 @@ interface TestRunner {
     fun runTests(seed: Long, environment: TestEnvironment): TestingResults
 }
 
+/**
+ * Perform a test run in an unsecured environment.
+ *
+ * This function is inherently dangerous and allows a submission class to run arbitrary code
+ * on your JVM! Prefer passing a secured environment to runTests.
+ */
 fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunnerArgs = defaultArgs) =
     this.runTests(seed, defaultEnvironment, testRunnerArgs)
 

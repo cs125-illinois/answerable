@@ -8,14 +8,15 @@ import java.lang.reflect.Type
 internal fun AnalysisOutput.toErrorMsg() = when (this.result) {
     is Matched -> "Everything looks good!"
     is Mismatched -> when (this.tag) {
-        AnalysisTag.NAME -> ::mkNameError
-        AnalysisTag.STATUS -> ::mkStatusError
-        AnalysisTag.MODIFIERS -> ::mkModifierError
-        AnalysisTag.TYPE_PARAMS -> ::mkTypeParamError
-        AnalysisTag.SUPERCLASSES -> ::mkSuperClassError
-        AnalysisTag.INNERCLASSES -> throw NotImplementedError("Haven't implemented recursive CDA.")
-        AnalysisTag.FIELDS -> ::mkFieldError
-        AnalysisTag.METHODS -> ::mkMethodError
+        AnalysisType.NAME -> ::mkNameError
+        AnalysisType.KIND -> ::mkStatusError
+        AnalysisType.MODIFIERS -> ::mkModifierError
+        AnalysisType.TYPE_PARAMS -> ::mkTypeParamError
+        AnalysisType.SUPERCLASSES -> ::mkSuperClassError
+        AnalysisType.INTERFACES -> TODO("Haven't implemented separate interface/superclass analysis")
+        AnalysisType.INNER_CLASSES -> TODO("Haven't implemented recursive CDA.")
+        AnalysisType.FIELDS -> ::mkFieldError
+        AnalysisType.METHODS -> ::mkMethodError
     }(this.result)
 }
 

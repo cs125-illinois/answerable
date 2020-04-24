@@ -22,6 +22,7 @@ import java.lang.reflect.Type
 
 // TODO: analyze inner classes recursively
 
+
 /**
  * Analyzer that determines that a submission class is equivalent in design to a reference class.
  *
@@ -29,91 +30,16 @@ import java.lang.reflect.Type
  * implementation must expose. Answerable's job is to ascertain that a submission meets the specification both on the
  * surface, in API, and behaviorally. This is the API component.
  */
-data class ClassDesignMatch(
-    val type: Type,
-    val reference: String,
-    var other: String,
-    val matched: Boolean = reference == other
-) {
-    enum class Type {
-        Names, Types, Modifiers, TypeParameters, Parents, Interfaces, Fields, Methods
-    }
-}
+fun classDesignAnalysis(
+    reference: Class<*>, submission: Class<*>, config: CDAConfig = defaultCDAConfig
+): CDAResult = TODO("Not finished refactoring class design analysis.")
 
-fun String.load(): Class<*> = Class.forName(this)
-
-fun Class<*>.namesMatch(other: Class<*>) = ClassDesignMatch(
-    ClassDesignMatch.Type.Names, this.simpleName, other.simpleName
-)
-
-fun Class<*>.type() = if (this.isInterface) {
-    "interface"
-} else {
-    "class"
-}
-
-fun Class<*>.typesMatch(other: Class<*>) = ClassDesignMatch(
-    ClassDesignMatch.Type.Types, this.type(), other.type()
-)
-
-fun Class<*>.modifiersMatch(other: Class<*>) = ClassDesignMatch(
-    ClassDesignMatch.Type.Modifiers, Modifier.toString(this.modifiers), Modifier.toString(other.modifiers)
-)
-
-fun Class<*>.typeParameters() = this.typeParameters.joinToString(separator = ", ") { it.name }
-fun Class<*>.typeParametersMatch(other: Class<*>) = ClassDesignMatch(
-    ClassDesignMatch.Type.TypeParameters,
-    this.typeParameters(),
-    other.typeParameters()
-)
-
-fun Class<*>.parentsMatch(other: Class<*>) = ClassDesignMatch(
-    ClassDesignMatch.Type.Parents,
-    this.genericSuperclass.toString(),
-    other.genericSuperclass.toString()
-)
-
-fun Class<*>.interfaces() = this.genericInterfaces
-    .map { it.typeName }
-    .sorted()
-    .joinToString(separator = ", ")
-
-fun Class<*>.interfacesMatch(other: Class<*>) = ClassDesignMatch(
-    ClassDesignMatch.Type.Interfaces,
-    this.interfaces(),
-    other.interfaces()
-)
-
-fun Type.simpleName() = this.typeName.split(".").last()
-fun Field.simpleName() = this.name.split(".").last()
-fun Field.answerableName() = "${Modifier.toString(this.modifiers)} ${this.type.simpleName()} ${this.simpleName()}"
-fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) = this.getPublicFields()
-    .filter(filter)
-    .map { it.answerableName() }
-    .sorted()
-    .joinToString(separator = ", ")
-
-fun Class<*>.publicFieldsMatch(other: Class<*>, filter: (field: Field) -> Boolean = { true }) =
-    ClassDesignMatch(
-        ClassDesignMatch.Type.Fields,
-        this.publicFields(filter),
-        other.publicFields(filter)
-    )
-
-fun Class<*>.publicMethods(filter: (executable: Executable) -> Boolean = { true }) =
-    (this.getPublicMethods() + this.constructors)
-        .filter(filter)
-        .map { it.answerableName() }
-        .sorted()
-        .joinToString(separator = ", ")
-
-fun Class<*>.publicMethodsMatch(other: Class<*>, filter: (executable: Executable) -> Boolean = { true }) =
-    ClassDesignMatch(
-        ClassDesignMatch.Type.Methods,
-        this.publicMethods(filter),
-        other.publicMethods(filter)
-    )
-
+// TODO: expose these functions like
+// fun Class<*>.namesMatch(Class<*>): ClassDesignMatch<String>
+// fun Class<*>.methodsMatch(Class<*>, String?): ClassDesignMatch<String>
+//
+// the runner function looks like //           vvvvvv contains the nullable string
+// fun classDesignAnalysis(Class<*>, Class<*>, Config): ClassDesignAnalysisResult
 class ClassDesignAnalysis(
     private val solutionName: String? = null,
     private val reference: Class<*>,
@@ -143,7 +69,7 @@ class ClassDesignAnalysis(
     }
 
     private fun namesMatch() = AnalysisOutput(
-        AnalysisTag.NAME,
+        AnalysisType.NAME,
         if (reference.simpleName == attempt.simpleName) {
             Matched(reference.simpleName)
         } else {
@@ -156,7 +82,7 @@ class ClassDesignAnalysis(
 
     private fun classStatusMatch() =
         AnalysisOutput(
-            AnalysisTag.STATUS,
+            AnalysisType.KIND,
             if (reference.isInterface == attempt.isInterface) {
                 Matched(if (reference.isInterface) "interface" else "class")
             } else {
@@ -168,7 +94,7 @@ class ClassDesignAnalysis(
 
     private fun classModifiersMatch() =
         AnalysisOutput(
-            AnalysisTag.MODIFIERS,
+            AnalysisType.MODIFIERS,
             if (reference.modifiers == attempt.modifiers) {
                 Matched(
                     Modifier.toString(
@@ -186,7 +112,7 @@ class ClassDesignAnalysis(
 
     // Order is significant since it's part of the class API
     fun typeParamsMatch() = AnalysisOutput(
-        AnalysisTag.TYPE_PARAMS,
+        AnalysisType.TYPE_PARAMS,
         run {
             val refTypes = reference.typeParameters.map { it.name }
             val attTypes = attempt.typeParameters.map { it.name }
@@ -200,7 +126,7 @@ class ClassDesignAnalysis(
     // Order is not significant here
     private fun superClassesMatch() =
         AnalysisOutput(
-            AnalysisTag.SUPERCLASSES,
+            AnalysisType.SUPERCLASSES,
             if (reference.genericSuperclass == attempt.genericSuperclass &&
                 reference.genericInterfaces contentEquals attempt.genericInterfaces
             ) {
@@ -231,7 +157,7 @@ class ClassDesignAnalysis(
 
     private fun publicFieldsMatch() =
         AnalysisOutput(
-            AnalysisTag.FIELDS,
+            AnalysisType.FIELDS,
             run {
                 fun mkFieldString(field: Field): String {
                     val sb = StringBuilder()
@@ -267,7 +193,7 @@ class ClassDesignAnalysis(
             })
 
     fun publicMethodsMatch() = AnalysisOutput(
-        AnalysisTag.METHODS,
+        AnalysisType.METHODS,
         run {
             val refMethodData =
                 (reference.getPublicMethods() + reference.constructors)
@@ -294,16 +220,121 @@ class ClassDesignAnalysis(
         })
 }
 
-enum class AnalysisTag {
-    NAME, STATUS, MODIFIERS, TYPE_PARAMS, SUPERCLASSES, FIELDS, METHODS;
+class CDAConfig(
+    val checkName: Boolean = true,
+    val checkKind: Boolean = true,
+    val checkModifiers: Boolean = true,
+    val checkTypeParams: Boolean = true,
+    val checkSuperclasses: Boolean = true,
+    val checkInterfaces: Boolean = true,
+    val checkFields: Boolean = true,
+    val checkMethods: Boolean = true,
+    val checkInnerClasses: Boolean = true,
+    val solutionName: String? = null
+)
+val defaultCDAConfig = CDAConfig()
+
+// TODO: Move into ClassDesignMatch as part of refactor
+enum class AnalysisType {
+    NAME, KIND, MODIFIERS, TYPE_PARAMS, SUPERCLASSES, INTERFACES, INNER_CLASSES, FIELDS, METHODS;
 
     override fun toString(): String = name.toLowerCase().replace('_', ' ')
 }
 
+data class ClassDesignMatch<T>(
+    val type: AnalysisType,
+    val reference: T,
+    val submission: T,
+    val match: Boolean = reference == submission
+)
+
+/**
+ * The result of a run of the class design analyzer.
+ */
+@Suppress("MemberVisibilityCanBePrivate") // This is part of the API so must be public for users to consume
+class CDAResult(
+    val configuration: CDAConfig,
+    val names: ClassDesignMatch<String>?,
+    val kinds: ClassDesignMatch<ClassKind>?,
+    /* this should be serialized as a String representing the modifiers
+       it contains, since an API consumer can't reliably access the
+       Modifier static methods (:
+     */
+    val modifiers: ClassDesignMatch<Int>?,
+    // order is significant since it affects the API
+    val typeParams: ClassDesignMatch<List<String>>?,
+    /* As much as it'd be nice to store the actual Type object, we want
+       to support users who have students write both a parent AND child class
+       in one assignment, particularly if it's in Kotlin. In this case, the
+       reference and submission superclasses will be different Types!
+     */
+    val superclass: ClassDesignMatch<String>?,
+    // see above
+    val interfaces: ClassDesignMatch<List<String>>?,
+    val fields: ClassDesignMatch<List<Field>>?, // match by answerableName
+    val methods: ClassDesignMatch<List<Executable>>?, // match by answerableName.
+
+    val innerClasses: ClassDesignMatch<List<String>>?,
+    val innerClassAnalyses: Map<String, CDAResult>? // null if !innerClasses.match
+) {
+    val allMatch: Boolean
+        get() = names?.match ?: true &&
+                kinds?.match ?: true &&
+                modifiers?.match ?: true &&
+                typeParams?.match ?: true &&
+                superclass?.match ?: true &&
+                interfaces?.match ?: true &&
+                fields?.match ?: true &&
+                methods?.match ?: true &&
+                innerClasses?.match ?: true &&
+                innerClassAnalyses?.all { entry ->
+                    entry.value.allMatch
+                } ?: true
+}
+
+/* TODO: try this once everything else is working
+potential idea like:
+MutliplyMatchable<T>( come up with a better name
+  val: List<T> // submission is missing
+  val: List<T> // submission has but shouldn't have
+  // in a naive world everything in here matched, but in a really really cool world in the future,
+  // some of these things don't match but we've been able to guess that this is what the submission _meant_ to match.
+  val: List<ClassDesignMatch<T>>
+
+  val matched = list1 && list 2 are empty and everything in list 3 matches
+ */
+
+// Including this is low-cost over using strings and is easier to safely fix in the future if we, say,
+// want to report abstract classes as a kind mismatch rather than a modifier mismatch.
+enum class ClassKind {
+    // enum classes can contain methods in Java
+    CLASS, INTERFACE, ENUM;
+
+    override fun toString(): String = name.toLowerCase()
+}
+
+val Class<*>.kind
+    get() = when {
+        this.isEnum -> ClassKind.ENUM
+        this.isInterface -> ClassKind.INTERFACE
+        else -> ClassKind.CLASS
+    }
+
+fun String.load(): Class<*> = Class.forName(this)
+
+fun Type.simpleName() = this.typeName.split(".").last()
+fun Field.simpleName() = this.name.split(".").last()
+fun Field.answerableName() = "${Modifier.toString(this.modifiers)} ${this.type.simpleName()} ${this.simpleName()}"
+fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
+    this.getPublicFields().filter(filter)
+
+fun Class<*>.publicMethods(filter: (executable: Executable) -> Boolean = { true }) =
+    (this.getPublicMethods() + this.constructors).filter(filter)
+
 // alias filterNot with a more sensible name
 fun <T> Iterable<T>.filterOut(p: (T) -> Boolean) = this.filterNot(p)
 
-class AnalysisOutput(val tag: AnalysisTag, val result: AnalysisResult<*>) : DefaultSerializable {
+class AnalysisOutput(val tag: AnalysisType, val result: AnalysisResult<*>) : DefaultSerializable {
     override fun toString() = this.toErrorMsg() // see ClassDesignErrors.kt
     override fun toJson() = this.defaultToJson()
 }
