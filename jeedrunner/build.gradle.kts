@@ -23,18 +23,18 @@ dependencies {
     api(project(":core"))
 
     // Jeed and dependencies
-    api("com.github.cs125-illinois:jeed:answerable_stable-SNAPSHOT") { isChanging = true }
+    api("com.github.cs125-illinois:jeed:2020.4.7")
     implementation("com.github.ben-manes.caffeine:caffeine:2.8.1")
 
     // Tests
     testImplementation("junit:junit:4.13")
 }
 
-tasks.withType<Test> {
-    @Suppress("UNNECESSARY_NOT_NULL_ASSERTION")
-    jvmArgs!!.add("--enable-preview")
-}
-
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
+tasks.test {
+    if (JavaVersion.current() >= JavaVersion.VERSION_11) {
+        jvmArgs("-ea", "-Xmx1G", "-Xss256k", "--enable-preview")
+    } else {
+        jvmArgs("-ea", "-Xmx1G", "-Xss256k")
+    }
+    environment["JEED_MAX_THREAD_POOL_SIZE"] = 4
 }

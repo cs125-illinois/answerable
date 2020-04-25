@@ -1,8 +1,8 @@
 package examples.testgeneration.validation.reference;
 
-import edu.illinois.cs.cs125.answerable.api.DefaultTestRunArguments;
+import edu.illinois.cs.cs125.answerable.DefaultTestRunArguments;
 import edu.illinois.cs.cs125.answerable.api.TestOutput;
-import edu.illinois.cs.cs125.answerable.api.Verify;
+import edu.illinois.cs.cs125.answerable.Verify;
 
 public class ArgsOnStandaloneVerify {
 

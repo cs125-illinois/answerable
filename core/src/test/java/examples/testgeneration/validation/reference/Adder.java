@@ -1,7 +1,7 @@
 package examples.testgeneration.validation.reference;
 
-import edu.illinois.cs.cs125.answerable.api.DefaultTestRunArguments;
-import edu.illinois.cs.cs125.answerable.api.Solution;
+import edu.illinois.cs.cs125.answerable.DefaultTestRunArguments;
+import edu.illinois.cs.cs125.answerable.Solution;
 
 public final class Adder {
 

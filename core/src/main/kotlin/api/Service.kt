@@ -6,9 +6,9 @@ import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
 import edu.illinois.cs.cs125.answerable.TestEnvironment
 import edu.illinois.cs.cs125.answerable.TestGenerator
-import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.TestRunner
 import edu.illinois.cs.cs125.answerable.TestRunnerArgs
+import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.defaultArgs
 import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException

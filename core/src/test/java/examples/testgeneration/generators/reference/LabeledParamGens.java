@@ -1,5 +1,6 @@
 package examples.testgeneration.generators.reference;
 
+import edu.illinois.cs.cs125.answerable.*;
 import edu.illinois.cs.cs125.answerable.api.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
