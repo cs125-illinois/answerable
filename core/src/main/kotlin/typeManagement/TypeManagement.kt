@@ -3,14 +3,14 @@
 package edu.illinois.cs.cs125.answerable.typeManagement
 
 import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
+import edu.illinois.cs.cs125.answerable.EdgeCase
+import edu.illinois.cs.cs125.answerable.Generator
+import edu.illinois.cs.cs125.answerable.Helper
+import edu.illinois.cs.cs125.answerable.Next
+import edu.illinois.cs.cs125.answerable.SimpleCase
+import edu.illinois.cs.cs125.answerable.Verify
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
-import edu.illinois.cs.cs125.answerable.api.EdgeCase
 import edu.illinois.cs.cs125.answerable.api.EnumerableBytecodeLoader
-import edu.illinois.cs.cs125.answerable.api.Generator
-import edu.illinois.cs.cs125.answerable.api.Helper
-import edu.illinois.cs.cs125.answerable.api.Next
-import edu.illinois.cs.cs125.answerable.api.SimpleCase
-import edu.illinois.cs.cs125.answerable.api.Verify
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.simpleName
 import edu.illinois.cs.cs125.answerable.getPublicFields

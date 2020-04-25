@@ -1,5 +1,8 @@
 package examples.verify;
 
+import edu.illinois.cs.cs125.answerable.Generator;
+import edu.illinois.cs.cs125.answerable.Solution;
+import edu.illinois.cs.cs125.answerable.Verify;
 import edu.illinois.cs.cs125.answerable.api.*;
 
 import java.util.Random;
