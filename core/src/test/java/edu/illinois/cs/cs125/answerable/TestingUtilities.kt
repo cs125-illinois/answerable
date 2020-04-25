@@ -13,7 +13,12 @@ fun runAnswerableTest(
     solutionName: String = "",
     randomSeed: Long = Random.nextLong()
 ): TestingResults {
-    return TestGenerator(getSolutionClass(solutionClass), solutionName)
-        .loadSubmission(getAttemptClass(submissionClass))
+    return TestGenerator(findClass(solutionClass), solutionName)
+        .loadSubmission(findClass(submissionClass))
         .runTestsUnsecured(randomSeed)
 }
+
+/**
+ * Convenience method for finding a (non-null) Class<*> from a class name.
+ */
+fun findClass(name: String): Class<*> = Class.forName(name)

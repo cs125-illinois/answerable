@@ -4,20 +4,16 @@ package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
-import edu.illinois.cs.cs125.answerable.api.DefaultTestRunArguments
-import edu.illinois.cs.cs125.answerable.api.Generator
 import edu.illinois.cs.cs125.answerable.api.OssifiedTestOutput
 import edu.illinois.cs.cs125.answerable.api.OssifiedValue
-import edu.illinois.cs.cs125.answerable.api.Solution
 import edu.illinois.cs.cs125.answerable.api.TestOutput
-import edu.illinois.cs.cs125.answerable.api.Timeout
-import edu.illinois.cs.cs125.answerable.api.Verify
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.api.ossify
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.AnalysisOutput
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.ClassDesignAnalysis
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.validateStaticSignatures
 import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
 import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
 import edu.illinois.cs.cs125.answerable.typeManagement.mkOpenMirrorClass
@@ -298,7 +294,7 @@ interface TestRunner {
  * on your JVM! Prefer passing a secured environment to runTests.
  */
 fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunnerArgs = defaultArgs) =
-    this.runTests(seed, defaultEnvironment, testRunnerArgs)
+    this.runTests(seed, unsecuredEnvironment, testRunnerArgs)
 
 /**
  * The primary [TestRunner] subclass which tests classes that have passed Class Design Analysis.

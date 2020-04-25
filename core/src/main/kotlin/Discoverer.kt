@@ -2,14 +2,6 @@
 
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.api.EdgeCase
-import edu.illinois.cs.cs125.answerable.api.Generator
-import edu.illinois.cs.cs125.answerable.api.Next
-import edu.illinois.cs.cs125.answerable.api.Precondition
-import edu.illinois.cs.cs125.answerable.api.SimpleCase
-import edu.illinois.cs.cs125.answerable.api.Solution
-import edu.illinois.cs.cs125.answerable.api.UseGenerator
-import edu.illinois.cs.cs125.answerable.api.Verify
 import edu.illinois.cs.cs125.answerable.typeManagement.correspondsTo
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.IllegalStateException
@@ -19,24 +11,6 @@ import java.lang.reflect.Member
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
-
-internal fun getSolutionClass(name: String): Class<*> = findClass(
-    name,
-    "Couldn't find reference solution."
-)
-
-internal fun getAttemptClass(name: String): Class<*> = findClass(
-    name,
-    "Couldn't find student attempt class named $name."
-)
-
-private fun findClass(name: String, failMsg: String): Class<*> {
-    return try {
-        Class.forName(name)
-    } catch (unused: ClassNotFoundException) {
-        throw IllegalStateException(failMsg)
-    }
-}
 
 internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method? {
     return this.declaredMethods.filter {

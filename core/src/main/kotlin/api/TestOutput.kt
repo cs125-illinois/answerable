@@ -117,6 +117,18 @@ data class OssifiedValue internal constructor(
 )
 
 internal fun Any?.ossify(pool: TypePool): OssifiedValue? {
+    fun safeStringify(block: () -> String): String {
+        return try {
+            block()
+        } catch (t: Throwable) {
+            try {
+                "<failed to stringify ${this?.javaClass?.name}: ${t.message}>"
+            } catch (_: Throwable) {
+                // Getting the error's message could conceivably crash
+                "<stringification of ${this?.javaClass?.name} double-faulted>"
+            }
+        }
+    }
     return when (this) {
         null -> {
             null
@@ -131,13 +143,13 @@ internal fun Any?.ossify(pool: TypePool): OssifiedValue? {
             val originalName = pool.getOriginalClass(componentType).typeName
             OssifiedValue(
                 originalName + "[]".repeat(nestingLevel),
-                this.contentDeepToString().replace(this.javaClass.name, originalName),
+                safeStringify { this.contentDeepToString() }.replace(this.javaClass.name, originalName),
                 System.identityHashCode(this))
         }
         else -> {
             val originalName = pool.getOriginalClass(this.javaClass).typeName
             OssifiedValue(originalName,
-                this.toString().replace(this.javaClass.name, originalName),
+                safeStringify { this.toString() }.replace(this.javaClass.name, originalName),
                 System.identityHashCode(this))
         }
     }

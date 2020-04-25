@@ -1,7 +1,7 @@
 package examples.testgeneration.mutatestaticfield.reference;
 
-import edu.illinois.cs.cs125.answerable.api.Solution;
-import edu.illinois.cs.cs125.answerable.api.Timeout;
+import edu.illinois.cs.cs125.answerable.Solution;
+import edu.illinois.cs.cs125.answerable.Timeout;
 
 public class Counter {
 

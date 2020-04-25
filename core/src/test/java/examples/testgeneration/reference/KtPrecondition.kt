@@ -1,7 +1,7 @@
 package examples.testgeneration.reference
 
-import edu.illinois.cs.cs125.answerable.api.Precondition
-import edu.illinois.cs.cs125.answerable.api.Solution
+import edu.illinois.cs.cs125.answerable.Precondition
+import edu.illinois.cs.cs125.answerable.Solution
 
 class KtPrecondition {
 

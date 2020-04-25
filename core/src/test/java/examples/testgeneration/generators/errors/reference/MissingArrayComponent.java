@@ -1,6 +1,6 @@
 package examples.testgeneration.generators.errors.reference;
 
-import edu.illinois.cs.cs125.answerable.api.Solution;
+import edu.illinois.cs.cs125.answerable.Solution;
 
 public class MissingArrayComponent {
 

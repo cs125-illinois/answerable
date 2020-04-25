@@ -1,6 +1,5 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.api.*
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.RoundEnvironment
 import javax.lang.model.SourceVersion
@@ -12,7 +11,7 @@ import javax.lang.model.element.TypeElement
  */
 class AnswerableAnnotationOwner : AbstractProcessor() {
 
-    /** ALl Answerable annotations, from AnswerableAnnotations.kt in the main module. */
+    /** ALl Answerable annotations, from Annotations.kt in the main module. */
     private val answerableAnnotations = setOf(
             Solution::class,
             Timeout::class,

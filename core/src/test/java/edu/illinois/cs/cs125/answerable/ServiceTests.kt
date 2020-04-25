@@ -11,11 +11,11 @@ import org.junit.jupiter.api.assertThrows
 
 internal class ServiceTests {
 
-    private var answerableService: Service = Service(defaultEnvironment)
+    private var answerableService: Service = Service(unsecuredEnvironment)
 
     @BeforeEach
     fun setUp() {
-        answerableService = Service(defaultEnvironment)
+        answerableService = Service(unsecuredEnvironment)
     }
 
     @Test
