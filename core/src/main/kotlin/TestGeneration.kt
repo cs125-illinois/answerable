@@ -18,6 +18,7 @@ import edu.illinois.cs.cs125.answerable.classdesignanalysis.AnalysisOutput
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.ClassDesignAnalysis
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.validateStaticSignatures
 import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
 import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
 import edu.illinois.cs.cs125.answerable.typeManagement.mkOpenMirrorClass

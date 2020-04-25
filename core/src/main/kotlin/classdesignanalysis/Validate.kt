@@ -1,7 +1,8 @@
 @file:Suppress("TooManyFunctions")
 
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
+import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.api.DefaultTestRunArguments
 import edu.illinois.cs.cs125.answerable.api.EdgeCase
 import edu.illinois.cs.cs125.answerable.api.Generator
@@ -11,7 +12,6 @@ import edu.illinois.cs.cs125.answerable.api.SimpleCase
 import edu.illinois.cs.cs125.answerable.api.Solution
 import edu.illinois.cs.cs125.answerable.api.TestOutput
 import edu.illinois.cs.cs125.answerable.api.Verify
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -33,9 +33,17 @@ infix fun <E, T, R> ValidationResult<E, T>.then(f: (T) -> ValidationResult<E, R>
         is Nonfatal -> f(this.value).let { other ->
             @Suppress("RemoveExplicitTypeArguments")
             when (other) {
-                is Ok -> Nonfatal(this.errors, other.value)
-                is Nonfatal -> Nonfatal(this.errors + other.errors, other.value)
-                is Fatal -> Fatal<E, R>(this.errors + other.errors)
+                is Ok -> Nonfatal(
+                    this.errors,
+                    other.value
+                )
+                is Nonfatal -> Nonfatal(
+                    this.errors + other.errors,
+                    other.value
+                )
+                is Fatal -> Fatal<E, R>(
+                    this.errors + other.errors
+                )
             }
         }
         is Fatal -> this as Fatal<E, R>
@@ -44,44 +52,63 @@ infix fun <E, T, R> ValidationResult<E, T>.then(f: (T) -> ValidationResult<E, R>
 infix fun <E, T, R> ValidationResult<E, T>.combineResult(other: ValidationResult<E, R>) = this then { other }
 
 @Suppress("unused")
-fun <E, T> succeed(v: T): Ok<E, T> = Ok(v)
+fun <E, T> succeed(v: T): Ok<E, T> =
+    Ok(v)
 @Suppress("unused")
-fun <E, T> complain(e: E, v: T): Nonfatal<E, T> = Nonfatal(listOf(e), v)
+fun <E, T> complain(e: E, v: T): Nonfatal<E, T> =
+    Nonfatal(listOf(e), v)
 @Suppress("unused")
-fun <E, T> explode(e: E): Fatal<E, T> = Fatal(listOf(e))
+fun <E, T> explode(e: E): Fatal<E, T> =
+    Fatal(listOf(e))
 @Suppress("unused")
 fun <E, T> fromErrors(es: List<E>, value: T): ValidationResult<E, T> =
-    if (es.isEmpty()) Ok(value) else Nonfatal(es, value)
+    if (es.isEmpty()) Ok(value) else Nonfatal(
+        es,
+        value
+    )
 @Suppress("unused")
-fun <E> fromErrors(es: List<E>): ValidationResult<E, Unit> = fromErrors(es, Unit)
+fun <E> fromErrors(es: List<E>): ValidationResult<E, Unit> =
+    fromErrors(es, Unit)
 @Suppress("UNCHECKED_CAST", "unused")
 fun <E, T> tolerate(result: ValidationResult<E, T>): ValidationResult<E, T?> = when (result) {
     is Ok -> result as Ok<E, T?>
     is Nonfatal -> result as Nonfatal<E, T?>
-    is Fatal -> Nonfatal(result.errors, null)
+    is Fatal -> Nonfatal(
+        result.errors,
+        null
+    )
 }
 
 internal fun validateStaticSignatures(referenceClass: Class<*>) {
     val allMethods = referenceClass.declaredMethods
 
     val result = validateGenerators(allMethods) combineResult
-            validateNexts(referenceClass, allMethods) combineResult
-            validateVerifiers(allMethods) combineResult
-            validatePreconditions(allMethods) combineResult
-            validateCaseMethods(allMethods) combineResult
-            validateCaseFields(referenceClass, referenceClass.declaredFields) combineResult
-            validateRunArgs(allMethods)
+        validateNexts(
+            referenceClass,
+            allMethods
+        ) combineResult
+        validateVerifiers(allMethods) combineResult
+        validatePreconditions(allMethods) combineResult
+        validateCaseMethods(allMethods) combineResult
+        validateCaseFields(
+            referenceClass,
+            referenceClass.declaredFields
+        ) combineResult
+        validateRunArgs(allMethods)
 
     when (result) {
         is Ok -> return
-        is Nonfatal -> throw AnswerableMisuseException(result.errors.joinToString("\n\n"))
-        is Fatal -> throw AnswerableMisuseException(result.errors.joinToString("\n\n"))
+        is Nonfatal -> throw AnswerableMisuseException(
+            result.errors.joinToString("\n\n")
+        )
+        is Fatal -> throw AnswerableMisuseException(
+            result.errors.joinToString("\n\n")
+        )
     }
 }
 
 internal fun Class<*>.checkGenerators() {
     this.declaredMethods.hasAnnotation<Generator>().forEach {
-
     }
 }
 private val generatorPTypes = arrayOf(Int::class.java, java.util.Random::class.java)
@@ -170,10 +197,12 @@ private fun validatePreconditions(methods: Array<Method>): ValidationResult<Stri
 
     preconditions.forEach { method ->
         if (method.returnType != Boolean::class.java) {
-            throw AnswerableMisuseException("""
+            throw AnswerableMisuseException(
+                """
                 @Precondition methods must return a boolean.
                 While validating @Precondition method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         val solution = methods.find {
@@ -283,5 +312,5 @@ private fun validateRunArgs(methods: Array<Method>): ValidationResult<String, Un
     return fromErrors(errors, Unit)
 }
 
-inline fun <reified T: Annotation> Array<Method>.hasAnnotation(): List<Method> =
+inline fun <reified T : Annotation> Array<Method>.hasAnnotation(): List<Method> =
     this.filter { it.isAnnotationPresent(T::class.java) }

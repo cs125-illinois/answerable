@@ -1,12 +1,11 @@
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
-
 import com.marcinmoskala.math.combinations
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.fail
+import org.junit.jupiter.api.Test
 
 private fun String.example(): Class<*> {
     return Class.forName("${Analyze::class.java.packageName}.fixtures.$this")

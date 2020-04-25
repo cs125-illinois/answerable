@@ -12,8 +12,8 @@ import edu.illinois.cs.cs125.answerable.api.Next
 import edu.illinois.cs.cs125.answerable.api.SimpleCase
 import edu.illinois.cs.cs125.answerable.api.Verify
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
-import edu.illinois.cs.cs125.answerable.getPublicFields
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.simpleName
+import edu.illinois.cs.cs125.answerable.getPublicFields
 import java.lang.IllegalStateException
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
