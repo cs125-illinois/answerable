@@ -2,14 +2,6 @@
 
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.api.EdgeCase
-import edu.illinois.cs.cs125.answerable.api.Generator
-import edu.illinois.cs.cs125.answerable.api.Next
-import edu.illinois.cs.cs125.answerable.api.Precondition
-import edu.illinois.cs.cs125.answerable.api.SimpleCase
-import edu.illinois.cs.cs125.answerable.api.Solution
-import edu.illinois.cs.cs125.answerable.api.UseGenerator
-import edu.illinois.cs.cs125.answerable.api.Verify
 import edu.illinois.cs.cs125.answerable.typeManagement.correspondsTo
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.IllegalStateException

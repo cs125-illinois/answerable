@@ -1,8 +1,6 @@
 @file:Suppress("KDocUnresolvedReference")
 
-package edu.illinois.cs.cs125.answerable.api
-
-import edu.illinois.cs.cs125.answerable.TestRunnerArgs
+package edu.illinois.cs.cs125.answerable
 
 /**
  * Annotation to mark a method as the reference solution for Answerable.

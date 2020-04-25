@@ -1,15 +1,17 @@
+@file:Suppress("TooManyFunctions")
+
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
+import edu.illinois.cs.cs125.answerable.EdgeCase
+import edu.illinois.cs.cs125.answerable.Generator
+import edu.illinois.cs.cs125.answerable.Helper
+import edu.illinois.cs.cs125.answerable.Ignore
+import edu.illinois.cs.cs125.answerable.Next
+import edu.illinois.cs.cs125.answerable.Precondition
+import edu.illinois.cs.cs125.answerable.SimpleCase
+import edu.illinois.cs.cs125.answerable.Solution
+import edu.illinois.cs.cs125.answerable.Verify
 import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
-import edu.illinois.cs.cs125.answerable.api.EdgeCase
-import edu.illinois.cs.cs125.answerable.api.Generator
-import edu.illinois.cs.cs125.answerable.api.Helper
-import edu.illinois.cs.cs125.answerable.api.Ignore
-import edu.illinois.cs.cs125.answerable.api.Next
-import edu.illinois.cs.cs125.answerable.api.Precondition
-import edu.illinois.cs.cs125.answerable.api.SimpleCase
-import edu.illinois.cs.cs125.answerable.api.Solution
-import edu.illinois.cs.cs125.answerable.api.Verify
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.getPublicFields
 import edu.illinois.cs.cs125.answerable.getPublicMethods

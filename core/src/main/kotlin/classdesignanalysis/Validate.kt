@@ -1,17 +1,17 @@
 @file:Suppress("TooManyFunctions")
 
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
-import edu.illinois.cs.cs125.answerable.api.DefaultTestRunArguments
-import edu.illinois.cs.cs125.answerable.api.EdgeCase
-import edu.illinois.cs.cs125.answerable.api.Generator
-import edu.illinois.cs.cs125.answerable.api.Next
-import edu.illinois.cs.cs125.answerable.api.Precondition
-import edu.illinois.cs.cs125.answerable.api.SimpleCase
-import edu.illinois.cs.cs125.answerable.api.Solution
+import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
+import edu.illinois.cs.cs125.answerable.DefaultTestRunArguments
+import edu.illinois.cs.cs125.answerable.EdgeCase
+import edu.illinois.cs.cs125.answerable.Generator
+import edu.illinois.cs.cs125.answerable.Next
+import edu.illinois.cs.cs125.answerable.Precondition
+import edu.illinois.cs.cs125.answerable.SimpleCase
+import edu.illinois.cs.cs125.answerable.Solution
+import edu.illinois.cs.cs125.answerable.Verify
 import edu.illinois.cs.cs125.answerable.api.TestOutput
-import edu.illinois.cs.cs125.answerable.api.Verify
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -22,6 +22,7 @@ sealed class ValidationResult<E, T> {
     open val errors: List<E>? = null
     open val value: T? = null
 }
+
 class Ok<E, T>(override val value: T) : ValidationResult<E, T>()
 class Nonfatal<E, T>(override val errors: List<E>, override val value: T) : ValidationResult<E, T>()
 class Fatal<E, T>(override val errors: List<E>) : ValidationResult<E, T>()
@@ -33,9 +34,17 @@ infix fun <E, T, R> ValidationResult<E, T>.then(f: (T) -> ValidationResult<E, R>
         is Nonfatal -> f(this.value).let { other ->
             @Suppress("RemoveExplicitTypeArguments")
             when (other) {
-                is Ok -> Nonfatal(this.errors, other.value)
-                is Nonfatal -> Nonfatal(this.errors + other.errors, other.value)
-                is Fatal -> Fatal<E, R>(this.errors + other.errors)
+                is Ok -> Nonfatal(
+                    this.errors,
+                    other.value
+                )
+                is Nonfatal -> Nonfatal(
+                    this.errors + other.errors,
+                    other.value
+                )
+                is Fatal -> Fatal<E, R>(
+                    this.errors + other.errors
+                )
             }
         }
         is Fatal -> this as Fatal<E, R>
@@ -44,46 +53,66 @@ infix fun <E, T, R> ValidationResult<E, T>.then(f: (T) -> ValidationResult<E, R>
 infix fun <E, T, R> ValidationResult<E, T>.combineResult(other: ValidationResult<E, R>) = this then { other }
 
 @Suppress("unused")
-fun <E, T> succeed(v: T): Ok<E, T> = Ok(v)
+fun <E, T> succeed(v: T): Ok<E, T> =
+    Ok(v)
+
 @Suppress("unused")
-fun <E, T> complain(e: E, v: T): Nonfatal<E, T> = Nonfatal(listOf(e), v)
+fun <E, T> complain(e: E, v: T): Nonfatal<E, T> =
+    Nonfatal(listOf(e), v)
+
 @Suppress("unused")
-fun <E, T> explode(e: E): Fatal<E, T> = Fatal(listOf(e))
+fun <E, T> explode(e: E): Fatal<E, T> =
+    Fatal(listOf(e))
+
 @Suppress("unused")
 fun <E, T> fromErrors(es: List<E>, value: T): ValidationResult<E, T> =
-    if (es.isEmpty()) Ok(value) else Nonfatal(es, value)
+    if (es.isEmpty()) Ok(value) else Nonfatal(
+        es,
+        value
+    )
+
 @Suppress("unused")
-fun <E> fromErrors(es: List<E>): ValidationResult<E, Unit> = fromErrors(es, Unit)
+fun <E> fromErrors(es: List<E>): ValidationResult<E, Unit> =
+    fromErrors(es, Unit)
+
 @Suppress("UNCHECKED_CAST", "unused")
 fun <E, T> tolerate(result: ValidationResult<E, T>): ValidationResult<E, T?> = when (result) {
     is Ok -> result as Ok<E, T?>
     is Nonfatal -> result as Nonfatal<E, T?>
-    is Fatal -> Nonfatal(result.errors, null)
+    is Fatal -> Nonfatal(
+        result.errors,
+        null
+    )
 }
 
 internal fun validateStaticSignatures(referenceClass: Class<*>) {
     val allMethods = referenceClass.declaredMethods
 
     val result = validateGenerators(allMethods) combineResult
-            validateNexts(referenceClass, allMethods) combineResult
-            validateVerifiers(allMethods) combineResult
-            validatePreconditions(allMethods) combineResult
-            validateCaseMethods(allMethods) combineResult
-            validateCaseFields(referenceClass, referenceClass.declaredFields) combineResult
-            validateRunArgs(allMethods)
+        validateNexts(
+            referenceClass,
+            allMethods
+        ) combineResult
+        validateVerifiers(allMethods) combineResult
+        validatePreconditions(allMethods) combineResult
+        validateCaseMethods(allMethods) combineResult
+        validateCaseFields(
+            referenceClass,
+            referenceClass.declaredFields
+        ) combineResult
+        validateRunArgs(allMethods)
 
     when (result) {
         is Ok -> return
-        is Nonfatal -> throw AnswerableMisuseException(result.errors.joinToString("\n\n"))
-        is Fatal -> throw AnswerableMisuseException(result.errors.joinToString("\n\n"))
+        is Nonfatal -> throw AnswerableMisuseException(
+            result.errors.joinToString("\n\n")
+        )
+        is Fatal -> throw AnswerableMisuseException(
+            result.errors.joinToString("\n\n")
+        )
     }
 }
 
-internal fun Class<*>.checkGenerators() {
-    this.declaredMethods.hasAnnotation<Generator>().forEach {
-
-    }
-}
 private val generatorPTypes = arrayOf(Int::class.java, java.util.Random::class.java)
 private fun validateGenerators(methods: Array<Method>): ValidationResult<String, Unit> {
     val generators = methods.filter { it.isAnnotationPresent(Generator::class.java) }
@@ -91,17 +120,21 @@ private fun validateGenerators(methods: Array<Method>): ValidationResult<String,
 
     generators.forEach { method ->
         if (!Modifier.isStatic(method.modifiers)) {
-            errors.add("""
+            errors.add(
+                """
                 @Generator methods must be static.
                 While validating generator method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         if (!(method.parameterTypes contentEquals generatorPTypes)) {
-            errors.add("""
+            errors.add(
+                """
                 @Generator methods must take parameter types [int, Random].
                 While validating @Generator method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
     }
 
@@ -114,17 +147,21 @@ private fun validateNexts(clazz: Class<*>, methods: Array<Method>): ValidationRe
 
     nexts.forEach { method ->
         if (!Modifier.isStatic(method.modifiers)) {
-            errors.add("""
+            errors.add(
+                """
                 @Next methods must be static.
                 While validating @Next method `${method.answerableName()}}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         if (!(method.parameterTypes contentEquals arrayOf(clazz, Int::class.java, java.util.Random::class.java))) {
-            errors.add("""
+            errors.add(
+                """
                 @Next method must take parameter types [${clazz.sourceName}, int, Random].
                 While validating @Next method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
     }
 
@@ -139,25 +176,32 @@ private fun validateVerifiers(methods: Array<Method>): ValidationResult<String, 
 
     verifiers.forEach { method ->
         if (!Modifier.isStatic(method.modifiers)) {
-            errors.add("""
+            errors.add(
+                """
                 @Verify methods must be static.
                 While validating @Verify method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         if (!((method.parameterTypes contentEquals validatePTypes1) ||
-                (method.parameterTypes contentEquals validatePTypes2))) {
-            errors.add("""
+                (method.parameterTypes contentEquals validatePTypes2))
+        ) {
+            errors.add(
+                """
                 @Verify methods must take parameter types [TestOutput, TestOutput] and optionally a java.util.Random.
                 While validating @Verify method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         if (method.returnType != Void.TYPE) {
-            errors.add("""
+            errors.add(
+                """
                 @Verify methods should be void. Throw an exception if verification fails.
                 While validating @Verify method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
     }
 
@@ -170,29 +214,40 @@ private fun validatePreconditions(methods: Array<Method>): ValidationResult<Stri
 
     preconditions.forEach { method ->
         if (method.returnType != Boolean::class.java) {
-            throw AnswerableMisuseException("""
+            throw AnswerableMisuseException(
+                """
                 @Precondition methods must return a boolean.
                 While validating @Precondition method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         val solution = methods.find {
-            it.getAnnotation(Solution::class.java)?.name?.equals(method.getAnnotation(Precondition::class.java)?.name)
-                ?: false } ?: return@forEach // nothing to compare to
+            it.getAnnotation(Solution::class.java)?.name?.equals(
+                method.getAnnotation(
+                    Precondition::class.java
+                )?.name
+            )
+                ?: false
+        } ?: return@forEach // nothing to compare to
 
         if (Modifier.isStatic(solution.modifiers) && !Modifier.isStatic(method.modifiers)) {
-            errors.add("""
+            errors.add(
+                """
                 @Precondition methods must be static if the corresponding @Solution is static.
                 While validating @Precondition method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         @Suppress("UNNECESSARY_NOT_NULL_ASSERTION")
         if (!solution.genericParameterTypes!!.contentEquals(method.genericParameterTypes)) {
-            errors.add("""
+            errors.add(
+                """
                 @Precondition methods must have the same parameter types as the corresponding @Solution.
                 While validating @Precondition method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
     }
 
@@ -208,24 +263,30 @@ private fun validateCaseMethods(methods: Array<Method>): ValidationResult<String
         val caseString = if (method.isAnnotationPresent(EdgeCase::class.java)) "@EdgeCase" else "@SimpleCase"
 
         if (!Modifier.isStatic(method.modifiers)) {
-            errors.add("""
+            errors.add(
+                """
                 $caseString methods must be static.
                 While validating $caseString method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         if (method.parameterTypes.isNotEmpty()) {
-            errors.add("""
+            errors.add(
+                """
                 $caseString methods must not take any parameters.
                 While validating $caseString method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         if (!method.returnType.isArray) {
-            errors.add("""
+            errors.add(
+                """
                 $caseString methods must return an array.
                 While validating $caseString method `${method.answerableName()}'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
     }
 
@@ -240,24 +301,30 @@ private fun validateCaseFields(clazz: Class<*>, fields: Array<Field>): Validatio
         val caseString = if (field.isAnnotationPresent(EdgeCase::class.java)) "@EdgeCase" else "@SimpleCase"
 
         if (!Modifier.isStatic(field.modifiers)) {
-            errors.add("""
+            errors.add(
+                """
                 $caseString fields must be static.
                 While validating $caseString field `$field'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         if (!field.type.isArray) {
-            errors.add("""
+            errors.add(
+                """
                 $caseString fields must store an array.
                 While validating $caseString field `$field'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         if (field.type == clazz) {
-            errors.add("""
+            errors.add(
+                """
                 $caseString cases for the reference class must be represented by a function.
                 While validating $caseString field `$field'.
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
     }
 
@@ -283,5 +350,70 @@ private fun validateRunArgs(methods: Array<Method>): ValidationResult<String, Un
     return fromErrors(errors, Unit)
 }
 
-inline fun <reified T: Annotation> Array<Method>.hasAnnotation(): List<Method> =
-    this.filter { it.isAnnotationPresent(T::class.java) }
+data class SourceLocation(val packageName: String, val className: String? = null, val methodName: String? = null) {
+    constructor(klass: Class<*>) : this(klass.packageName, klass.simpleName)
+    constructor(method: Method) : this(
+        method.declaringClass.packageName,
+        method.declaringClass.simpleName,
+        method.answerableName()
+    )
+}
+
+data class ValidationError(val kind: Kind, val location: SourceLocation, val message: String) {
+    enum class Kind {
+        CaseMethods, DefaultTestRunArguments
+    }
+}
+
+fun Class<*>.validateCaseMethods(): List<ValidationError> {
+    return this.methodsWithAnyAnnotation(SimpleCase::class.java, EdgeCase::class.java).map { method ->
+        if (method.isAnnotationPresent(SimpleCase::class.java) &&
+            method.isAnnotationPresent(EdgeCase::class.java)
+        ) {
+            return@map ValidationError(
+                ValidationError.Kind.CaseMethods, SourceLocation(method),
+                "Can't use both @SimpleCase and @EdgeCase on the same method"
+            )
+        }
+        val annotationKind = if (method.isAnnotationPresent(SimpleCase::class.java)) {
+            "@SimpleCase"
+        } else {
+            "@EdgeCase"
+        }
+        val message = if (!Modifier.isStatic(method.modifiers)) {
+            "$annotationKind method must be static"
+        } else if (!method.parameterTypes.isEmpty()) {
+            "$annotationKind method must not accept any parameters"
+        } else if (!method.returnType.isArray) {
+            "$annotationKind method must return an array"
+        } else {
+            return@map null
+        }
+        ValidationError(ValidationError.Kind.CaseMethods, SourceLocation(method), message)
+    }.filterNotNull()
+}
+
+fun Class<*>.validateDefaultTestRunArguments(): List<ValidationError> {
+    return this.methodsWithAnyAnnotation(DefaultTestRunArguments::class.java).filter { method ->
+        if (method.isAnnotationPresent(Verify::class.java)) {
+            !method.getAnnotation(Verify::class.java).standalone
+        } else {
+            !method.isAnnotationPresent(Solution::class.java)
+        }
+    }.map { method ->
+        ValidationError(
+            ValidationError.Kind.DefaultTestRunArguments,
+            SourceLocation(method),
+            "@DefaultTestRunArguments can only be applied to a @Solution or standalone @Verify method."
+        )
+    }
+}
+
+@Suppress("UNCHECKED_CAST")
+internal fun Array<Method>.hasAnyAnnotation(vararg klasses: Class<*>): List<Method> = this.filter { method ->
+    klasses.any { method.isAnnotationPresent(it as Class<out Annotation>) }
+}
+
+@Suppress("SpreadOperator")
+internal fun Class<*>.methodsWithAnyAnnotation(vararg klasses: Class<*>): List<Method> =
+    this.declaredMethods.hasAnyAnnotation(*klasses)

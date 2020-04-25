@@ -1,6 +1,10 @@
 package edu.illinois.cs.cs125.answerable
 
-import org.junit.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 
@@ -21,7 +25,7 @@ class TestSandbox {
     @Test
     fun testDangerousSubmission() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.api.*;
+            import edu.illinois.cs.cs125.answerable.Solution;
             public class Example {
                 @Solution
                 public static int getThing() {
@@ -36,13 +40,13 @@ class TestSandbox {
                 }
             }
         """.trimIndent(), className = "Example")
-        Assert.assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.subDangerousLiveOutput.threw is SecurityException })
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.subDangerousLiveOutput.threw is SecurityException })
     }
 
     @Test
     fun testSafeSubmission() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.api.*;
+            import edu.illinois.cs.cs125.answerable.Solution;
             public class Example {
                 @Solution
                 public static int getThing() {
@@ -56,12 +60,12 @@ class TestSandbox {
                 }
             }
         """.trimIndent(), className = "Example")
-        Assert.assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.subDangerousLiveOutput.threw is SecurityException })
-        Assert.assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.subDangerousLiveOutput.threw is SecurityException })
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
     @Test
-    @Ignore("Jeed does not play nicely with System.setOut")
+    @Disabled("Jeed does not play nicely with System.setOut")
     fun testPrintSuppression() {
         val output = ByteArrayOutputStream()
         System.setOut(PrintStream(output))
@@ -81,14 +85,14 @@ class TestSandbox {
                 }
             }
         """.trimIndent(), className = "Example")
-        Assert.assertEquals(0, output.size())
-        Assert.assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+        assertEquals(0, output.size())
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
     @Test
     fun testTimeout() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.api.*;
+            import edu.illinois.cs.cs125.answerable.Solution;
             public class Example {
                 @Solution
                 public static int getThing() {
@@ -112,13 +116,13 @@ class TestSandbox {
                 }
             }
         """.trimIndent(), className = "Example")
-        Assert.assertTrue(result.timedOut)
+        assertTrue(result.timedOut)
     }
 
     @Test
     fun testReferenceUnconstrained() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.api.*;
+            import edu.illinois.cs.cs125.answerable.Solution;
             public class Example {
                 @Solution
                 public static int getThing() {
@@ -133,8 +137,8 @@ class TestSandbox {
                 }
             }
         """.trimIndent(), className = "Example")
-        Assert.assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.refLiveOutput.threw is SecurityException })
-        Assert.assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.refLiveOutput.threw is SecurityException })
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
 }

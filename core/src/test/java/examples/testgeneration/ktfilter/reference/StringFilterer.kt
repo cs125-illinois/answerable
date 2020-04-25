@@ -1,7 +1,7 @@
 package examples.testgeneration.ktfilter.reference
 
-import edu.illinois.cs.cs125.answerable.api.Generator
-import edu.illinois.cs.cs125.answerable.api.Solution
+import edu.illinois.cs.cs125.answerable.Generator
+import edu.illinois.cs.cs125.answerable.Solution
 import edu.illinois.cs.cs125.answerable.api.defaultStringGenerator
 import java.util.Random
 
