@@ -1,4 +1,4 @@
-@file: Suppress("UNCHECKED_CAST", "TooManyFunctions")
+@file:Suppress("UNCHECKED_CAST", "TooManyFunctions")
 
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 

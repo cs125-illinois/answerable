@@ -21,8 +21,6 @@ import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 
 // TODO: analyze inner classes recursively
-
-
 /**
  * Analyzer that determines that a submission class is equivalent in design to a reference class.
  *
@@ -34,16 +32,68 @@ fun classDesignAnalysis(
     reference: Class<*>, submission: Class<*>, config: CDAConfig = defaultCDAConfig
 ): CDAResult = TODO("Not finished refactoring class design analysis.")
 
-// TODO: expose these functions like
 fun Class<*>.namesMatch(other: Class<*>): ClassDesignMatch<String> =
     ClassDesignMatch(AnalysisType.NAME, this.simpleName, other.simpleName)
 
 fun Class<*>.kindsMatch(other: Class<*>): ClassDesignMatch<ClassKind> =
     ClassDesignMatch(AnalysisType.KIND, this.kind, other.kind)
 
-// TODO: Perhaps we want to ignore transient
 fun Class<*>.modifiersMatch(other: Class<*>): ClassDesignMatch<Int> =
     ClassDesignMatch(AnalysisType.MODIFIERS, this.modifiers, other.modifiers)
+
+fun Class<*>.typeParametersMatch(other: Class<*>): ClassDesignMatch<List<String>> =
+    ClassDesignMatch(
+        AnalysisType.TYPE_PARAMS,
+        this.typeParameters.map { it.simpleSourceName },
+        other.typeParameters.map { it.simpleSourceName }
+    )
+
+/* Note: [Comparing superclasses and interface implementations]
+ * Because an assignment could reasonably ask students to write _both_ the parent and child class,
+ * we can't just compare the Type objects directly. Confirming that they have the same source
+ * representation is enough for our needs.
+ */
+fun Class<*>.superclassesMatch(other: Class<*>): ClassDesignMatch<String> =
+    ClassDesignMatch(
+        AnalysisType.SUPERCLASSES,
+        this.genericSuperclass.simpleSourceName,
+        other.genericSuperclass.simpleSourceName
+    )
+
+fun Class<*>.interfacesMatch(other: Class<*>): ClassDesignMatch<List<String>> =
+    ClassDesignMatch(
+        AnalysisType.INTERFACES,
+        this.genericInterfaces.map { it.simpleSourceName }.sorted(),
+        other.genericInterfaces.map { it.simpleSourceName }.sorted()
+    )
+
+fun Class<*>.fieldsMatch(other: Class<*>): ClassDesignMatch<List<OssifiedField>> =
+    ClassDesignMatch(
+        AnalysisType.FIELDS,
+        this.publicFields().map { OssifiedField(it) }.sortedBy { it.answerableName },
+        other.publicFields().map { OssifiedField(it) }.sortedBy { it.answerableName }
+    )
+
+fun Class<*>.methodsMatch(other: Class<*>, solutionName: String?): ClassDesignMatch<List<OssifiedExecutable>> {
+    val referenceAnnotations = setOf(
+        Generator::class.java,
+        Verify::class.java,
+        Next::class.java,
+        EdgeCase::class.java,
+        SimpleCase::class.java,
+        Precondition::class.java,
+        Helper::class.java,
+        Ignore::class.java
+    )
+    fun methodFilter(method: Executable) = referenceAnnotations.none { method.isAnnotationPresent(it) } &&
+        !(method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false)
+
+    return ClassDesignMatch(
+        AnalysisType.METHODS,
+        this.publicMethods(::methodFilter).map { OssifiedExecutable(it) }.sortedBy { it.answerableName },
+        other.publicMethods(::methodFilter).map { OssifiedExecutable(it) }.sortedBy { it.answerableName }
+    )
+}
 
 // fun Class<*>.methodsMatch(Class<*>, String?): ClassDesignMatch<String>
 //
@@ -76,6 +126,17 @@ class ClassDesignAnalysis(
 
         return output
     }
+
+    private val referenceAnnotations = setOf(
+        Generator::class.java,
+        Verify::class.java,
+        Next::class.java,
+        EdgeCase::class.java,
+        SimpleCase::class.java,
+        Precondition::class.java,
+        Helper::class.java,
+        Ignore::class.java
+    )
 
     private fun namesMatch() = AnalysisOutput(
         AnalysisType.NAME,
@@ -153,16 +214,7 @@ class ClassDesignAnalysis(
             }
         )
 
-    private val referenceAnnotations = setOf(
-        Generator::class.java,
-        Verify::class.java,
-        Next::class.java,
-        EdgeCase::class.java,
-        SimpleCase::class.java,
-        Precondition::class.java,
-        Helper::class.java,
-        Ignore::class.java
-    )
+
 
     private fun publicFieldsMatch() =
         AnalysisOutput(
@@ -265,11 +317,7 @@ class CDAResult(
     val configuration: CDAConfig,
     val names: ClassDesignMatch<String>?,
     val kinds: ClassDesignMatch<ClassKind>?,
-    /* this should be serialized as a String representing the modifiers
-       it contains, since an API consumer can't reliably access the
-       Modifier static methods (:
-     */
-    val modifiers: ClassDesignMatch<Int>?,
+    val modifiers: ClassDesignMatch<List<String>>?,
     // order is significant since it affects the API
     val typeParams: ClassDesignMatch<List<String>>?,
     /* As much as it'd be nice to store the actual Type object, we want
@@ -329,10 +377,90 @@ val Class<*>.kind
         else -> ClassKind.CLASS
     }
 
+class OssifiedField(field: Field) {
+    val modifiers: List<String> = Modifier.toString(field.modifiers).split(" ")
+    val type: String = field.type.simpleName
+    val name: String = field.simpleName()
+
+    val answerableName: String
+        get() = modifiers.joinToString(" ") + type + name
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is OssifiedField) return false
+
+        return answerableName == other.answerableName
+    }
+
+    override fun hashCode(): Int {
+        var result = modifiers.hashCode()
+        result = 31 * result + type.hashCode()
+        result = 31 * result + name.hashCode()
+        return result
+    }
+}
+
+@Suppress("MemberVisibilityCanBePrivate")
+class OssifiedExecutable(executable: Executable) {
+    val isDefault: Boolean = executable is Method && executable.isDefault
+
+    // we need to ignore transient because methods cannot be transient. It seems like that bit is being used
+    // to mark that a method is varargs?
+    val modifiers: List<String> = Modifier.toString(
+        executable.modifiers and Modifier.TRANSIENT.inv()
+    ).split(" ")
+    val typeParams: List<String> = executable.typeParameters.map { it.simpleSourceName }
+    val returnType: String? = (executable as? Method)?.genericReturnType?.simpleSourceName
+    val name: String = executable.simpleName()
+    val parameters: List<String> = executable.genericParameterTypes.mapIndexed { index, type ->
+        if (executable.isVarArgs && index == executable.genericParameterTypes.size - 1) {
+            type.simpleSourceName.replaceFirst("\\[]$".toRegex(), "...")
+        } else {
+            type.simpleSourceName
+        }
+    }
+    val throws: List<String> = executable.genericExceptionTypes.map { it.simpleSourceName }
+
+    val answerableName: String
+        get() {
+            val parts: MutableList<String> = mutableListOf()
+            if (isDefault) {
+                parts.add("default")
+            }
+            parts.add(modifiers.joinToString(separator = " "))
+            parts.add(typeParams.joinToString(prefix = "<", separator = ", ", postfix = ">"))
+            returnType?.let { parts.add(it) }
+            // don't parts.add(name) or else you get <name> () instead of <name>()
+            parts.add(name + parameters.joinToString(prefix = "(", separator = ", ", postfix = ">"))
+            if (throws.isNotEmpty()) {
+                parts.add(throws.joinToString(prefix = "throws ", separator = ", "))
+            }
+            return parts.joinToString(separator = " ")
+        }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is OssifiedExecutable) return false
+
+        return answerableName == other.answerableName
+    }
+
+    override fun hashCode(): Int {
+        var result = isDefault.hashCode()
+        result = 31 * result + modifiers.hashCode()
+        result = 31 * result + typeParams.hashCode()
+        result = 31 * result + (returnType?.hashCode() ?: 0)
+        result = 31 * result + name.hashCode()
+        result = 31 * result + parameters.hashCode()
+        result = 31 * result + throws.hashCode()
+        return result
+    }
+}
+
 fun String.load(): Class<*> = Class.forName(this)
 
 fun Type.simpleName() = this.typeName.split(".").last()
 fun Field.simpleName() = this.name.split(".").last()
+fun Executable.simpleName() = this.name.split(".").last()
+
 fun Field.answerableName() = "${Modifier.toString(this.modifiers)} ${this.type.simpleName()} ${this.simpleName()}"
 fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
     this.getPublicFields().filter(filter)
@@ -341,6 +469,7 @@ fun Class<*>.publicMethods(filter: (executable: Executable) -> Boolean = { true 
     (this.getPublicMethods() + this.constructors).filter(filter)
 
 // alias filterNot with a more sensible name
+// TODO: can toss this after refactor
 fun <T> Iterable<T>.filterOut(p: (T) -> Boolean) = this.filterNot(p)
 
 class AnalysisOutput(val tag: AnalysisType, val result: AnalysisResult<*>) : DefaultSerializable {
