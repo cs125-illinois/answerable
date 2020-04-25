@@ -5,6 +5,15 @@ import edu.illinois.cs.cs125.jeed.core.Source
 import edu.illinois.cs.cs125.jeed.core.compile
 import kotlin.random.Random.Default.nextLong
 
+/**
+ * Simple entry point for securely running tests on Java classes.
+ * @param reference reference solution class code
+ * @param submission student submission class code
+ * @param common common code or null if none
+ * @param className the name of the class from [reference] and [submission] under test
+ * @param solutionName which question to use from [reference]
+ * @return the results of the testing
+ */
 fun testFromStrings(
     reference: String,
     submission: String,

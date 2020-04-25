@@ -20,6 +20,7 @@ test-output/
 
 # Generated files
 .idea/**/contentModel.xml
+.idea/**/modules.xml
 
 # Sensitive or high-churn files
 .idea/**/dataSources/

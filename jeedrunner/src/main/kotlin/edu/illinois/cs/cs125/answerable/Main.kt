@@ -2,6 +2,7 @@ package edu.illinois.cs.cs125.answerable
 
 import java.io.File
 
+// TODO: Nicer command-line interface
 fun main(args: Array<String>) {
     if (args.size == 2 || args.size == 3) {
         val refFname = args[0]
