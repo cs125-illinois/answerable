@@ -1,4 +1,3 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.net.URI
 
 plugins {
@@ -27,7 +26,7 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine:2.8.1")
 
     // Tests
-    testImplementation("junit:junit:4.13")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
 }
 
 tasks.test {
@@ -37,4 +36,5 @@ tasks.test {
         jvmArgs("-ea", "-Xmx1G", "-Xss256k")
     }
     environment["JEED_MAX_THREAD_POOL_SIZE"] = 4
+    useJUnitPlatform()
 }

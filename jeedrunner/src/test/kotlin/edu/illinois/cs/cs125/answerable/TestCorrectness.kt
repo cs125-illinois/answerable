@@ -1,8 +1,10 @@
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
-import org.junit.Assert
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.fail
 
 class TestCorrectness {
 
@@ -26,7 +28,7 @@ class TestCorrectness {
         """.trimIndent(), className = "Example")
         result.testSteps.filterIsInstance<ExecutedTestStep>().forEach {
             if (!it.succeeded) {
-                Assert.fail(it.toJson())
+                fail(it.toJson())
             }
         }
     }
@@ -48,8 +50,8 @@ class TestCorrectness {
                 }
             }
         """.trimIndent(), className = "Example")
-        Assert.assertTrue(result.classDesignAnalysisResult.all { it.result is Matched<*> })
-        Assert.assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+        assertTrue(result.classDesignAnalysisResult.all { it.result is Matched<*> })
+        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
     @Test
@@ -71,7 +73,7 @@ class TestCorrectness {
         """.trimIndent(), className = "Adder")
         result.testSteps.filterIsInstance<ExecutedTestStep>().forEach {
             if (!it.succeeded) {
-                Assert.fail(it.toJson())
+                fail(it.toJson())
             }
         }
     }
@@ -93,8 +95,8 @@ class TestCorrectness {
                 }
             }
         """.trimIndent(), className = "Adder")
-        Assert.assertTrue(result.classDesignAnalysisResult.all { it.result is Matched<*> })
-        Assert.assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+        assertTrue(result.classDesignAnalysisResult.all { it.result is Matched<*> })
+        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
 }
