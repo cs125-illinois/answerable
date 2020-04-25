@@ -1,7 +1,6 @@
-
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
-/*
+
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -41,27 +40,27 @@ internal class Analyze {
         val klasses = setOf("Foo", "Bar")
         klasses.correctPairs("names").forEach { (first, second) ->
             first.namesMatch(second).also {
-                assertTrue(it.matched)
+                assertTrue(it.match)
             }
         }
         klasses.incorrectPairs("names").forEach { (first, second) ->
             first.namesMatch(second).also {
-                assertFalse(it.matched)
+                assertFalse(it.match)
             }
         }
     }
 
     @Test
-    fun `should check class types correctly`() {
+    fun `should check class kinds correctly`() {
         val klasses = setOf("Klass", "Interfase")
         klasses.correctPairs("types").forEach { (first, second) ->
-            first.typesMatch(second).also {
-                assertTrue(it.matched)
+            first.kindsMatch(second).also {
+                assertTrue(it.match)
             }
         }
         klasses.incorrectPairs("types").forEach { (first, second) ->
-            first.typesMatch(second).also {
-                assertFalse(it.matched)
+            first.kindsMatch(second).also {
+                assertFalse(it.match)
             }
         }
     }
@@ -71,12 +70,12 @@ internal class Analyze {
         val klasses = setOf("Abstrict", "Finol", "StractFp")
         klasses.correctPairs("modifiers").forEach { (first, second) ->
             first.modifiersMatch(second).also {
-                assertTrue(it.matched)
+                assertTrue(it.match)
             }
         }
         klasses.incorrectPairs("modifiers").forEach { (first, second) ->
             first.modifiersMatch(second).also {
-                assertFalse(it.matched)
+                assertFalse(it.match)
             }
         }
     }
@@ -85,13 +84,13 @@ internal class Analyze {
     fun `should check class parents correctly`() {
         val klasses = setOf("Parent", "Child", "Parent_ExtendsObject")
         klasses.correctPairs("parents").forEach { (first, second) ->
-            first.parentsMatch(second).also {
-                assertTrue(it.matched)
+            first.superclassesMatch(second).also {
+                assertTrue(it.match)
             }
         }
         klasses.incorrectPairs("parents").forEach { (first, second) ->
-            first.parentsMatch(second).also {
-                assertFalse(it.matched)
+            first.superclassesMatch(second).also {
+                assertFalse(it.match)
             }
         }
     }
@@ -109,28 +108,44 @@ internal class Analyze {
         )
         klasses.correctPairs("interfaces").forEach { (first, second) ->
             first.interfacesMatch(second).also {
-                assertTrue(it.matched)
+                assertTrue(it.match)
             }
         }
         klasses.incorrectPairs("interfaces").forEach { (first, second) ->
             first.interfacesMatch(second).also {
-                assertFalse(it.matched)
+                assertFalse(it.match)
             }
         }
     }
 
     @Test
     fun `should check class fields correctly`() {
-        "examples.classdesign.publicapi.fields.reference.Simple".load().publicFieldsMatch(
+        "examples.classdesign.publicapi.fields.reference.Simple".load().fieldsMatch(
             "examples.classdesign.publicapi.fields.Simple".load()
         ).also {
-            assertTrue(it.matched)
+            assertTrue(it.match)
         }
-        "examples.classdesign.publicapi.fields.reference.Simple".load().publicFieldsMatch(
+        "examples.classdesign.publicapi.fields.reference.Simple".load().fieldsMatch(
             "examples.classdesign.publicapi.fields.String".load()
         ).also {
-            assertFalse(it.matched)
+            assertFalse(it.match)
         }
+    }
+
+    @Test
+    fun `should generate field names correctly`() {
+        fun nameShouldBe(className: String, fieldName: String, expected: String) {
+            "examples.classdesign.publicapi.fields.$className".load().declaredFields.also {
+                it.find { it.name == fieldName }?.answerableName().also { actual ->
+                    assertEquals(expected, actual)
+                } ?: fail("didn't have field")
+            }
+        }
+
+        nameShouldBe("BadNames", "myInt", "public static int myInt")
+        nameShouldBe("BadNames", "myString", "public String myString")
+        nameShouldBe("MultipleTooMany", "extra2", "public byte extra2")
+        nameShouldBe("TypeParam", "FIRST", "public final T FIRST")
     }
 
     @Test
@@ -171,4 +186,4 @@ internal class Analyze {
                 assertEquals("public void multi(int, int...)", it)
             }
     }
-}*/
+}

@@ -379,11 +379,12 @@ val Class<*>.kind
 
 class OssifiedField(field: Field) {
     val modifiers: List<String> = Modifier.toString(field.modifiers).split(" ")
-    val type: String = field.type.simpleName
+    // note: formerly used field.type.simpleName, which fails for a generic field in a generic class
+    val type: String = field.genericType.simpleSourceName
     val name: String = field.simpleName()
 
     val answerableName: String
-        get() = modifiers.joinToString(" ") + type + name
+        get() = (modifiers.toMutableList() + type + name).joinToString(separator = " ")
 
     override fun equals(other: Any?): Boolean {
         if (other !is OssifiedField) return false
@@ -405,6 +406,8 @@ class OssifiedExecutable(executable: Executable) {
 
     // we need to ignore transient because methods cannot be transient. It seems like that bit is being used
     // to mark that a method is varargs?
+    // If you want to ignore a modifier, you have to filter it out of the list. Storing modifiers as an int
+    // makes it harder to serialize, and I can't think of a practical reason to ignore modifiers in CDA.
     val modifiers: List<String> = Modifier.toString(
         executable.modifiers and Modifier.TRANSIENT.inv()
     ).split(" ")
@@ -427,10 +430,12 @@ class OssifiedExecutable(executable: Executable) {
                 parts.add("default")
             }
             parts.add(modifiers.joinToString(separator = " "))
-            parts.add(typeParams.joinToString(prefix = "<", separator = ", ", postfix = ">"))
+            if (typeParams.isNotEmpty()) {
+                parts.add(typeParams.joinToString(prefix = "<", separator = ", ", postfix = ">"))
+            }
             returnType?.let { parts.add(it) }
             // don't parts.add(name) or else you get <name> () instead of <name>()
-            parts.add(name + parameters.joinToString(prefix = "(", separator = ", ", postfix = ">"))
+            parts.add(name + parameters.joinToString(prefix = "(", separator = ", ", postfix = ")"))
             if (throws.isNotEmpty()) {
                 parts.add(throws.joinToString(prefix = "throws ", separator = ", "))
             }
@@ -457,11 +462,6 @@ class OssifiedExecutable(executable: Executable) {
 
 fun String.load(): Class<*> = Class.forName(this)
 
-fun Type.simpleName() = this.typeName.split(".").last()
-fun Field.simpleName() = this.name.split(".").last()
-fun Executable.simpleName() = this.name.split(".").last()
-
-fun Field.answerableName() = "${Modifier.toString(this.modifiers)} ${this.type.simpleName()} ${this.simpleName()}"
 fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
     this.getPublicFields().filter(filter)
 
@@ -486,44 +486,11 @@ sealed class AnalysisResult<out T> : DefaultSerializable {
 data class Matched<T>(val found: T) : AnalysisResult<T>()
 data class Mismatched<T>(val expected: T, val found: T) : AnalysisResult<T>()
 
-fun Executable.answerableName(
-    ignoredModifiers: Int = Modifier.TRANSIENT
-): String {
-    val parts = mutableListOf<String>()
-    if (this is Method && this.isDefault) {
-        parts.add("default")
-    }
-    parts.add(Modifier.toString(this.modifiers and ignoredModifiers.inv()))
-    if (this.typeParameters.isNotEmpty()) {
-        parts.add(
-            this.typeParameters.joinToString(
-                prefix = "<",
-                separator = ", ",
-                postfix = ">"
-            ) { it.simpleSourceName }
-        )
-    }
-    if (this is Method) {
-        parts.add(this.genericReturnType.simpleSourceName)
-    }
-    parts.add(
-        this.genericParameterTypes.mapIndexed { index, type ->
-            if (this.isVarArgs && index == this.genericParameterTypes.size - 1) {
-                type.simpleSourceName.replaceFirst("\\[]$".toRegex(), "...")
-            } else {
-                type.simpleSourceName
-            }
-        }.joinToString(prefix = "${this.name.split(".").last()}(", separator = ", ", postfix = ")")
-    )
-    if (this.genericExceptionTypes.isNotEmpty()) {
-        parts.add(
-            this.genericExceptionTypes.joinToString(prefix = "throws ", separator = ", ") {
-                it.simpleSourceName
-            }
-        )
-    }
-    return parts.joinToString(separator = " ")
-}
+fun Type.simpleName() = this.typeName.split(".").last()
+fun Executable.simpleName() = this.name.split(".").last()
+fun Executable.answerableName() = OssifiedExecutable(this).answerableName
+fun Field.simpleName() = this.name.split(".").last()
+fun Field.answerableName() = OssifiedField(this).answerableName
 
 private fun printModifiersIfNonzero(sb: StringBuilder, mask: Int, isDefault: Boolean) {
     var mod = mask
