@@ -1,4 +1,4 @@
-@file:Suppress("KDocUnresolvedReference")
+@file:Suppress("KDocUnresolvedReference", "TooManyFunctions", "SpreadOperator")
 
 package edu.illinois.cs.cs125.answerable.annotations
 
