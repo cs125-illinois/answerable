@@ -38,8 +38,12 @@ fun Class<*>.namesMatch(other: Class<*>): ClassDesignMatch<String> =
 fun Class<*>.kindsMatch(other: Class<*>): ClassDesignMatch<ClassKind> =
     ClassDesignMatch(AnalysisType.KIND, this.kind, other.kind)
 
-fun Class<*>.modifiersMatch(other: Class<*>): ClassDesignMatch<Int> =
-    ClassDesignMatch(AnalysisType.MODIFIERS, this.modifiers, other.modifiers)
+fun Class<*>.modifiersMatch(other: Class<*>): ClassDesignMatch<List<String>> =
+    ClassDesignMatch(
+        AnalysisType.MODIFIERS,
+        Modifier.toString(this.modifiers).split(" "),
+        Modifier.toString(other.modifiers).split(" ")
+    )
 
 fun Class<*>.typeParametersMatch(other: Class<*>): ClassDesignMatch<List<String>> =
     ClassDesignMatch(
