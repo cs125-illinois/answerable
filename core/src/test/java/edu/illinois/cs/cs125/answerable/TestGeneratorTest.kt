@@ -296,4 +296,12 @@ internal class TestGeneratorTest {
                 .runTestsUnsecured(Random.nextLong())
         assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
+
+    @Test
+    fun testGenerationFailed() {
+        val result = PassedClassDesignRunner(examples.proxy.reference.Widget::class.java,
+            examples.proxy.ExplodingCtorWidget::class.java).runTestsUnsecured(0x0403)
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
+    }
+
 }

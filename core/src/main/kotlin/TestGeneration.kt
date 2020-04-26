@@ -798,6 +798,7 @@ internal class TestRunWorker internal constructor(
 
         var i = 0
         while (testingBlockCounts.numTests < numTests) {
+            // TODO: Catch exceptions from generation and report the test as Behavior.GENERATION_FAILED
             val refMethodArgs: Array<Any?>
             val subMethodArgs: Array<Any?>
             @Suppress("MagicNumber")
@@ -1184,7 +1185,7 @@ internal fun ArrayWrapper?.isNullOrEmpty() = this == null || this.size == 0
 /**
  * The types of behaviors that methods under test can have.
  */
-enum class Behavior { RETURNED, THREW, VERIFY_ONLY }
+enum class Behavior { RETURNED, THREW, VERIFY_ONLY, GENERATION_FAILED }
 
 /**
  * Represents a single iteration of the main testing loop.
