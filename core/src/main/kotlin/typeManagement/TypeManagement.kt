@@ -3,12 +3,12 @@
 package edu.illinois.cs.cs125.answerable.typeManagement
 
 import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
-import edu.illinois.cs.cs125.answerable.EdgeCase
-import edu.illinois.cs.cs125.answerable.Generator
-import edu.illinois.cs.cs125.answerable.Helper
-import edu.illinois.cs.cs125.answerable.Next
-import edu.illinois.cs.cs125.answerable.SimpleCase
-import edu.illinois.cs.cs125.answerable.Verify
+import edu.illinois.cs.cs125.answerable.annotations.EdgeCase
+import edu.illinois.cs.cs125.answerable.annotations.Generator
+import edu.illinois.cs.cs125.answerable.annotations.Helper
+import edu.illinois.cs.cs125.answerable.annotations.Next
+import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
+import edu.illinois.cs.cs125.answerable.annotations.Verify
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.api.EnumerableBytecodeLoader
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName

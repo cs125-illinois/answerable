@@ -2,6 +2,8 @@
 
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.annotations.DefaultTestRunArguments
+
 /**
  * A class that holds configuration for [TestRunner]s.
  */

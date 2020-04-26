@@ -11,7 +11,7 @@ class TestCorrectness {
     @Test
     fun testPrintOutputCorrect() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.Solution;
+            import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Example {
                 @Solution(prints = true)
                 public static void sayHi() {
@@ -36,7 +36,7 @@ class TestCorrectness {
     @Test
     fun testPrintOutputWrong() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.Solution;
+            import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Example {
                 @Solution(prints = true)
                 public static void sayHi() {
@@ -57,7 +57,7 @@ class TestCorrectness {
     @Test
     fun testAdderCorrect() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.Solution;
+            import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Adder {
                 @Solution
                 public static int add(int a, int b) {
@@ -81,7 +81,7 @@ class TestCorrectness {
     @Test
     fun testAdderWrong() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.Solution;
+            import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Adder {
                 @Solution
                 public static int add(int a, int b) {
