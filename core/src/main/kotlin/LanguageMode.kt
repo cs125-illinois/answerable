@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
