@@ -1,9 +1,9 @@
-package edu.illinois.cs.cs125.answerable.classdesignanalysis.fixtures.validate;
+package edu.illinois.cs.cs125.answerable.annotations.fixtures;
 
-import edu.illinois.cs.cs125.answerable.EdgeCase;
-import edu.illinois.cs.cs125.answerable.SimpleCase;
+import edu.illinois.cs.cs125.answerable.annotations.EdgeCase;
+import edu.illinois.cs.cs125.answerable.annotations.SimpleCase;
 
-public class TestValidateCaseMethods {
+public class TestValidateCaseMethod {
     @SimpleCase
     public static int[] correct1() {
         return new int[] { };

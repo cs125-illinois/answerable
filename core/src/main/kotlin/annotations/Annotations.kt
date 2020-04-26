@@ -1,6 +1,10 @@
-@file:Suppress("KDocUnresolvedReference")
+@file:Suppress("KDocUnresolvedReference", "TooManyFunctions", "SpreadOperator")
 
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.annotations
+
+import java.lang.reflect.Field
+import java.lang.reflect.Method
+import java.lang.reflect.Modifier
 
 /**
  * Annotation to mark a method as the reference solution for Answerable.
@@ -72,7 +76,33 @@ annotation class Timeout(
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Next(
     val name: String = ""
-)
+) {
+    companion object {
+        val parameterTypes = arrayOf(Int::class.java, java.util.Random::class.java)
+        fun validate(method: Method): AnnotationUseError? {
+            val message = if (!method.isAnnotationPresent(Next::class.java)) {
+                null
+            } else if (!Modifier.isStatic(method.modifiers)) {
+                "@Next methods must be static"
+            } else if (!(method.parameterTypes contentEquals parameterTypes)) {
+                "@Next methods must take parameters (int, Random)"
+            } else {
+                null
+            }
+            return if (message != null) {
+                AnnotationUseError(
+                    AnnotationUseError.Kind.Next,
+                    SourceLocation(method),
+                    message
+                )
+            } else {
+                null
+            }
+        }
+    }
+}
+
+internal fun Class<*>.validateNext() = this.declaredMethods.map { Next.validate(it) }.filterNotNull()
 
 /**
  * Marks a method which can produce objects (or primitives) of arbitrary type for testing.
@@ -106,7 +136,34 @@ annotation class Next(
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Generator(
     val name: String = ""
-)
+) {
+    companion object {
+        private val parameterTypes = arrayOf(Int::class.java, java.util.Random::class.java)
+
+        fun validate(method: Method): AnnotationUseError? {
+            val message = if (!method.isAnnotationPresent(Generator::class.java)) {
+                null
+            } else if (!Modifier.isStatic(method.modifiers)) {
+                "@Generator methods must be static"
+            } else if (!(method.parameterTypes contentEquals parameterTypes)) {
+                "@Generator methods must take parameters (int, Random)"
+            } else {
+                null
+            }
+            return if (message != null) {
+                AnnotationUseError(
+                    AnnotationUseError.Kind.Generator,
+                    SourceLocation(method),
+                    message
+                )
+            } else {
+                null
+            }
+        }
+    }
+}
+
+internal fun Class<*>.validateGenerator() = this.declaredMethods.map { Generator.validate(it) }.filterNotNull()
 
 /**
  * Marks that a method parameter should use a particular generator.
@@ -118,6 +175,28 @@ annotation class Generator(
 annotation class UseGenerator(
     val name: String
 )
+
+internal fun Method.validateCase(): String? {
+    return if (!Modifier.isStatic(modifiers)) {
+        "method must be static"
+    } else if (!parameterTypes.isEmpty()) {
+        "method must not accept any parameters"
+    } else if (!returnType.isArray) {
+        "method must return an array"
+    } else {
+        null
+    }
+}
+
+internal fun Field.validateCase(): String? {
+    return if (!Modifier.isStatic(modifiers)) {
+        "field must be static"
+    } else if (!type.isArray) {
+        "field must store an array"
+    } else {
+        null
+    }
+}
 
 /**
  * Marks a field or function as storing or returning all the 'edge cases' for a type.
@@ -141,7 +220,63 @@ annotation class UseGenerator(
 @Retention(AnnotationRetention.RUNTIME)
 annotation class EdgeCase(
     val name: String = ""
-)
+) {
+    companion object {
+        fun validate(method: Method): AnnotationUseError? {
+            val message = if (!method.isAnnotationPresent(EdgeCase::class.java)) {
+                null
+            } else if (method.isAnnotationPresent(SimpleCase::class.java)) {
+                "Can't use both @EdgeCase and @SimpleCase on the same method"
+            } else {
+                method.validateCase().let { error ->
+                    if (error == null) {
+                        null
+                    } else {
+                        "@EdgeCase $error"
+                    }
+                }
+            }
+            return if (message == null) {
+                null
+            } else {
+                AnnotationUseError(
+                    AnnotationUseError.Kind.EdgeCase,
+                    SourceLocation(method),
+                    message
+                )
+            }
+        }
+
+        fun validate(field: Field): AnnotationUseError? {
+            val message = if (!field.isAnnotationPresent(EdgeCase::class.java)) {
+                null
+            } else if (field.isAnnotationPresent(SimpleCase::class.java)) {
+                "Can't use both @EdgeCase and @SimpleCase on the same field"
+            } else {
+                field.validateCase().let { error ->
+                    if (error == null) {
+                        null
+                    } else {
+                        "@EdgeCase $error"
+                    }
+                }
+            }
+            return if (message == null) {
+                null
+            } else {
+                AnnotationUseError(
+                    AnnotationUseError.Kind.EdgeCase,
+                    SourceLocation(field),
+                    message
+                )
+            }
+        }
+    }
+}
+
+internal fun Class<*>.validateEdgeCase() =
+    (this.declaredMethods.map { EdgeCase.validate(it) } + this.declaredFields.map { EdgeCase.validate(it) })
+        .filterNotNull()
 
 /**
  * Marks a field or function as storing or returning all the 'corner cases' for a type.
@@ -162,7 +297,65 @@ annotation class EdgeCase(
 @Retention(AnnotationRetention.RUNTIME)
 annotation class SimpleCase(
     val name: String = ""
-)
+) {
+    companion object {
+        fun validate(method: Method): AnnotationUseError? {
+            val message = if (!method.isAnnotationPresent(SimpleCase::class.java)) {
+                null
+            } else if (method.isAnnotationPresent(EdgeCase::class.java)) {
+                "Can't use both @SimpleCase and @EdgeCase on the same method"
+            } else {
+                method.validateCase().let { error ->
+                    if (error == null) {
+                        null
+                    } else {
+                        "@SimpleCase $error"
+                    }
+                }
+            }
+            return if (message == null) {
+                null
+            } else {
+                AnnotationUseError(
+                    AnnotationUseError.Kind.SimpleCase,
+                    SourceLocation(method),
+                    message
+                )
+            }
+        }
+
+        fun validate(field: Field): AnnotationUseError? {
+            val message = if (!field.isAnnotationPresent(SimpleCase::class.java)) {
+                null
+            } else if (field.isAnnotationPresent(EdgeCase::class.java)) {
+                "Can't use both @SimpleCase and @EdgeCase on the same field"
+            } else {
+                field.validateCase().let { error ->
+                    if (error == null) {
+                        null
+                    } else {
+                        "@SimpleCase $error"
+                    }
+                }
+            }
+            return if (message == null) {
+                null
+            } else {
+                AnnotationUseError(
+                    AnnotationUseError.Kind.SimpleCase,
+                    SourceLocation(field),
+                    message
+                )
+            }
+        }
+    }
+}
+
+internal fun Class<*>.validateSimpleCase() =
+    (this.declaredMethods.map { SimpleCase.validate(it) } + this.declaredFields.map { SimpleCase.validate(it) })
+        .filterNotNull()
+
+internal val caseAnnotations = setOf(EdgeCase::class.java, SimpleCase::class.java)
 
 /**
  * Marks a function as a precondition check on a set of arguments, allowing you to discard test cases which don't meet
@@ -184,7 +377,40 @@ annotation class SimpleCase(
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Precondition(
     val name: String = ""
-)
+) {
+    companion object {
+        fun validate(klass: Class<*>): List<AnnotationUseError> {
+            val methods = klass.declaredMethods
+            return methods.map { method ->
+                if (!method.isAnnotationPresent(Precondition::class.java)) {
+                    return@map Pair(method, null)
+                } else if (method.returnType != Boolean::class.java) {
+                    return@map Pair(method, "@Precondition methods must return a boolean.")
+                }
+                val name = method.getAnnotation(Precondition::class.java).name
+                val solution = methods.find {
+                    it.getAnnotation(Solution::class.java)?.name == name
+                } ?: return@map Pair(method, null)
+                if (Modifier.isStatic(solution.modifiers) && !Modifier.isStatic(method.modifiers)) {
+                    return@map Pair(method, "@Precondition methods must be static if the solution is static.")
+                } else if (!(solution.genericParameterTypes contentEquals method.genericParameterTypes)) {
+                    return@map Pair(
+                        method,
+                        "@Precondition methods must have the same parameter types as the corresponding @Solution."
+                    )
+                }
+                Pair(method, null)
+            }.map { (method, message) ->
+                if (message == null) {
+                    null
+                } else {
+                    AnnotationUseError(AnnotationUseError.Kind.Precondition, SourceLocation(method), message)
+                }
+            }.filterNotNull()
+        }
+    }
+}
+internal fun Class<*>.validatePrecondition() = Precondition.validate(this)
 
 /**
  * Marks a method as a custom verifier. The method will be called once per testing loop instead of Answerable's default
@@ -272,3 +498,27 @@ annotation class DefaultTestRunArguments(
     val numRegressionTests: Int = -1,
     val maxComplexity: Int = -1
 )
+
+data class AnnotationUseError(val kind: Kind, val location: SourceLocation, val message: String) {
+    enum class Kind {
+        Generator, Next, EdgeCase, SimpleCase, CaseMethod, DefaultTestRunArguments, Precondition
+    }
+}
+
+internal fun Array<Method>.hasAnyAnnotation(klasses: Collection<Class<out Annotation>>): List<Method> =
+    this.hasAnyAnnotation(*klasses.toTypedArray())
+
+internal fun Array<Method>.hasAnyAnnotation(vararg klasses: Class<out Annotation>): List<Method> =
+    this.filter { method -> klasses.any { method.isAnnotationPresent(it) } }
+
+internal fun Method.areAnnotationsPresent(klasses: Collection<Class<out Annotation>>): Boolean =
+    this.areAnnotationsPresent(*klasses.toTypedArray())
+
+internal fun Method.areAnnotationsPresent(vararg klasses: Class<out Annotation>): Boolean =
+    klasses.all { this.isAnnotationPresent(it) }
+
+internal fun Class<*>.methodsWithAnyAnnotation(klasses: Collection<Class<out Annotation>>): List<Method> =
+    this.methodsWithAnyAnnotation(*klasses.toTypedArray())
+
+internal fun Class<*>.methodsWithAnyAnnotation(vararg klasses: Class<out Annotation>): List<Method> =
+    this.declaredMethods.hasAnyAnnotation(*klasses)

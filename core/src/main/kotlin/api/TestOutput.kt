@@ -118,6 +118,7 @@ data class OssifiedValue internal constructor(
 
 internal fun Any?.ossify(pool: TypePool): OssifiedValue? {
     fun safeStringify(block: () -> String): String {
+        @Suppress("TooGenericExceptionCaught")
         return try {
             block()
         } catch (t: Throwable) {

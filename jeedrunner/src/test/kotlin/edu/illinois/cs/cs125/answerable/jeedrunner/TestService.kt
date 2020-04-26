@@ -68,7 +68,7 @@ class TestService {
     @Test
     fun testAnswerableMisuseExceptionUpdate() {
         val refCode = """
-            import edu.illinois.cs.cs125.answerable.Solution;
+            import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Widget {
                 private int springs;
                 public Widget(int setSprings) {
@@ -98,7 +98,7 @@ class TestService {
 
     companion object {
         val WIDGET_JAVA_REFERENCE_CODE = """
-            import edu.illinois.cs.cs125.answerable.*;
+            import edu.illinois.cs.cs125.answerable.annotations.*;
             import java.util.Random;
             public class Widget {
                 private int springs;

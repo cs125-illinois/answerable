@@ -1,6 +1,6 @@
 package examples.verify;
 
-import edu.illinois.cs.cs125.answerable.Generator;
+import edu.illinois.cs.cs125.answerable.annotations.Generator;
 
 import java.util.Random;
 

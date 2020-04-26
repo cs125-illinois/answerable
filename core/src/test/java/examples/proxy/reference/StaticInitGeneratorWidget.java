@@ -1,9 +1,9 @@
 package examples.proxy.reference;
 
-import edu.illinois.cs.cs125.answerable.Generator;
-import edu.illinois.cs.cs125.answerable.Helper;
-import edu.illinois.cs.cs125.answerable.Next;
-import edu.illinois.cs.cs125.answerable.Solution;
+import edu.illinois.cs.cs125.answerable.annotations.Generator;
+import edu.illinois.cs.cs125.answerable.annotations.Helper;
+import edu.illinois.cs.cs125.answerable.annotations.Next;
+import edu.illinois.cs.cs125.answerable.annotations.Solution;
 
 import java.util.Random;
 

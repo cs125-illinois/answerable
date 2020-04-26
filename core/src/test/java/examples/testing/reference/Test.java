@@ -1,6 +1,10 @@
 package examples.testing.reference;
 
 import edu.illinois.cs.cs125.answerable.*;
+import edu.illinois.cs.cs125.answerable.annotations.Generator;
+import edu.illinois.cs.cs125.answerable.annotations.Solution;
+import edu.illinois.cs.cs125.answerable.annotations.Timeout;
+import edu.illinois.cs.cs125.answerable.annotations.Verify;
 import edu.illinois.cs.cs125.answerable.api.*;
 
 import java.util.List;

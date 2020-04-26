@@ -1,17 +1,11 @@
 @file:Suppress("TooManyFunctions")
 
-package edu.illinois.cs.cs125.answerable.classdesignanalysis
+package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
-import edu.illinois.cs.cs125.answerable.DefaultTestRunArguments
-import edu.illinois.cs.cs125.answerable.EdgeCase
-import edu.illinois.cs.cs125.answerable.Generator
-import edu.illinois.cs.cs125.answerable.Next
-import edu.illinois.cs.cs125.answerable.Precondition
-import edu.illinois.cs.cs125.answerable.SimpleCase
-import edu.illinois.cs.cs125.answerable.Solution
-import edu.illinois.cs.cs125.answerable.Verify
 import edu.illinois.cs.cs125.answerable.api.TestOutput
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.simpleName
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -83,6 +77,31 @@ fun <E, T> tolerate(result: ValidationResult<E, T>): ValidationResult<E, T?> = w
         result.errors,
         null
     )
+}
+
+data class SourceLocation(
+    val packageName: String,
+    val className: String? = null,
+    val methodName: String? = null,
+    val fieldName: String? = null
+) {
+    constructor(klass: Class<*>) : this(klass.packageName, klass.simpleName)
+    constructor(method: Method) : this(
+        method.declaringClass.packageName,
+        method.declaringClass.simpleName,
+        methodName = method.answerableName()
+    )
+    constructor(field: Field) : this(
+        field.declaringClass.packageName,
+        field.declaringClass.simpleName,
+        fieldName = field.simpleName()
+    )
+}
+
+data class ValidationError(val kind: Kind, val location: SourceLocation, val message: String) {
+    enum class Kind {
+        Generator, Next, CaseMethod, DefaultTestRunArguments
+    }
 }
 
 internal fun validateStaticSignatures(referenceClass: Class<*>) {
@@ -254,7 +273,37 @@ private fun validatePreconditions(methods: Array<Method>): ValidationResult<Stri
     return fromErrors(errors, Unit)
 }
 
-private val caseAnnotations = setOf(EdgeCase::class.java, SimpleCase::class.java)
+internal fun Class<*>.validateCaseMethods(): List<ValidationError> {
+    return this.methodsWithAnyAnnotation(caseAnnotations).map { method ->
+        if (method.areAnnotationsPresent(caseAnnotations)) {
+            return@map ValidationError(
+                ValidationError.Kind.CaseMethod,
+                SourceLocation(method),
+                "Can't use both @SimpleCase and @EdgeCase on the same method"
+            )
+        }
+        val annotationKind = if (method.isAnnotationPresent(SimpleCase::class.java)) {
+            "@SimpleCase"
+        } else {
+            "@EdgeCase"
+        }
+        val message = if (!Modifier.isStatic(method.modifiers)) {
+            "$annotationKind method must be static"
+        } else if (!method.parameterTypes.isEmpty()) {
+            "$annotationKind method must not accept any parameters"
+        } else if (!method.returnType.isArray) {
+            "$annotationKind method must return an array"
+        } else {
+            return@map null
+        }
+        ValidationError(
+            ValidationError.Kind.CaseMethod,
+            SourceLocation(method),
+            message
+        )
+    }.filterNotNull()
+}
+
 private fun validateCaseMethods(methods: Array<Method>): ValidationResult<String, Unit> {
     val cases = methods.filter { method -> caseAnnotations.any { method.isAnnotationPresent(it) } }
     val errors: MutableList<String> = mutableListOf()
@@ -331,6 +380,22 @@ private fun validateCaseFields(clazz: Class<*>, fields: Array<Field>): Validatio
     return fromErrors(errors, Unit)
 }
 
+fun Class<*>.validateDefaultTestRunArguments(): List<ValidationError> {
+    return this.methodsWithAnyAnnotation(DefaultTestRunArguments::class.java).filter { method ->
+        if (method.isAnnotationPresent(Verify::class.java)) {
+            !method.getAnnotation(Verify::class.java).standalone
+        } else {
+            !method.isAnnotationPresent(Solution::class.java)
+        }
+    }.map { method ->
+        ValidationError(
+            ValidationError.Kind.DefaultTestRunArguments,
+            SourceLocation(method),
+            "@DefaultTestRunArguments can only be applied to a @Solution or standalone @Verify method."
+        )
+    }
+}
+
 private fun validateRunArgs(methods: Array<Method>): ValidationResult<String, Unit> {
     val errors: MutableList<String> = mutableListOf()
 
@@ -350,70 +415,4 @@ private fun validateRunArgs(methods: Array<Method>): ValidationResult<String, Un
     return fromErrors(errors, Unit)
 }
 
-data class SourceLocation(val packageName: String, val className: String? = null, val methodName: String? = null) {
-    constructor(klass: Class<*>) : this(klass.packageName, klass.simpleName)
-    constructor(method: Method) : this(
-        method.declaringClass.packageName,
-        method.declaringClass.simpleName,
-        method.answerableName()
-    )
-}
-
-data class ValidationError(val kind: Kind, val location: SourceLocation, val message: String) {
-    enum class Kind {
-        CaseMethods, DefaultTestRunArguments
-    }
-}
-
-fun Class<*>.validateCaseMethods(): List<ValidationError> {
-    return this.methodsWithAnyAnnotation(SimpleCase::class.java, EdgeCase::class.java).map { method ->
-        if (method.isAnnotationPresent(SimpleCase::class.java) &&
-            method.isAnnotationPresent(EdgeCase::class.java)
-        ) {
-            return@map ValidationError(
-                ValidationError.Kind.CaseMethods, SourceLocation(method),
-                "Can't use both @SimpleCase and @EdgeCase on the same method"
-            )
-        }
-        val annotationKind = if (method.isAnnotationPresent(SimpleCase::class.java)) {
-            "@SimpleCase"
-        } else {
-            "@EdgeCase"
-        }
-        val message = if (!Modifier.isStatic(method.modifiers)) {
-            "$annotationKind method must be static"
-        } else if (!method.parameterTypes.isEmpty()) {
-            "$annotationKind method must not accept any parameters"
-        } else if (!method.returnType.isArray) {
-            "$annotationKind method must return an array"
-        } else {
-            return@map null
-        }
-        ValidationError(ValidationError.Kind.CaseMethods, SourceLocation(method), message)
-    }.filterNotNull()
-}
-
-fun Class<*>.validateDefaultTestRunArguments(): List<ValidationError> {
-    return this.methodsWithAnyAnnotation(DefaultTestRunArguments::class.java).filter { method ->
-        if (method.isAnnotationPresent(Verify::class.java)) {
-            !method.getAnnotation(Verify::class.java).standalone
-        } else {
-            !method.isAnnotationPresent(Solution::class.java)
-        }
-    }.map { method ->
-        ValidationError(
-            ValidationError.Kind.DefaultTestRunArguments,
-            SourceLocation(method),
-            "@DefaultTestRunArguments can only be applied to a @Solution or standalone @Verify method."
-        )
-    }
-}
-
-@Suppress("UNCHECKED_CAST")
-internal fun Array<Method>.hasAnyAnnotation(vararg klasses: Class<*>): List<Method> = this.filter { method ->
-    klasses.any { method.isAnnotationPresent(it as Class<out Annotation>) }
-}
-
-@Suppress("SpreadOperator")
-internal fun Class<*>.methodsWithAnyAnnotation(vararg klasses: Class<*>): List<Method> =
-    this.declaredMethods.hasAnyAnnotation(*klasses)
+private fun Method.isStatic() = Modifier.isStatic(this.modifiers)
