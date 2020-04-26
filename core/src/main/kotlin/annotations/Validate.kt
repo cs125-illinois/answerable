@@ -1,21 +1,11 @@
 @file:Suppress("TooManyFunctions")
 
-package edu.illinois.cs.cs125.answerable.classdesignanalysis
+package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
-import edu.illinois.cs.cs125.answerable.DefaultTestRunArguments
-import edu.illinois.cs.cs125.answerable.EdgeCase
-import edu.illinois.cs.cs125.answerable.Generator
-import edu.illinois.cs.cs125.answerable.Next
-import edu.illinois.cs.cs125.answerable.Precondition
-import edu.illinois.cs.cs125.answerable.SimpleCase
-import edu.illinois.cs.cs125.answerable.Solution
-import edu.illinois.cs.cs125.answerable.Verify
 import edu.illinois.cs.cs125.answerable.api.TestOutput
-import edu.illinois.cs.cs125.answerable.areAnnotationsPresent
-import edu.illinois.cs.cs125.answerable.caseAnnotations
-import edu.illinois.cs.cs125.answerable.generatorParameterTypes
-import edu.illinois.cs.cs125.answerable.methodsWithAnyAnnotation
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.simpleName
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -89,18 +79,28 @@ fun <E, T> tolerate(result: ValidationResult<E, T>): ValidationResult<E, T?> = w
     )
 }
 
-data class SourceLocation(val packageName: String, val className: String? = null, val methodName: String? = null) {
+data class SourceLocation(
+    val packageName: String,
+    val className: String? = null,
+    val methodName: String? = null,
+    val fieldName: String? = null
+) {
     constructor(klass: Class<*>) : this(klass.packageName, klass.simpleName)
     constructor(method: Method) : this(
         method.declaringClass.packageName,
         method.declaringClass.simpleName,
-        method.answerableName()
+        methodName = method.answerableName()
+    )
+    constructor(field: Field) : this(
+        field.declaringClass.packageName,
+        field.declaringClass.simpleName,
+        fieldName = field.simpleName()
     )
 }
 
 data class ValidationError(val kind: Kind, val location: SourceLocation, val message: String) {
     enum class Kind {
-        Generators, CaseMethods, DefaultTestRunArguments
+        Generator, Next, CaseMethod, DefaultTestRunArguments
     }
 }
 
@@ -130,26 +130,6 @@ internal fun validateStaticSignatures(referenceClass: Class<*>) {
             result.errors.joinToString("\n\n")
         )
     }
-}
-
-fun Class<*>.validateGenerators(): List<ValidationError> {
-    return this.methodsWithAnyAnnotation(Generator::class.java).map { method ->
-        if (!method.isStatic()) {
-            ValidationError(
-                ValidationError.Kind.Generators,
-                SourceLocation(method),
-                "@Generator methods must be static"
-            )
-        } else if (!(method.parameterTypes.toList() == generatorParameterTypes)) {
-            ValidationError(
-                ValidationError.Kind.Generators,
-                SourceLocation(method),
-                "@Generator methods must take parameter types (int, Random)"
-            )
-        } else {
-            null
-        }
-    }.filterNotNull()
 }
 
 private val generatorPTypes = arrayOf(Int::class.java, java.util.Random::class.java)
@@ -297,7 +277,8 @@ internal fun Class<*>.validateCaseMethods(): List<ValidationError> {
     return this.methodsWithAnyAnnotation(caseAnnotations).map { method ->
         if (method.areAnnotationsPresent(caseAnnotations)) {
             return@map ValidationError(
-                ValidationError.Kind.CaseMethods, SourceLocation(method),
+                ValidationError.Kind.CaseMethod,
+                SourceLocation(method),
                 "Can't use both @SimpleCase and @EdgeCase on the same method"
             )
         }
@@ -315,7 +296,11 @@ internal fun Class<*>.validateCaseMethods(): List<ValidationError> {
         } else {
             return@map null
         }
-        ValidationError(ValidationError.Kind.CaseMethods, SourceLocation(method), message)
+        ValidationError(
+            ValidationError.Kind.CaseMethod,
+            SourceLocation(method),
+            message
+        )
     }.filterNotNull()
 }
 

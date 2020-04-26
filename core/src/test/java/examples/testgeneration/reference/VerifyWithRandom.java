@@ -1,7 +1,7 @@
 package examples.testgeneration.reference;
 
 import edu.illinois.cs.cs125.answerable.api.TestOutput;
-import edu.illinois.cs.cs125.answerable.Verify;
+import edu.illinois.cs.cs125.answerable.annotations.Verify;
 
 import org.junit.jupiter.api.Assertions;
 

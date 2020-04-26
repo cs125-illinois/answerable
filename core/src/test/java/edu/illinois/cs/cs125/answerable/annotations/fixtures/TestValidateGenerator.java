@@ -1,10 +1,10 @@
 package edu.illinois.cs.cs125.answerable.annotations.fixtures;
 
-import edu.illinois.cs.cs125.answerable.Generator;
+import edu.illinois.cs.cs125.answerable.annotations.Generator;
 
 import java.util.Random;
 
-public class TestValidateGenerators {
+public class TestValidateGenerator {
     @Generator
     public static int correct1(int complexity, Random random) {
         return 0;

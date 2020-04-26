@@ -1,6 +1,6 @@
 package examples.printer.correct.reference;
 
-import edu.illinois.cs.cs125.answerable.Solution;
+import edu.illinois.cs.cs125.answerable.annotations.Solution;
 
 public class Printer {
      /* Because this function is static and void answerable should determine that it must produce output. So record

@@ -1,8 +1,8 @@
 package examples.lastten.correct.reference;
 
-import edu.illinois.cs.cs125.answerable.Next;
-import edu.illinois.cs.cs125.answerable.Solution;
-import edu.illinois.cs.cs125.answerable.Verify;
+import edu.illinois.cs.cs125.answerable.annotations.Next;
+import edu.illinois.cs.cs125.answerable.annotations.Solution;
+import edu.illinois.cs.cs125.answerable.annotations.Verify;
 import edu.illinois.cs.cs125.answerable.api.*;
 
 import java.util.Arrays;

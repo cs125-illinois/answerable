@@ -1,9 +1,5 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.ValidationError
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.validateCaseMethods
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.validateDefaultTestRunArguments
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.validateGenerators
 import org.junit.jupiter.api.Test
 
 private fun String.test(): Class<*> {
@@ -12,27 +8,68 @@ private fun String.test(): Class<*> {
 
 class TestValidate {
     @Test
-    fun `should validate generators correctly`() {
-        val klass = "TestValidateGenerators".test()
+    fun `should validate @Next correctly`() {
+        val klass = "TestValidateNext".test()
         assert(klass.declaredMethods.size == 4)
-        klass.validateGenerators().also { errors ->
+        klass.validateNext().also { errors ->
             assert(errors.size == 2)
-            assert(errors.all { it.kind == ValidationError.Kind.Generators })
+            assert(errors.all { it.kind == AnnotationUseError.Kind.Next })
             assert(errors.all { it.location.methodName?.contains("broken") ?: false })
         }
     }
+
     @Test
-    fun `should validate case methods correctly`() {
-        val klass = "TestValidateCaseMethods".test()
-        assert(klass.declaredMethods.size == 11)
-        klass.validateCaseMethods().also { errors ->
-            assert(errors.size == 7)
-            assert(errors.all { it.kind == ValidationError.Kind.CaseMethods })
+    fun `should validate @Generator correctly`() {
+        val klass = "TestValidateGenerator".test()
+        assert(klass.declaredMethods.size == 4)
+        klass.validateGenerator().also { errors ->
+            assert(errors.size == 2)
+            assert(errors.all { it.kind == AnnotationUseError.Kind.Generator })
             assert(errors.all { it.location.methodName?.contains("broken") ?: false })
         }
     }
+
     @Test
-    fun `should validate default run arguments correctly`() {
+    fun `should validate @EdgeCase correctly`() {
+        val klass = "TestValidateEdgeCase".test()
+        assert(klass.declaredMethods.size + klass.declaredFields.size == 14)
+        klass.validateEdgeCase().also { errors ->
+            assert(errors.size == 10) { errors.size }
+            assert(errors.all { it.kind == AnnotationUseError.Kind.EdgeCase })
+            assert(errors.all {
+                it.location.methodName?.contains("broken") ?: it.location.fieldName?.contains("broken") ?: false
+            })
+        }
+    }
+
+    @Test
+    fun `should validate @SimpleCase correctly`() {
+        val klass = "TestValidateSimpleCase".test()
+        assert(klass.declaredMethods.size + klass.declaredFields.size == 14)
+        klass.validateSimpleCase().also { errors ->
+            assert(errors.size == 10) { errors.size }
+            assert(errors.all { it.kind == AnnotationUseError.Kind.SimpleCase })
+            assert(errors.all {
+                it.location.methodName?.contains("broken") ?: it.location.fieldName?.contains("broken") ?: false
+            })
+        }
+    }
+
+    @Test
+    fun `should validate @Precondition correctly`() {
+        val klass = "TestValidatePrecondition".test()
+        assert(klass.declaredMethods.hasAnyAnnotation(Precondition::class.java).size == 6)
+        klass.validatePrecondition().also { errors ->
+            assert(errors.size == 3) { errors.size }
+            assert(errors.all { it.kind == AnnotationUseError.Kind.Precondition })
+            assert(errors.all {
+                it.location.methodName?.contains("broken") ?: false
+            })
+        }
+    }
+
+    @Test
+    fun `should validate @DefaultRunArguments correctly`() {
         val klass = "TestValidateDefaultTestRunArguments".test()
         assert(klass.declaredMethods.size == 4)
         klass.validateDefaultTestRunArguments().also { errors ->

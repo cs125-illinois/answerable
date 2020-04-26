@@ -25,7 +25,7 @@ class TestSandbox {
     @Test
     fun testDangerousSubmission() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.Solution;
+            import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Example {
                 @Solution
                 public static int getThing() {
@@ -46,7 +46,7 @@ class TestSandbox {
     @Test
     fun testSafeSubmission() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.Solution;
+            import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Example {
                 @Solution
                 public static int getThing() {
@@ -92,7 +92,7 @@ class TestSandbox {
     @Test
     fun testTimeout() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.Solution;
+            import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Example {
                 @Solution
                 public static int getThing() {
@@ -122,7 +122,7 @@ class TestSandbox {
     @Test
     fun testReferenceUnconstrained() {
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.Solution;
+            import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Example {
                 @Solution
                 public static int getThing() {

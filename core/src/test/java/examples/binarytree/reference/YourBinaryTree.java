@@ -1,6 +1,6 @@
 package examples.binarytree.reference;
 
-import edu.illinois.cs.cs125.answerable.*;
+import edu.illinois.cs.cs125.answerable.annotations.*;
 import edu.illinois.cs.cs125.answerable.api.*;
 
 import java.util.Random;

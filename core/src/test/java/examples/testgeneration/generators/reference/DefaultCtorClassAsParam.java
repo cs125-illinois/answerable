@@ -1,6 +1,6 @@
 package examples.testgeneration.generators.reference;
 
-import edu.illinois.cs.cs125.answerable.Solution;
+import edu.illinois.cs.cs125.answerable.annotations.Solution;
 
 public class DefaultCtorClassAsParam {
 

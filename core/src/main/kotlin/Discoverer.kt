@@ -2,6 +2,14 @@
 
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.annotations.EdgeCase
+import edu.illinois.cs.cs125.answerable.annotations.Generator
+import edu.illinois.cs.cs125.answerable.annotations.Next
+import edu.illinois.cs.cs125.answerable.annotations.Precondition
+import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
+import edu.illinois.cs.cs125.answerable.annotations.Solution
+import edu.illinois.cs.cs125.answerable.annotations.UseGenerator
+import edu.illinois.cs.cs125.answerable.annotations.Verify
 import edu.illinois.cs.cs125.answerable.typeManagement.correspondsTo
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.IllegalStateException

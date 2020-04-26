@@ -2,6 +2,11 @@
 
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.annotations.DefaultTestRunArguments
+import edu.illinois.cs.cs125.answerable.annotations.Generator
+import edu.illinois.cs.cs125.answerable.annotations.Solution
+import edu.illinois.cs.cs125.answerable.annotations.Timeout
+import edu.illinois.cs.cs125.answerable.annotations.Verify
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.OssifiedTestOutput
@@ -13,7 +18,7 @@ import edu.illinois.cs.cs125.answerable.classdesignanalysis.AnalysisOutput
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.ClassDesignAnalysis
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.validateStaticSignatures
+import edu.illinois.cs.cs125.answerable.annotations.validateStaticSignatures
 import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
 import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
 import edu.illinois.cs.cs125.answerable.typeManagement.mkOpenMirrorClass

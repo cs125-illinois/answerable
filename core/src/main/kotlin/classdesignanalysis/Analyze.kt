@@ -2,15 +2,15 @@
 
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
-import edu.illinois.cs.cs125.answerable.EdgeCase
-import edu.illinois.cs.cs125.answerable.Generator
-import edu.illinois.cs.cs125.answerable.Helper
-import edu.illinois.cs.cs125.answerable.Ignore
-import edu.illinois.cs.cs125.answerable.Next
-import edu.illinois.cs.cs125.answerable.Precondition
-import edu.illinois.cs.cs125.answerable.SimpleCase
-import edu.illinois.cs.cs125.answerable.Solution
-import edu.illinois.cs.cs125.answerable.Verify
+import edu.illinois.cs.cs125.answerable.annotations.EdgeCase
+import edu.illinois.cs.cs125.answerable.annotations.Generator
+import edu.illinois.cs.cs125.answerable.annotations.Helper
+import edu.illinois.cs.cs125.answerable.annotations.Ignore
+import edu.illinois.cs.cs125.answerable.annotations.Next
+import edu.illinois.cs.cs125.answerable.annotations.Precondition
+import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
+import edu.illinois.cs.cs125.answerable.annotations.Solution
+import edu.illinois.cs.cs125.answerable.annotations.Verify
 import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.getPublicFields

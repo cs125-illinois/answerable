@@ -1,7 +1,7 @@
 package examples.adder.correct.reference;
 
-import edu.illinois.cs.cs125.answerable.EdgeCase;
-import edu.illinois.cs.cs125.answerable.Solution;
+import edu.illinois.cs.cs125.answerable.annotations.EdgeCase;
+import edu.illinois.cs.cs125.answerable.annotations.Solution;
 
 public final class Adder {
     /*

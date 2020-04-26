@@ -1,8 +1,8 @@
 package edu.illinois.cs.cs125.answerable.annotations.fixtures;
 
-import edu.illinois.cs.cs125.answerable.DefaultTestRunArguments;
-import edu.illinois.cs.cs125.answerable.Solution;
-import edu.illinois.cs.cs125.answerable.Verify;
+import edu.illinois.cs.cs125.answerable.annotations.DefaultTestRunArguments;
+import edu.illinois.cs.cs125.answerable.annotations.Solution;
+import edu.illinois.cs.cs125.answerable.annotations.Verify;
 
 public class TestValidateDefaultTestRunArguments {
     @DefaultTestRunArguments
