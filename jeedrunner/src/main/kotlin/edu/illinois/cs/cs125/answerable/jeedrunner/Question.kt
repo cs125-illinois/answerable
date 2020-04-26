@@ -8,8 +8,6 @@ import edu.illinois.cs.cs125.answerable.TestRunner
 import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.defaultArgs
-import edu.illinois.cs.cs125.answerable.jeedOutputCapturer
-import edu.illinois.cs.cs125.answerable.jeedSandbox
 import edu.illinois.cs.cs125.jeed.core.CompiledSource
 import edu.illinois.cs.cs125.jeed.core.Sandbox
 import kotlin.random.Random

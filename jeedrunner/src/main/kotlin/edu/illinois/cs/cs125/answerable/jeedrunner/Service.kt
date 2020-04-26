@@ -5,7 +5,6 @@ import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
 import edu.illinois.cs.cs125.answerable.TestGenerator
 import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.TestingResults
-import edu.illinois.cs.cs125.answerable.answerableBytecodeProvider
 import edu.illinois.cs.cs125.answerable.defaultArgs
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
 import edu.illinois.cs.cs125.jeed.core.CompiledSource
@@ -39,7 +38,9 @@ class Answerable {
             TestGenerator(
                 refCL.loadClass(className),
                 solutionName = solutionName,
-                bytecodeProvider = answerableBytecodeProvider(refCL),
+                bytecodeProvider = answerableBytecodeProvider(
+                    refCL
+                ),
                 testRunnerArgs = testRunnerArgs
             )
         }
@@ -75,7 +76,9 @@ class Answerable {
         ).classLoader
         val testRunner = question.testGenerator.loadSubmission(
             submissionClass = submissionCL.loadClass(question.testGenerator.referenceClass.name),
-            bytecodeProvider = answerableBytecodeProvider(submissionCL),
+            bytecodeProvider = answerableBytecodeProvider(
+                submissionCL
+            ),
             testRunnerArgs = testRunnerArgs
         )
         return JeedTestRunner(testRunner, question.createJeedEnvironment())

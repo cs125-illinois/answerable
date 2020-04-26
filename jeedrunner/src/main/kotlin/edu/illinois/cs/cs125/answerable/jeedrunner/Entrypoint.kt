@@ -1,5 +1,8 @@
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.jeedrunner
 
+import edu.illinois.cs.cs125.answerable.TestEnvironment
+import edu.illinois.cs.cs125.answerable.TestGenerator
+import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
 import edu.illinois.cs.cs125.jeed.core.Source
 import edu.illinois.cs.cs125.jeed.core.compile

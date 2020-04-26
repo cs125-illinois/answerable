@@ -1,5 +1,17 @@
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.jeedrunner
 
+import edu.illinois.cs.cs125.answerable.DefaultTestRunArguments
+import edu.illinois.cs.cs125.answerable.EdgeCase
+import edu.illinois.cs.cs125.answerable.Generator
+import edu.illinois.cs.cs125.answerable.Helper
+import edu.illinois.cs.cs125.answerable.Ignore
+import edu.illinois.cs.cs125.answerable.Next
+import edu.illinois.cs.cs125.answerable.Precondition
+import edu.illinois.cs.cs125.answerable.SimpleCase
+import edu.illinois.cs.cs125.answerable.Solution
+import edu.illinois.cs.cs125.answerable.Timeout
+import edu.illinois.cs.cs125.answerable.UseGenerator
+import edu.illinois.cs.cs125.answerable.Verify
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.RoundEnvironment
 import javax.lang.model.SourceVersion
@@ -13,18 +25,18 @@ class AnswerableAnnotationOwner : AbstractProcessor() {
 
     /** ALl Answerable annotations, from Annotations.kt in the main module. */
     private val answerableAnnotations = setOf(
-            Solution::class,
-            Timeout::class,
-            Next::class,
-            Generator::class,
-            UseGenerator::class,
-            EdgeCase::class,
-            SimpleCase::class,
-            Precondition::class,
-            Verify::class,
-            Helper::class,
-            Ignore::class,
-            DefaultTestRunArguments::class)
+        Solution::class,
+        Timeout::class,
+        Next::class,
+        Generator::class,
+        UseGenerator::class,
+        EdgeCase::class,
+        SimpleCase::class,
+        Precondition::class,
+        Verify::class,
+        Helper::class,
+        Ignore::class,
+        DefaultTestRunArguments::class)
 
     override fun process(annotations: Set<TypeElement>?, roundEnv: RoundEnvironment?): Boolean {
         // Do nothing, say the annotations were handled
