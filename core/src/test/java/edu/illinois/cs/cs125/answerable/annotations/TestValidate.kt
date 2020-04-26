@@ -1,5 +1,8 @@
-package edu.illinois.cs.cs125.answerable.classdesignanalysis
+package edu.illinois.cs.cs125.answerable.annotations
 
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.ValidationError
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.validateCaseMethods
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.validateDefaultTestRunArguments
 import org.junit.jupiter.api.Test
 
 private fun String.test(): Class<*> {
@@ -9,7 +12,7 @@ private fun String.test(): Class<*> {
 class TestValidate {
     @Test
     fun `should test case methods correctly`() {
-        val klass = "validate.TestValidateCaseMethods".test()
+        val klass = "TestValidateCaseMethods".test()
         assert(klass.declaredMethods.size == 11)
         klass.validateCaseMethods().also { errors ->
             assert(errors.size == 7)
@@ -19,7 +22,7 @@ class TestValidate {
     }
     @Test
     fun `should test default run arguments correctly`() {
-        val klass = "validate.TestValidateDefaultTestRunArguments".test()
+        val klass = "TestValidateDefaultTestRunArguments".test()
         assert(klass.declaredMethods.size == 4)
         klass.validateDefaultTestRunArguments().also { errors ->
             assert(errors.size == 2)

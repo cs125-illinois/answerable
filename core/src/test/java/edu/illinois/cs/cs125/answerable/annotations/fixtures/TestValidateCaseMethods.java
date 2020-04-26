@@ -1,4 +1,4 @@
-package edu.illinois.cs.cs125.answerable.classdesignanalysis.fixtures.validate;
+package edu.illinois.cs.cs125.answerable.annotations.fixtures;
 
 import edu.illinois.cs.cs125.answerable.EdgeCase;
 import edu.illinois.cs.cs125.answerable.SimpleCase;

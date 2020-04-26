@@ -2,6 +2,8 @@
 
 package edu.illinois.cs.cs125.answerable
 
+import java.lang.reflect.Method
+
 /**
  * Annotation to mark a method as the reference solution for Answerable.
  *
@@ -107,6 +109,7 @@ annotation class Next(
 annotation class Generator(
     val name: String = ""
 )
+internal val generatorParameterTypes = listOf(Int::class.java, java.util.Random::class.java)
 
 /**
  * Marks that a method parameter should use a particular generator.
@@ -163,6 +166,8 @@ annotation class EdgeCase(
 annotation class SimpleCase(
     val name: String = ""
 )
+
+internal val caseAnnotations = setOf(EdgeCase::class.java, SimpleCase::class.java)
 
 /**
  * Marks a function as a precondition check on a set of arguments, allowing you to discard test cases which don't meet
@@ -272,3 +277,18 @@ annotation class DefaultTestRunArguments(
     val numRegressionTests: Int = -1,
     val maxComplexity: Int = -1
 )
+
+internal fun Array<Method>.hasAnyAnnotation(klasses: Collection<Class<out Annotation>>): List<Method> =
+    this.hasAnyAnnotation(*klasses.toTypedArray())
+internal fun Array<Method>.hasAnyAnnotation(vararg klasses: Class<out Annotation>): List<Method> =
+    this.filter { method -> klasses.any { method.isAnnotationPresent(it) } }
+
+internal fun Method.areAnnotationsPresent(klasses: Collection<Class<out Annotation>>): Boolean =
+    this.areAnnotationsPresent(*klasses.toTypedArray())
+internal fun Method.areAnnotationsPresent(vararg klasses: Class<out Annotation>): Boolean =
+    klasses.all { this.isAnnotationPresent(it) }
+
+internal fun Class<*>.methodsWithAnyAnnotation(klasses: Collection<Class<out Annotation>>): List<Method> =
+    this.methodsWithAnyAnnotation(*klasses.toTypedArray())
+internal fun Class<*>.methodsWithAnyAnnotation(vararg klasses: Class<out Annotation>): List<Method> =
+    this.declaredMethods.hasAnyAnnotation(*klasses)
