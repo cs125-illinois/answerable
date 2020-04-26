@@ -12,7 +12,7 @@ internal fun AnalysisOutput.toErrorMsg() = when (this.result) {
         AnalysisType.KIND -> ::mkStatusError
         AnalysisType.MODIFIERS -> ::mkModifierError
         AnalysisType.TYPE_PARAMS -> ::mkTypeParamError
-        AnalysisType.SUPERCLASSES -> ::mkSuperClassError
+        AnalysisType.SUPERCLASS -> ::mkSuperClassError
         AnalysisType.INTERFACES -> TODO("Haven't implemented separate interface/superclass analysis")
         AnalysisType.INNER_CLASSES -> TODO("Haven't implemented recursive CDA.")
         AnalysisType.FIELDS -> ::mkFieldError

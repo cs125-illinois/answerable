@@ -1,15 +1,15 @@
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
 import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
-import edu.illinois.cs.cs125.answerable.EdgeCase
-import edu.illinois.cs.cs125.answerable.Generator
-import edu.illinois.cs.cs125.answerable.Helper
-import edu.illinois.cs.cs125.answerable.Ignore
-import edu.illinois.cs.cs125.answerable.Next
-import edu.illinois.cs.cs125.answerable.Precondition
-import edu.illinois.cs.cs125.answerable.SimpleCase
-import edu.illinois.cs.cs125.answerable.Solution
-import edu.illinois.cs.cs125.answerable.Verify
+import edu.illinois.cs.cs125.answerable.annotations.EdgeCase
+import edu.illinois.cs.cs125.answerable.annotations.Generator
+import edu.illinois.cs.cs125.answerable.annotations.Helper
+import edu.illinois.cs.cs125.answerable.annotations.Ignore
+import edu.illinois.cs.cs125.answerable.annotations.Next
+import edu.illinois.cs.cs125.answerable.annotations.Precondition
+import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
+import edu.illinois.cs.cs125.answerable.annotations.Solution
+import edu.illinois.cs.cs125.answerable.annotations.Verify
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.getPublicFields
 import edu.illinois.cs.cs125.answerable.getPublicMethods
@@ -21,23 +21,69 @@ import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 
 // TODO: analyze inner classes recursively
+/*
+ * For the purposes of analysis, all Types are compared by name as the name appears in the source code.
+ * This is fine for using Answerable as a "I have one class written by a student that I want to test" system.
+ * However, especially in Kotlin mode, a submission could define its own classes, with the same names as the
+ * intended ones, use them instead, and pass analysis. This could potentially cause nasty things to happen.
+ *
+ * We should strongly consider switching to doing all matching via qualified names, and strip the qualifiers
+ * in the toErrorMessage implementation for the various matchers when the qualifiers agree and the simpleName doesn't.
+ * CDA could be extended in the future to relax such a check via annotations.
+ */
 /**
- * Analyzer that determines that a submission class is equivalent in design to a reference class.
+ * Analyzer that determines that a [submission] class is equivalent in design to a [reference] class.
  *
  * The reference class for a question defines a "contract," a specification of the public members that any
  * implementation must expose. Answerable's job is to ascertain that a submission meets the specification both on the
  * surface, in API, and behaviorally. This is the API component.
+ *
+ * The analysis proceeds by analyzing several distinct components: names, kinds, modifiers, type parameters,
+ * superclass (or lack thereof), implemented interfaces, fields, and methods. Inner classes are analyzed recursively.
+ * Components can be individually disabled via the [config].
  */
 fun classDesignAnalysis(
     reference: Class<*>, submission: Class<*>, config: CDAConfig = defaultCDAConfig
-): CDAResult = TODO("Not finished refactoring class design analysis.")
+): CDAResult {
+    val innerClassesResult: Pair<ClassDesignMatch<List<String>>, Map<String, CDAResult>>? =
+        runIf(config.checkInnerClasses) { reference.innerClassesMatch(submission, config) }
+    return CDAResult(
+        config = config,
+        names = runIf(config.checkName) { reference.namesMatch(submission) },
+        kinds = runIf(config.checkKind) { reference.kindsMatch(submission) },
+        modifiers = runIf(config.checkModifiers) { reference.modifiersMatch(submission) },
+        typeParams = runIf(config.checkTypeParams) { reference.typeParametersMatch(submission) },
+        superclass = runIf(config.checkSuperclasses) { reference.superclassesMatch(submission) },
+        interfaces = runIf(config.checkInterfaces) { reference.interfacesMatch(submission) },
+        fields = runIf(config.checkFields) { reference.fieldsMatch(submission) },
+        methods = runIf(config.checkMethods) { reference.methodsMatch(submission, config.solutionName) },
+        innerClasses = innerClassesResult?.first,
+        innerClassAnalyses = innerClassesResult?.second
+    )
+}
 
+internal fun <T> runIf(condition: Boolean, block: () -> T): T? =
+    if (condition) block() else null
+
+/**
+ * Component analyzer. Checks the names of the classes, as they appear in the source.
+ */
 fun Class<*>.namesMatch(other: Class<*>): ClassDesignMatch<String> =
-    ClassDesignMatch(AnalysisType.NAME, this.simpleName, other.simpleName)
+    ClassDesignMatch(AnalysisType.NAME, this.simpleSourceName, other.simpleSourceName)
 
+/**
+ * Component analyzer. Checks the kinds of the classes. A class's kind is either
+ * class, interface, or enum.
+ */
 fun Class<*>.kindsMatch(other: Class<*>): ClassDesignMatch<ClassKind> =
     ClassDesignMatch(AnalysisType.KIND, this.kind, other.kind)
 
+/**
+ * Component analyzer. Checks the modifiers on the classes, such as final and abstract.
+ *
+ * When analyzing Kotlin classes, 'open' is realized as no modifier, and a lack of 'open' is realized
+ * as a 'final' modifier.
+ */
 fun Class<*>.modifiersMatch(other: Class<*>): ClassDesignMatch<List<String>> =
     ClassDesignMatch(
         AnalysisType.MODIFIERS,
@@ -45,6 +91,14 @@ fun Class<*>.modifiersMatch(other: Class<*>): ClassDesignMatch<List<String>> =
         Modifier.toString(other.modifiers).split(" ")
     )
 
+/*
+ * The order of type parameters affects the API of a class when used in source code, but Answerable
+ * proper will still function if this check is disabled. However, we don't want to mention this in the KDoc
+ * because Answerable proper doesn't expose the CDAConfig that will pass to CDA as part of the pipeline.
+ */
+/**
+ * Component analyzer. Checks the type parameters of the classes, by name, as they appear in the source.
+ */
 fun Class<*>.typeParametersMatch(other: Class<*>): ClassDesignMatch<List<String>> =
     ClassDesignMatch(
         AnalysisType.TYPE_PARAMS,
@@ -52,18 +106,28 @@ fun Class<*>.typeParametersMatch(other: Class<*>): ClassDesignMatch<List<String>
         other.typeParameters.map { it.simpleSourceName }
     )
 
-/* Note: [Comparing superclasses and interface implementations]
+/*
  * Because an assignment could reasonably ask students to write _both_ the parent and child class,
  * we can't just compare the Type objects directly. Confirming that they have the same source
- * representation is enough for our needs.
+ * representation is enough for our needs, just as we compare the class source names.
+ *
+ * addendum: see https://cs125-forum.cs.illinois.edu/t/answerable-worklog/13896/224
+ */
+/**
+ * Component analyzer. Checks that the classes inherit from superclasses of the same name, as they appear in the
+ * source.
  */
 fun Class<*>.superclassesMatch(other: Class<*>): ClassDesignMatch<String> =
     ClassDesignMatch(
-        AnalysisType.SUPERCLASSES,
+        AnalysisType.SUPERCLASS,
         this.genericSuperclass.simpleSourceName,
         other.genericSuperclass.simpleSourceName
     )
 
+/**
+ * Component analyzer. Checks that the classes implement the same set of interfaces, as the names
+ * of the interfaces appear in the source. The interfaces can be implemented in any order.
+ */
 fun Class<*>.interfacesMatch(other: Class<*>): ClassDesignMatch<List<String>> =
     ClassDesignMatch(
         AnalysisType.INTERFACES,
@@ -71,6 +135,10 @@ fun Class<*>.interfacesMatch(other: Class<*>): ClassDesignMatch<List<String>> =
         other.genericInterfaces.map { it.simpleSourceName }.sorted()
     )
 
+/**
+ * Component analyzer. Checks that the classes have the same public fields, by name and type.
+ * The type is checked by name, as it appears in the source.
+ */
 fun Class<*>.fieldsMatch(other: Class<*>): ClassDesignMatch<List<OssifiedField>> =
     ClassDesignMatch(
         AnalysisType.FIELDS,
@@ -78,6 +146,11 @@ fun Class<*>.fieldsMatch(other: Class<*>): ClassDesignMatch<List<OssifiedField>>
         other.publicFields().map { OssifiedField(it) }.sortedBy { it.answerableName }
     )
 
+/**
+ * Component analyzer. Checks that the classes have the same public methods, by name,
+ * return type, type parameters, and parameter types. All types are checked by name, as
+ * they appear in the source.
+ */
 fun Class<*>.methodsMatch(other: Class<*>, solutionName: String?): ClassDesignMatch<List<OssifiedExecutable>> {
     val referenceAnnotations = setOf(
         Generator::class.java,
@@ -99,10 +172,45 @@ fun Class<*>.methodsMatch(other: Class<*>, solutionName: String?): ClassDesignMa
     )
 }
 
-// fun Class<*>.methodsMatch(Class<*>, String?): ClassDesignMatch<String>
-//
-// the runner function looks like //           vvvvvv contains the nullable string
-// fun classDesignAnalysis(Class<*>, Class<*>, Config): ClassDesignAnalysisResult
+// You can't currently put the solution method /inside/ an inner class
+// for Answerable's purposes but this incidentally supports it for the purposes of CDA.
+/**
+ * Component analyzer. Consists of two parts.
+ *
+ * Part 1 checks that the classes contain inner classes of the same name, as the names appear in the source.
+ * Part 2 recursively analyzes inner classes of the same name. Currently, Answerable does not attempt to
+ * recurse on /any/ inner classes if it cannot match all of the names, and an empty map is returned.
+ * This should be considered an implementation detail and is subject to change in the future.
+ *
+ * @param [config] can be used to adjust which analyses are run on the inner classes.
+ * @return Results from both parts are returned as a tuple.
+ */
+fun Class<*>.innerClassesMatch(
+    other: Class<*>,
+    config: CDAConfig = defaultCDAConfig
+): Pair<ClassDesignMatch<List<String>>, Map<String, CDAResult>> {
+    // We want to use the names as seen in the source. Currently, 'simpleSourceName' simply delegates
+    // to 'simpleName' for classes, but this could feasibly change in the future
+    // (for example, to gather a qualified name instead).
+    val ourInnerClasses: List<Class<*>> = this.declaredClasses.sortedBy { it.simpleSourceName }
+    val theirInnerClasses: List<Class<*>> = other.declaredClasses.sortedBy { it.simpleSourceName }
+    val nameMatcher: ClassDesignMatch<List<String>> =
+        ClassDesignMatch(
+            AnalysisType.INNER_CLASSES,
+            ourInnerClasses.map { it.simpleSourceName },
+            theirInnerClasses.map { it.simpleSourceName }
+        )
+
+    if (!nameMatcher.match) return Pair(nameMatcher, mapOf())
+
+    val recursiveAnalysis: List<Pair<String, CDAResult>> =
+        ourInnerClasses.zip(theirInnerClasses).map { (ours, theirs) ->
+            ours.simpleSourceName to classDesignAnalysis(ours, theirs, config)
+        }
+
+    return Pair(nameMatcher, recursiveAnalysis.toMap())
+}
+
 class ClassDesignAnalysis(
     private val solutionName: String? = null,
     private val reference: Class<*>,
@@ -200,7 +308,7 @@ class ClassDesignAnalysis(
     // Order is not significant here
     private fun superClassesMatch() =
         AnalysisOutput(
-            AnalysisType.SUPERCLASSES,
+            AnalysisType.SUPERCLASS,
             if (reference.genericSuperclass == attempt.genericSuperclass &&
                 reference.genericInterfaces contentEquals attempt.genericInterfaces
             ) {
@@ -301,7 +409,7 @@ val defaultCDAConfig = CDAConfig()
 
 // TODO: Move into ClassDesignMatch as part of refactor
 enum class AnalysisType {
-    NAME, KIND, MODIFIERS, TYPE_PARAMS, SUPERCLASSES, INTERFACES, INNER_CLASSES, FIELDS, METHODS;
+    NAME, KIND, MODIFIERS, TYPE_PARAMS, SUPERCLASS, INTERFACES, INNER_CLASSES, FIELDS, METHODS;
 
     override fun toString(): String = name.toLowerCase().replace('_', ' ')
 }
@@ -318,7 +426,7 @@ data class ClassDesignMatch<T>(
  */
 @Suppress("MemberVisibilityCanBePrivate") // This is part of the API so must be public for users to consume
 class CDAResult(
-    val configuration: CDAConfig,
+    val config: CDAConfig,
     val names: ClassDesignMatch<String>?,
     val kinds: ClassDesignMatch<ClassKind>?,
     val modifiers: ClassDesignMatch<List<String>>?,
@@ -332,11 +440,11 @@ class CDAResult(
     val superclass: ClassDesignMatch<String>?,
     // see above
     val interfaces: ClassDesignMatch<List<String>>?,
-    val fields: ClassDesignMatch<List<Field>>?, // match by answerableName
-    val methods: ClassDesignMatch<List<Executable>>?, // match by answerableName.
+    val fields: ClassDesignMatch<List<OssifiedField>>?, // match by answerableName
+    val methods: ClassDesignMatch<List<OssifiedExecutable>>?, // match by answerableName.
 
     val innerClasses: ClassDesignMatch<List<String>>?,
-    val innerClassAnalyses: Map<String, CDAResult>? // null if !innerClasses.match
+    val innerClassAnalyses: Map<String, CDAResult>? // empty if !innerClasses.match, null if !config.checkInnerClasses
 ) {
     val allMatch: Boolean
         get() = names?.match ?: true &&
