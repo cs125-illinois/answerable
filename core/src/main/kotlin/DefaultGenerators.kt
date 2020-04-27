@@ -56,7 +56,7 @@ internal val defaultLongGen = object : Gen<Long> {
     }
 
     override fun generate(complexity: Int, random: Random): Long {
-        val complexityScaledToLargeValueRange = complexity.toLong() * 2
+        val complexityScaledToLargeValueRange = (complexity.toLong() * complexity.toLong() * 2).coerceAtLeast(0)
         return random.nextLong(complexityScaledToLargeValueRange * 2 + 1) - complexityScaledToLargeValueRange
     }
 }

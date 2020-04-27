@@ -299,6 +299,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testGenerationFailed() {
+        // TODO: This will fail until the GENERATION_FAILED behavior is assessed
         val result = PassedClassDesignRunner(examples.proxy.reference.Widget::class.java,
             examples.proxy.ExplodingCtorWidget::class.java).runTestsUnsecured(0x0403)
         assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
