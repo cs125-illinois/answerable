@@ -45,7 +45,7 @@ import java.lang.reflect.Type
 fun classDesignAnalysis(
     reference: Class<*>, submission: Class<*>, config: CDAConfig = defaultCDAConfig
 ): CDAResult {
-    val innerClassesResult: Pair<ClassDesignMatch<List<String>>, Map<String, CDAResult>>? =
+    val innerClassesResult: Pair<CDAMatcher<List<String>>, Map<String, CDAResult>>? =
         runIf(config.checkInnerClasses) { reference.innerClassesMatch(submission, config) }
     return CDAResult(
         config = config,
@@ -68,15 +68,15 @@ internal fun <T> runIf(condition: Boolean, block: () -> T): T? =
 /**
  * Component analyzer. Checks the names of the classes, as they appear in the source.
  */
-fun Class<*>.namesMatch(other: Class<*>): ClassDesignMatch<String> =
-    ClassDesignMatch(AnalysisType.NAME, this.simpleSourceName, other.simpleSourceName)
+fun Class<*>.namesMatch(other: Class<*>): CDAMatcher<String> =
+    CDAMatcher(AnalysisType.NAME, this.simpleSourceName, other.simpleSourceName)
 
 /**
  * Component analyzer. Checks the kinds of the classes. A class's kind is either
  * class, interface, or enum.
  */
-fun Class<*>.kindsMatch(other: Class<*>): ClassDesignMatch<ClassKind> =
-    ClassDesignMatch(AnalysisType.KIND, this.kind, other.kind)
+fun Class<*>.kindsMatch(other: Class<*>): CDAMatcher<ClassKind> =
+    CDAMatcher(AnalysisType.KIND, this.kind, other.kind)
 
 /**
  * Component analyzer. Checks the modifiers on the classes, such as final and abstract.
@@ -84,8 +84,8 @@ fun Class<*>.kindsMatch(other: Class<*>): ClassDesignMatch<ClassKind> =
  * When analyzing Kotlin classes, 'open' is realized as no modifier, and a lack of 'open' is realized
  * as a 'final' modifier.
  */
-fun Class<*>.modifiersMatch(other: Class<*>): ClassDesignMatch<List<String>> =
-    ClassDesignMatch(
+fun Class<*>.modifiersMatch(other: Class<*>): CDAMatcher<List<String>> =
+    CDAMatcher(
         AnalysisType.MODIFIERS,
         Modifier.toString(this.modifiers).split(" "),
         Modifier.toString(other.modifiers).split(" ")
@@ -99,8 +99,8 @@ fun Class<*>.modifiersMatch(other: Class<*>): ClassDesignMatch<List<String>> =
 /**
  * Component analyzer. Checks the type parameters of the classes, by name, as they appear in the source.
  */
-fun Class<*>.typeParametersMatch(other: Class<*>): ClassDesignMatch<List<String>> =
-    ClassDesignMatch(
+fun Class<*>.typeParametersMatch(other: Class<*>): CDAMatcher<List<String>> =
+    CDAMatcher(
         AnalysisType.TYPE_PARAMS,
         this.typeParameters.map { it.simpleSourceName },
         other.typeParameters.map { it.simpleSourceName }
@@ -116,20 +116,22 @@ fun Class<*>.typeParametersMatch(other: Class<*>): ClassDesignMatch<List<String>
 /**
  * Component analyzer. Checks that the classes inherit from superclasses of the same name, as they appear in the
  * source.
+ *
+ * The lack of a superclass is reflected by null.
  */
-fun Class<*>.superclassesMatch(other: Class<*>): ClassDesignMatch<String> =
-    ClassDesignMatch(
+fun Class<*>.superclassesMatch(other: Class<*>): CDAMatcher<String?> =
+    CDAMatcher(
         AnalysisType.SUPERCLASS,
-        this.genericSuperclass.simpleSourceName,
-        other.genericSuperclass.simpleSourceName
+        this.genericSuperclass?.simpleSourceName,
+        other.genericSuperclass?.simpleSourceName
     )
 
 /**
  * Component analyzer. Checks that the classes implement the same set of interfaces, as the names
  * of the interfaces appear in the source. The interfaces can be implemented in any order.
  */
-fun Class<*>.interfacesMatch(other: Class<*>): ClassDesignMatch<List<String>> =
-    ClassDesignMatch(
+fun Class<*>.interfacesMatch(other: Class<*>): CDAMatcher<List<String>> =
+    CDAMatcher(
         AnalysisType.INTERFACES,
         this.genericInterfaces.map { it.simpleSourceName }.sorted(),
         other.genericInterfaces.map { it.simpleSourceName }.sorted()
@@ -139,8 +141,8 @@ fun Class<*>.interfacesMatch(other: Class<*>): ClassDesignMatch<List<String>> =
  * Component analyzer. Checks that the classes have the same public fields, by name and type.
  * The type is checked by name, as it appears in the source.
  */
-fun Class<*>.fieldsMatch(other: Class<*>): ClassDesignMatch<List<OssifiedField>> =
-    ClassDesignMatch(
+fun Class<*>.fieldsMatch(other: Class<*>): CDAMatcher<List<OssifiedField>> =
+    CDAMatcher(
         AnalysisType.FIELDS,
         this.publicFields().map { OssifiedField(it) }.sortedBy { it.answerableName },
         other.publicFields().map { OssifiedField(it) }.sortedBy { it.answerableName }
@@ -151,7 +153,7 @@ fun Class<*>.fieldsMatch(other: Class<*>): ClassDesignMatch<List<OssifiedField>>
  * return type, type parameters, and parameter types. All types are checked by name, as
  * they appear in the source.
  */
-fun Class<*>.methodsMatch(other: Class<*>, solutionName: String?): ClassDesignMatch<List<OssifiedExecutable>> {
+fun Class<*>.methodsMatch(other: Class<*>, solutionName: String?): CDAMatcher<List<OssifiedExecutable>> {
     val referenceAnnotations = setOf(
         Generator::class.java,
         Verify::class.java,
@@ -165,7 +167,7 @@ fun Class<*>.methodsMatch(other: Class<*>, solutionName: String?): ClassDesignMa
     fun methodFilter(method: Executable) = referenceAnnotations.none { method.isAnnotationPresent(it) } &&
         !(method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false)
 
-    return ClassDesignMatch(
+    return CDAMatcher(
         AnalysisType.METHODS,
         this.publicMethods(::methodFilter).map { OssifiedExecutable(it) }.sortedBy { it.answerableName },
         other.publicMethods(::methodFilter).map { OssifiedExecutable(it) }.sortedBy { it.answerableName }
@@ -188,14 +190,14 @@ fun Class<*>.methodsMatch(other: Class<*>, solutionName: String?): ClassDesignMa
 fun Class<*>.innerClassesMatch(
     other: Class<*>,
     config: CDAConfig = defaultCDAConfig
-): Pair<ClassDesignMatch<List<String>>, Map<String, CDAResult>> {
+): Pair<CDAMatcher<List<String>>, Map<String, CDAResult>> {
     // We want to use the names as seen in the source. Currently, 'simpleSourceName' simply delegates
     // to 'simpleName' for classes, but this could feasibly change in the future
     // (for example, to gather a qualified name instead).
     val ourInnerClasses: List<Class<*>> = this.declaredClasses.sortedBy { it.simpleSourceName }
     val theirInnerClasses: List<Class<*>> = other.declaredClasses.sortedBy { it.simpleSourceName }
-    val nameMatcher: ClassDesignMatch<List<String>> =
-        ClassDesignMatch(
+    val nameMatcher: CDAMatcher<List<String>> =
+        CDAMatcher(
             AnalysisType.INNER_CLASSES,
             ourInnerClasses.map { it.simpleSourceName },
             theirInnerClasses.map { it.simpleSourceName }
@@ -414,36 +416,38 @@ enum class AnalysisType {
     override fun toString(): String = name.toLowerCase().replace('_', ' ')
 }
 
-data class ClassDesignMatch<T>(
+data class CDAMatcher<T>(
     val type: AnalysisType,
     val reference: T,
     val submission: T,
     val match: Boolean = reference == submission
-)
+) {
+    override fun toString(): String = this.message
+}
 
 /**
  * The result of a run of the class design analyzer.
  */
 @Suppress("MemberVisibilityCanBePrivate") // This is part of the API so must be public for users to consume
-class CDAResult(
+data class CDAResult(
     val config: CDAConfig,
-    val names: ClassDesignMatch<String>?,
-    val kinds: ClassDesignMatch<ClassKind>?,
-    val modifiers: ClassDesignMatch<List<String>>?,
+    val names: CDAMatcher<String>?,
+    val kinds: CDAMatcher<ClassKind>?,
+    val modifiers: CDAMatcher<List<String>>?,
     // order is significant since it affects the API
-    val typeParams: ClassDesignMatch<List<String>>?,
+    val typeParams: CDAMatcher<List<String>>?,
     /* As much as it'd be nice to store the actual Type object, we want
        to support users who have students write both a parent AND child class
        in one assignment, particularly if it's in Kotlin. In this case, the
        reference and submission superclasses will be different Types!
      */
-    val superclass: ClassDesignMatch<String>?,
+    val superclass: CDAMatcher<String?>?,
     // see above
-    val interfaces: ClassDesignMatch<List<String>>?,
-    val fields: ClassDesignMatch<List<OssifiedField>>?, // match by answerableName
-    val methods: ClassDesignMatch<List<OssifiedExecutable>>?, // match by answerableName.
+    val interfaces: CDAMatcher<List<String>>?,
+    val fields: CDAMatcher<List<OssifiedField>>?, // match by answerableName
+    val methods: CDAMatcher<List<OssifiedExecutable>>?, // match by answerableName.
 
-    val innerClasses: ClassDesignMatch<List<String>>?,
+    val innerClasses: CDAMatcher<List<String>>?,
     val innerClassAnalyses: Map<String, CDAResult>? // empty if !innerClasses.match, null if !config.checkInnerClasses
 ) {
     val allMatch: Boolean
@@ -459,6 +463,40 @@ class CDAResult(
                 innerClassAnalyses?.all { entry ->
                     entry.value.allMatch
                 } ?: true
+
+    private fun getMessages(include: (Boolean?) -> Boolean): List<String> {
+        val messages: MutableList<String> = mutableListOf()
+        fun addMessage(matcher: CDAMatcher<*>) {
+            if (include(matcher.match)) messages.add(matcher.message)
+        }
+        this.names?.also(::addMessage)
+        this.kinds?.also(::addMessage)
+        this.modifiers?.also(::addMessage)
+        this.typeParams?.also(::addMessage)
+        this.superclass?.also(::addMessage)
+        this.interfaces?.also(::addMessage)
+        this.fields?.also(::addMessage)
+        this.methods?.also(::addMessage)
+        this.innerClasses?.also(::addMessage)
+        this.innerClassAnalyses?.values?.forEach { res ->
+            messages.addAll(res.getMessages(include))
+        }
+        return messages
+    }
+
+    /**
+     * Produces a flat list of nice error messages for the mismatches
+     * in the result. Includes the mismatches in the inner classes.
+     * Messages are only included for mismatches.
+     */
+    val CDAResult.errorMessages: List<String>
+        get() = getMessages { match -> match != null && !match }
+    /**
+     * Produces a flat list of nice messages for all matchers in the result.
+     * Includes messages in the inner classes.
+     */
+    val CDAResult.messages: List<String>
+        get() = getMessages { true }
 }
 
 /* TODO: try this once everything else is working
@@ -497,6 +535,8 @@ class OssifiedField(field: Field) {
 
     val answerableName: String
         get() = (modifiers.toMutableList() + type + name).joinToString(separator = " ")
+
+    override fun toString(): String = answerableName
 
     override fun equals(other: Any?): Boolean {
         if (other !is OssifiedField) return false
@@ -554,6 +594,8 @@ class OssifiedExecutable(executable: Executable) {
             return parts.joinToString(separator = " ")
         }
 
+    override fun toString(): String = answerableName
+
     override fun equals(other: Any?): Boolean {
         if (other !is OssifiedExecutable) return false
 
@@ -572,7 +614,6 @@ class OssifiedExecutable(executable: Executable) {
     }
 }
 
-fun String.load(): Class<*> = Class.forName(this)
 
 fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
     this.getPublicFields().filter(filter)

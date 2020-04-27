@@ -5,6 +5,15 @@ package edu.illinois.cs.cs125.answerable.classdesignanalysis
 import java.lang.IllegalStateException
 import java.lang.reflect.Type
 
+// TODO: goals for the rewrite here:
+//   (1) provide a toErrorMessage function for each type of component mismatch
+//   (2) Keep things private, because everything relies on the invariant that
+//       the argument is actually a mismatch.
+//   (3) Use the components to define CDAMatcher.toErrorMessage() here
+//   (4) Use the components to define CDAResult.toErrorMessage() in Analyze.kt
+
+
+
 internal fun AnalysisOutput.toErrorMsg() = when (this.result) {
     is Matched -> "Everything looks good!"
     is Mismatched -> when (this.tag) {
@@ -18,6 +27,101 @@ internal fun AnalysisOutput.toErrorMsg() = when (this.result) {
         AnalysisType.FIELDS -> ::mkFieldError
         AnalysisType.METHODS -> ::mkMethodError
     }(this.result)
+}
+
+val CDAMatcher<*>.message: String
+    get() = when (this.type) {
+        AnalysisType.NAME -> nameMismatchMessage(this as CDAMatcher<String>)
+        AnalysisType.KIND -> kindMismatchMessage(this as CDAMatcher<ClassKind>)
+        AnalysisType.MODIFIERS -> modifierMismatchMessage(this as CDAMatcher<List<String>>)
+        AnalysisType.TYPE_PARAMS -> typeParamMismatchMessage(this as CDAMatcher<List<String>>)
+        AnalysisType.SUPERCLASS -> superclassMismatchMessage(this as CDAMatcher<String?>)
+        AnalysisType.INTERFACES -> interfaceMismatchMessage(this as CDAMatcher<List<String>>)
+        AnalysisType.FIELDS -> fieldMismatchMessage(this as CDAMatcher<List<OssifiedField>>)
+        AnalysisType.METHODS -> methodMismatchMessage(this as CDAMatcher<List<OssifiedExecutable>>)
+        AnalysisType.INNER_CLASSES -> innerclassMismatchMessage(this as CDAMatcher<List<String>>)
+    } ?: "${this.type.toString().capitalize()}: All good!"
+
+private fun <T> ifMismatched(matcher: CDAMatcher<T>, mkMsg: () -> String): String? =
+    if (matcher.match) mkMsg() else null
+
+private fun nameMismatchMessage(matcher: CDAMatcher<String>): String? = ifMismatched(matcher) {
+    """
+        |Class name mismatch;
+        |Expected: ${matcher.reference}
+        |Found:    ${matcher.submission}
+    """.trimIndent()
+}
+
+
+// Consideration for if/when config takes a LanguageMode: in JavaMode, stick to "enum"
+// but in KotlinMode, use "enum class".
+private fun ClassKind.asNoun() = when (this) {
+    ClassKind.CLASS -> "a class"
+    ClassKind.INTERFACE -> "an interface"
+    ClassKind.ENUM -> "an enum class"
+}
+private fun kindMismatchMessage(matcher: CDAMatcher<ClassKind>): String? = ifMismatched(matcher) {
+    """
+        |Class kind mismatch;
+        |Expected: ${matcher.reference.asNoun()}
+        |Found:    ${matcher.submission.asNoun()}
+    """.trimIndent()
+}
+
+private fun modifierMismatchMessage(matcher: CDAMatcher<List<String>>): String? = ifMismatched(matcher) {
+    """
+        |Class modifiers mismatch;
+        |Expected: ${matcher.reference.joinToString(separator = " ")}
+        |Found:    ${matcher.submission.joinToString(separator = " ")}
+    """.trimMargin()
+}
+
+private fun typeParamMismatchMessage(matcher: CDAMatcher<List<String>>): String? = ifMismatched(matcher) {
+    """
+        |Type parameter mismatch;
+        |Expected: ${matcher.reference.joinToString(prefix = "<", separator = ", ", postfix = ">")}
+        |Found:    ${matcher.submission.joinToString(prefix = "<", separator = ", ", postfix = ">")}
+    """.trimIndent()
+}
+
+private fun superclassMismatchMessage(matcher: CDAMatcher<String?>): String? = ifMismatched(matcher) {
+    val expected: String = if (matcher.reference == null) "No class to be extended" else "extends ${matcher.reference}"
+    val found: String = if (matcher.submission == null) "No class was extended" else "extends ${matcher.submission}"
+    return@ifMismatched """
+        |Superclass mismatch;
+        |Expected: $expected
+        |Found:    $found
+    """.trimIndent()
+}
+
+private fun interfaceMismatchMessage(matcher: CDAMatcher<List<String>>, kind: ClassKind = ClassKind.CLASS): String? =
+    ifMismatched(matcher) {
+        val verbRoot: String = if (kind == ClassKind.INTERFACE) "extend" else "implement"
+        val verbS = "${verbRoot}s"
+        val verbEd = "${verbRoot}ed"
+        val expected: String =
+            if (matcher.reference.isEmpty()) "No interfaces to be $verbEd"
+            else "$verbS ${matcher.reference.joinToString(separator = ", ")}"
+        val found: String =
+            if (matcher.submission.isEmpty()) "No interfaces were $verbEd"
+            else "$verbS ${matcher.submission.joinToString(separator = ", ")}"
+        return@ifMismatched """
+            |Interface mismatch;
+            |Expected: $expected
+            |Found:    $found
+        """.trimIndent()
+    }
+
+private fun fieldMismatchMessage(matcher: CDAMatcher<List<OssifiedField>>): String? = ifMismatched(matcher) {
+    mkPublicApiMismatchMsg(matcher.reference, matcher.submission, "field")
+}
+private fun methodMismatchMessage(matcher: CDAMatcher<List<OssifiedExecutable>>): String? = ifMismatched(matcher) {
+    mkPublicApiMismatchMsg(matcher.reference, matcher.submission, "method")
+}
+
+private fun innerclassMismatchMessage(matcher: CDAMatcher<List<String>>): String? = ifMismatched(matcher) {
+    mkPublicApiMismatchMsg(matcher.reference, matcher.submission, "inner class", plural = "es")
 }
 
 /** Expects Mismatched<String> */
@@ -168,8 +272,13 @@ private fun mkMethodError(result: Mismatched<*>): String {
     )
 }
 
-private fun <T> mkPublicApiMismatchMsg(allExpected: List<T>, allActual: List<T>, apiTypeName: String): String {
-
+private fun <T> mkPublicApiMismatchMsg(
+    allExpected: List<T>,
+    allActual: List<T>,
+    apiTypeName: String,
+    plural: String = "s"
+): String {
+    fun String.plural(isPlural: Boolean) = if (isPlural) this + plural else this
     val exp = allExpected.filter { it !in allActual }
     val act = allActual.filter { it !in allExpected }
 
@@ -177,24 +286,25 @@ private fun <T> mkPublicApiMismatchMsg(allExpected: List<T>, allActual: List<T>,
         Pair(first = true, second = false) -> {
             val single = act.size == 1
             """
-                    |Found ${if (single) "an " else ""}unexpected public $apiTypeName${if (single) "" else "s"}:
+                    |Found ${if (single) "an " else ""}unexpected public ${apiTypeName.plural(!single)}:
                     |${act.joinToString(separator = "\n  ", prefix = "  ")}
                 """.trimMargin()
         }
         Pair(first = false, second = true) -> {
             val single = exp.size == 1
             """
-                    |Expected ${if (single) "another" else "more"} public $apiTypeName${if (single) "" else "s"}:
+                    |Expected ${if (single) "another" else "more"} public ${apiTypeName.plural(!single)}:
                     |${exp.joinToString(separator = "\n  ", prefix = "  ")}
                 """.trimMargin()
         }
         Pair(first = false, second = false) -> {
             // In this case the exact cause of the mismatch is provably undecidable
             // in the future we can try and provide better guesses here, but for now we'll dump everything
+            // See MultiplyMismatched notes in Analyze.kt
             """
-                    |Expected your class to have public $apiTypeName${if (exp.size == 1) "" else "s"}:
+                    |Expected public ${apiTypeName.plural(exp.size != 1)}:
                     |${exp.joinToString(separator = "\n  ", prefix = "  ")}
-                    |but found public $apiTypeName${if (act.size == 1) "" else "s"}:
+                    |Found public ${apiTypeName.plural(act.size != 1)}:
                     |${act.joinToString(separator = "\n  ", prefix = "  ")}
                 """.trimMargin()
         }

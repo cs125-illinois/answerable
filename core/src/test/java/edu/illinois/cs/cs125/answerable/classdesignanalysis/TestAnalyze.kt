@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 import com.marcinmoskala.math.combinations
+import edu.illinois.cs.cs125.answerable.load
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.fail
 
@@ -34,7 +35,22 @@ private fun Set<String>.incorrectPairs(type: String): Set<List<Class<*>>> =
         }
     }.toSet()
 
+private fun analyze(
+    referenceName: String,
+    submissionName: String,
+    config: CDAConfig = defaultCDAConfig
+): CDAResult = classDesignAnalysis(referenceName.load(), submissionName.load(), config)
+
 internal class Analyze {
+    @Test
+    fun `should accept matching classes`() {
+        val root = "examples.classdesign.correct"
+        // ClassDesign class. @Next method should be ignored.
+        assertTrue(analyze("${root}1.reference.ClassDesign", "${root}1.ClassDesign").allMatch)
+        // IterableList interface. @Next method should be ignored.
+        assertTrue(analyze("${root}2.reference.IterableList", "${root}2.IterableList").allMatch)
+    }
+
     @Test
     fun `should check class names correctly`() {
         val klasses = setOf("Foo", "Bar")

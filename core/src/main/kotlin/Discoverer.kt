@@ -20,6 +20,8 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 
+fun String.load(): Class<*> = Class.forName(this)
+
 internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method? {
     return this.declaredMethods.filter {
         it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false

@@ -1,56 +1,62 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAConfig
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAResult
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.ClassDesignAnalysis
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.Mismatched
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.classDesignAnalysis
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.defaultCDAConfig
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.toErrorMsg
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class ClassDesignAnalysisTest {
-    private val classDesignCorrectReference1: String = "examples.classdesign.correct1.reference.ClassDesign"
-    private val classDesignCorrectAttempt1: String = "examples.classdesign.correct1.ClassDesign"
-    private val classDesignCorrectReference2: String = "examples.classdesign.correct2.reference.IterableList"
-    private val classDesignCorrectAttempt2: String = "examples.classdesign.correct2.IterableList"
-    private val statusMismatchInterface: String = "examples.classdesign.statusmismatch.reference.Question"
-    private val statusMismatchClass: String = "examples.classdesign.statusmismatch.Question"
+    private val examples: String = "examples.classdesign"
+    private val classDesignCorrectReference1: String = "$examples.correct1.reference.ClassDesign"
+    private val classDesignCorrectAttempt1: String = "$examples.correct1.ClassDesign"
+    private val classDesignCorrectReference2: String = "$examples.correct2.reference.IterableList"
+    private val classDesignCorrectAttempt2: String = "$examples.correct2.IterableList"
+    private val statusMismatchInterface: String = "$examples.statusmismatch.reference.Question"
+    private val statusMismatchClass: String = "$examples.statusmismatch.Question"
     private val superClassMismatchOnlyExtRef: String =
-        "examples.classdesign.superclassmismatch.classes.reference.OnlyExt"
+        "$examples.superclassmismatch.classes.reference.OnlyExt"
     private val superClassMismatchOnlyImplRef: String =
-        "examples.classdesign.superclassmismatch.classes.reference.OnlyImpl"
-    private val sCMInterfaceRefOne: String = "examples.classdesign.superclassmismatch.interfaces.reference.One"
-    private val sCMInterfaceRefNone: String = "examples.classdesign.superclassmismatch.interfaces.reference.None"
+        "$examples.superclassmismatch.classes.reference.OnlyImpl"
+    private val sCMInterfaceRefOne: String = "$examples.superclassmismatch.interfaces.reference.One"
+    private val sCMInterfaceRefNone: String = "$examples.superclassmismatch.interfaces.reference.None"
     private val sCMInterfaceRefMultiple: String =
-        "examples.classdesign.superclassmismatch.interfaces.reference.Multiple"
-    private val sCMInterfaceAttOne: String = "examples.classdesign.superclassmismatch.interfaces.One"
-    private val sCMInterfaceAttNone: String = "examples.classdesign.superclassmismatch.interfaces.None"
-    private val sCMInterfaceAttMultiple: String = "examples.classdesign.superclassmismatch.interfaces.Multiple"
-    private val modifierMismatchPrefix: String = "examples.classdesign.modifiers"
-    private val tPRefET: String = "examples.classdesign.typeparams.reference.ET"
-    private val tPRefT: String = "examples.classdesign.typeparams.reference.T"
-    private val tPAttET: String = "examples.classdesign.typeparams.ET"
-    private val tpAttTE: String = "examples.classdesign.typeparams.TE"
-    private val tpAttT: String = "examples.classdesign.typeparams.T"
-    private val fieldMismatchSimpleRef: String = "examples.classdesign.publicapi.fields.reference.Simple"
-    private val fieldMismatchPrefix: String = "examples.classdesign.publicapi.fields"
-    private val methodMismatchPrefix: String = "examples.classdesign.publicapi.methods"
+        "$examples.superclassmismatch.interfaces.reference.Multiple"
+    private val sCMInterfaceAttOne: String = "$examples.superclassmismatch.interfaces.One"
+    private val sCMInterfaceAttNone: String = "$examples.superclassmismatch.interfaces.None"
+    private val sCMInterfaceAttMultiple: String = "$examples.superclassmismatch.interfaces.Multiple"
+    private val modifierMismatchPrefix: String = "$examples.modifiers"
+    private val tPRefET: String = "$examples.typeparams.reference.ET"
+    private val tPRefT: String = "$examples.typeparams.reference.T"
+    private val tPAttET: String = "$examples.typeparams.ET"
+    private val tpAttTE: String = "$examples.typeparams.TE"
+    private val tpAttT: String = "$examples.typeparams.T"
+    private val fieldMismatchSimpleRef: String = "$examples.publicapi.fields.reference.Simple"
+    private val fieldMismatchPrefix: String = "$examples.publicapi.fields"
+    private val methodMismatchPrefix: String = "$examples.publicapi.methods"
     private val methodMismatchSimpleRef: String = "$methodMismatchPrefix.reference.Simple"
     private val methodMismatchTPRef: String = "$methodMismatchPrefix.reference.TypeParam"
     private val methodMismatchConsRef: String = "$methodMismatchPrefix.reference.Constructor"
     private val methodMismatchThrowsRef: String = "$methodMismatchPrefix.reference.Throws"
 
     @Test
-    fun testClassDesignCorrect1() {
-        val analyzer = analyzer(classDesignCorrectReference1, classDesignCorrectAttempt1)
-        assertTrue(analyzer.runSuite().all { it.result is Matched })
+    fun `should accept matching classes`() {
+        // ClassDesign class. @Next method should be ignored.
+        assertTrue(analyze(classDesignCorrectReference1, classDesignCorrectAttempt1).allMatch)
+        // IterableList interface. @Next method should be ignored.
+        assertTrue(analyze(classDesignCorrectReference2, classDesignCorrectAttempt2).allMatch)
     }
 
+    // TODO: Merge this test with the same on in TestAnalyze.kt, which does not check error messages.
     @Test
-    fun testClassDesignCorrect2() {
-        val analyzer = analyzer(classDesignCorrectReference2, classDesignCorrectAttempt2)
-        analyzer.runSuite(methods = false)
-        assertTrue(analyzer.publicMethodsMatch().result is Matched) // should ignore the @Next method.
+    fun `should check class kinds correctly`() {
+        TODO("New error messages not implemented!")
     }
 
     @Test
@@ -142,7 +148,7 @@ internal class ClassDesignAnalysisTest {
     fun testSuperClassMismatchExtNoExt() {
         val analyzer = analyzer(
             superClassMismatchOnlyExtRef,
-            "examples.classdesign.superclassmismatch.classes.OnlyExtNone"
+            "$examples.superclassmismatch.classes.OnlyExtNone"
         )
         analyzer.assertMismatchMsg(
             "Expected class to extend `java.util.ArrayList', but class did not extend any classes.",
@@ -154,7 +160,7 @@ internal class ClassDesignAnalysisTest {
     fun testSuperClassMismatchExtWrongExt() {
         val analyzer = analyzer(
             superClassMismatchOnlyExtRef,
-            "examples.classdesign.superclassmismatch.classes.OnlyExtWrong"
+            "$examples.superclassmismatch.classes.OnlyExtWrong"
         )
         analyzer.assertMismatchMsg(
             "Expected class to extend `java.util.ArrayList', but class extended `java.util.LinkedList'.",
@@ -166,7 +172,7 @@ internal class ClassDesignAnalysisTest {
     fun testSuperClassMismatchExtImpl() {
         val analyzer = analyzer(
             superClassMismatchOnlyExtRef,
-            "examples.classdesign.superclassmismatch.classes.OnlyExtImpl"
+            "$examples.superclassmismatch.classes.OnlyExtImpl"
         )
         analyzer.assertMismatchMsg(
             "Expected class to not implement any interfaces, but class implemented `java.util.List'.",
@@ -178,7 +184,7 @@ internal class ClassDesignAnalysisTest {
     fun testSuperClassMismatchExtMultipleImpl() {
         val analyzer = analyzer(
             superClassMismatchOnlyExtRef,
-            "examples.classdesign.superclassmismatch.classes.OnlyExtMultipleImpl"
+            "$examples.superclassmismatch.classes.OnlyExtMultipleImpl"
         )
         analyzer.assertMismatchMsg(
             "Expected class to not implement any interfaces," +
@@ -191,7 +197,7 @@ internal class ClassDesignAnalysisTest {
     fun testSuperClassMismatchOnlyImplExt() {
         val analyzer = analyzer(
             superClassMismatchOnlyImplRef,
-            "examples.classdesign.superclassmismatch.classes.OnlyImplNone"
+            "$examples.superclassmismatch.classes.OnlyImplNone"
         )
         analyzer.assertMismatchMsg(
             "Expected class to implement `java.util.Collection', but class did not implement any interfaces.",
@@ -203,7 +209,7 @@ internal class ClassDesignAnalysisTest {
     fun testSuperClassMismatchOnlyImplWrong() {
         val analyzer = analyzer(
             superClassMismatchOnlyImplRef,
-            "examples.classdesign.superclassmismatch.classes.OnlyImplWrong"
+            "$examples.superclassmismatch.classes.OnlyImplWrong"
         )
         analyzer.assertMismatchMsg(
             "Expected class to implement `java.util.Collection', but class implemented `java.util.List'.",
@@ -215,7 +221,7 @@ internal class ClassDesignAnalysisTest {
     fun testSuperClassMismatchOnlyImplTooMany() {
         val analyzer = analyzer(
             superClassMismatchOnlyImplRef,
-            "examples.classdesign.superclassmismatch.classes.OnlyImplTooMany"
+            "$examples.superclassmismatch.classes.OnlyImplTooMany"
         )
         analyzer.assertMismatchMsg(
             "Expected class to implement `java.util.Collection', but class implemented `java.util.Collection', and `java.util.List'.",
@@ -226,8 +232,8 @@ internal class ClassDesignAnalysisTest {
     @Test
     fun testSuperClassMismatchExtAndImplWrong() {
         val analyzer = analyzer(
-            "examples.classdesign.superclassmismatch.classes.reference.ExtAndImpl",
-            "examples.classdesign.superclassmismatch.classes.ExtAndImplWrong"
+            "$examples.superclassmismatch.classes.reference.ExtAndImpl",
+            "$examples.superclassmismatch.classes.ExtAndImplWrong"
         )
         analyzer.assertMismatchMsg(
             """
@@ -507,6 +513,12 @@ internal class ClassDesignAnalysisTest {
             name = false
         )
     }
+
+    private fun analyze(
+        referenceName: String,
+        submissionName: String,
+        config: CDAConfig = defaultCDAConfig
+    ): CDAResult = classDesignAnalysis(referenceName.load(), submissionName.load(), config)
 
     private fun analyzer(refName: String, attName: String): ClassDesignAnalysis =
         ClassDesignAnalysis(
