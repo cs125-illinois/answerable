@@ -304,5 +304,4 @@ internal class TestGeneratorTest {
             examples.proxy.ExplodingCtorWidget::class.java).runTestsUnsecured(0x0403)
         assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
-
 }

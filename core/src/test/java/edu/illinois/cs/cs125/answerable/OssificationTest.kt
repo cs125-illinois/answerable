@@ -3,12 +3,12 @@ package edu.illinois.cs.cs125.answerable
 import edu.illinois.cs.cs125.answerable.api.ossify
 import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
 import edu.illinois.cs.cs125.answerable.typeManagement.mkOpenMirrorClass
+import kotlin.reflect.jvm.isAccessible
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import kotlin.reflect.jvm.isAccessible
 
 private data class SimpleObject(val n: Int) {
     override fun toString(): String = "I hold $n"
@@ -112,5 +112,4 @@ class OssificationTest {
         assertEquals(SimpleObject::class.qualifiedName, ossified.type)
         assertEquals("I hold 1701", ossified.value)
     }
-
 }
