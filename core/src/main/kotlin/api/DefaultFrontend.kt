@@ -28,7 +28,7 @@ interface DefaultSerializable {
     fun toJson(): String
 }
 
-// TODO: Make all of this valid JSON
+// TODO: Remove all this
 
 /**
  * Convert a [List] of [DefaultSerializable] objects to a [String] representing a JSON list.
@@ -39,7 +39,7 @@ fun <E : DefaultSerializable> List<E>.toJson(): String =
 internal fun OssifiedTestOutput.defaultToJson(): String {
     val specific = when (this.typeOfBehavior) {
         Behavior.RETURNED -> "  returned: ${output?.value.jsonStringOrNull()}"
-        Behavior.THREW -> "  threw: ${threw?.value.jsonStringOrNull()}"
+        Behavior.THREW, Behavior.GENERATION_FAILED -> "  threw: ${threw?.value.jsonStringOrNull()}"
         Behavior.VERIFY_ONLY -> ""
     }
 
