@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.ClassDesignAnalysis
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.Mismatched
@@ -11,9 +12,9 @@ import org.junit.jupiter.api.Test
 
 internal fun assertClassDesignPasses(solution: Class<*>, submission: Class<*>) {
     val result = ClassDesignAnalysis(
-        "",
         solution,
-        submission
+        submission,
+        DEFAULT_EMPTY_NAME
     ).runSuite()
     result.map { it.result }.filterIsInstance<Mismatched<*>>().forEach {
         Assertions.fail(it.toString())
@@ -22,9 +23,9 @@ internal fun assertClassDesignPasses(solution: Class<*>, submission: Class<*>) {
 
 internal fun assertClassDesignFails(solution: Class<*>, submission: Class<*>) {
     val results = ClassDesignAnalysis(
-        "",
         solution,
-        submission
+        submission,
+        DEFAULT_EMPTY_NAME
     ).runSuite()
     Assertions.assertFalse(results.all { it.result is Matched })
     results.filter { it.result is Mismatched }.forEach { println(it.toErrorMsg()) }

@@ -510,7 +510,6 @@ internal class ClassDesignAnalysisTest {
 
     private fun analyzer(refName: String, attName: String): ClassDesignAnalysis =
         ClassDesignAnalysis(
-            "",
             findClass(refName),
             findClass(attName)
         )

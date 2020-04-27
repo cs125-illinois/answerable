@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
 import edu.illinois.cs.cs125.jeed.core.Source
 import edu.illinois.cs.cs125.jeed.core.compile
@@ -10,7 +11,7 @@ fun testFromStrings(
     submission: String,
     common: String? = null,
     className: String,
-    solutionName: String = ""
+    solutionName: String = DEFAULT_EMPTY_NAME
 ): TestingResults {
 
     val referenceSource: Source = Source(mapOf("Reference.java" to reference))

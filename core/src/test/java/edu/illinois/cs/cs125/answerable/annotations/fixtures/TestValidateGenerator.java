@@ -6,20 +6,20 @@ import java.util.Random;
 
 public class TestValidateGenerator {
     @Generator
-    public static int correct1(int complexity, Random random) {
+    public static int correct0(int complexity, Random random) {
         return 0;
     }
     @Generator
-    public static void correct2(int complexity, Random random) {
+    public static void correct1(int complexity, Random random) {
         return;
     }
 
     @Generator
-    public int broken1(int complexity, Random random) {
+    public int broken0(int complexity, Random random) {
         return 0;
     }
     @Generator
-    public static void broken2(int complexity) {
+    public static void broken1(int complexity) {
         return;
     }
 }

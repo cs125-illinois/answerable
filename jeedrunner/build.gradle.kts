@@ -22,7 +22,7 @@ dependencies {
     api(project(":core"))
 
     // Jeed and dependencies
-    api("com.github.cs125-illinois:jeed:2020.4.7")
+    api("com.github.cs125-illinois:jeed:2020.4.9")
     implementation("com.github.ben-manes.caffeine:caffeine:2.8.1")
 
     // Tests

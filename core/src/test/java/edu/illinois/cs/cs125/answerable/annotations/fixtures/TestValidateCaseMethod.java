@@ -5,29 +5,29 @@ import edu.illinois.cs.cs125.answerable.annotations.SimpleCase;
 
 public class TestValidateCaseMethod {
     @SimpleCase
+    public static int[] correct0() {
+        return new int[] { };
+    }
+    @EdgeCase
     public static int[] correct1() {
         return new int[] { };
     }
-    @EdgeCase
-    public static int[] correct2() {
-        return new int[] { };
-    }
     @SimpleCase
-    public static String[] correct3() {
+    public static String[] correct2() {
         return new String[] { };
     }
     @EdgeCase
-    public static String[] correct4() {
+    public static String[] correct3() {
         return new String[] { };
     }
 
     @SimpleCase
     @EdgeCase
-    public static String[] broken1() {
+    public static String[] broken0() {
         return new String[] { };
     }
     @SimpleCase
-    public int[] broken2() {
+    public int[] broken1() {
         return new int[] { };
     }
     @SimpleCase
@@ -35,19 +35,19 @@ public class TestValidateCaseMethod {
         return new int[] { };
     }
     @SimpleCase
-    public static int broken4() {
+    public static int broken3() {
         return 0;
     }
     @EdgeCase
-    public String[] broken5() {
+    public String[] broken4() {
         return new String[] { };
     }
     @EdgeCase
-    public static String[] broken6(int unused) {
+    public static String[] broken5(int unused) {
         return new String[] { };
     }
     @EdgeCase
-    public static String broken7() {
+    public static String broken6() {
         return "";
     }
 }

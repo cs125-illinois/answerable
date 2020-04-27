@@ -5,15 +5,15 @@ import edu.illinois.cs.cs125.answerable.annotations.SimpleCase;
 
 public class TestValidateEdgeCase {
     @EdgeCase
-    public static int[] correct1 = new int[] { 1, 2, 5 };
+    public static int[] correct0 = new int[] { 1, 2, 5 };
     @EdgeCase
-    public static int[] correct2() {
+    public static int[] correct1() {
         return new int[] { };
     }
     @EdgeCase
-    public static String[] correct3 = new String[] { "1", "2", "5" };
+    public static String[] correct2 = new String[] { "1", "2", "5" };
     @EdgeCase
-    public static String[] correct4() {
+    public static String[] correct3() {
         return new String[] { };
     }
 

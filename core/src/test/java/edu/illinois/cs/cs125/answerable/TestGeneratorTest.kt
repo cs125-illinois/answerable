@@ -135,7 +135,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testEdgeCases() {
-        val out = TestGenerator(examples.testgeneration.reference.EdgeCases::class.java, "")
+        val out = TestGenerator(examples.testgeneration.reference.EdgeCases::class.java)
             .loadSubmission(examples.testgeneration.EdgeCases::class.java)
             .runTestsUnsecured(Random.nextLong())
 
@@ -144,7 +144,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testReceiverEdgeCases() {
-        val out = TestGenerator(examples.testgeneration.reference.ReceiverEdgeCase::class.java, "")
+        val out = TestGenerator(examples.testgeneration.reference.ReceiverEdgeCase::class.java)
             .loadSubmission(examples.testgeneration.ReceiverEdgeCase::class.java)
             .runTestsUnsecured(Random.nextLong())
 
@@ -192,7 +192,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testIntArrayParameter() {
-        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayParameter::class.java, "")
+        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayParameter::class.java)
                 .loadSubmission(examples.testgeneration.arrays.IntArrayParameter::class.java)
                 .runTestsUnsecured(Random.nextLong())
 
@@ -201,7 +201,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testIntArrayArrayParameter() {
-        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayArrayParameter::class.java, "")
+        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayArrayParameter::class.java)
                 .loadSubmission(examples.testgeneration.arrays.IntArrayArrayParameter::class.java)
                 .runTestsUnsecured(Random.nextLong())
 

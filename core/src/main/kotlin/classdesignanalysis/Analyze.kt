@@ -2,6 +2,7 @@
 
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
+import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.answerable.annotations.EdgeCase
 import edu.illinois.cs.cs125.answerable.annotations.Generator
 import edu.illinois.cs.cs125.answerable.annotations.Helper
@@ -117,9 +118,9 @@ fun Class<*>.publicMethodsMatch(other: Class<*>, filter: (executable: Executable
     )
 
 class ClassDesignAnalysis(
-    private val solutionName: String? = null,
     private val reference: Class<*>,
-    private val attempt: Class<*>
+    private val attempt: Class<*>,
+    private val solutionName: String = DEFAULT_EMPTY_NAME
 ) {
     @Suppress("LongParameterList")
     fun runSuite(
