@@ -117,7 +117,9 @@ data class OssifiedValue internal constructor(
     val type: String,
     val value: String,
     val identity: Int
-)
+) {
+    override fun toString(): String = value
+}
 
 internal fun Any?.ossify(pool: TypePool): OssifiedValue? {
     fun safeStringify(block: () -> String): String {

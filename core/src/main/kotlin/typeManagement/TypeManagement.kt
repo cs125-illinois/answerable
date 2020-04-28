@@ -21,6 +21,7 @@ import java.lang.reflect.Member
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type as ReflectType
 import java.util.UUID
+import java.util.WeakHashMap
 import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
 import org.apache.bcel.Const
@@ -59,8 +60,8 @@ import org.objenesis.instantiator.ObjectInstantiator
 private val objenesis = ObjenesisStd()
 
 /**
-Lots of modifications done in this file affect the bytecode of a class, so we need a way to hot-reload those classes
-and get them back into the JVM. Here we can take a bytearray (class file) and load it.
+ * Lots of modifications done in this file affect the bytecode of a class, so we need a way to hot-reload those classes
+ * and get them back into the JVM. Here we can take a bytearray (class file) and load it.
  */
 private open class BytesClassLoader(parentLoader: ClassLoader? = null) :
     ClassLoader(parentLoader ?: getSystemClassLoader()), EnumerableBytecodeLoader {
@@ -87,7 +88,7 @@ private open class BytesClassLoader(parentLoader: ClassLoader? = null) :
 }
 
 /**
-Above; but also can ask other classloaders for classes. Useful in sandboxes.
+ * Like [BytesClassLoader], but also can ask other classloaders for classes. Useful in sandboxes.
  */
 private class DiamondClassLoader(
     primaryParent: ClassLoader,
@@ -129,6 +130,15 @@ private data class TypeMapping(
     val presentation: Class<*>
 )
 
+/**
+ * The value for a proxied method call and the argument type from the method signature.
+ * The concrete type of the argument may not be the same as the argument type.
+ */
+private data class TypedArgument(
+    val type: Class<*>,
+    val argument: Any?
+)
+
 /* NOTE: [Proxy inheritance with inner classes]
 
 Consider this example:
@@ -159,6 +169,35 @@ So instead, we find the nearest parent class which exists in Reference and is pa
 in this case Reference.Foo, and proxy it as an instance of that.
 
  */
+
+/**
+ * Determines what a class should be proxied to, if any.
+ * @param outermostPresentationClass the outer class a proxy is being made an instance of
+ * @param outermostBehaviorClass the outer class of the real/original objects
+ * @param valueClass the class to potentially map
+ * @param pool type pool to look for superclasses in
+ */
+private fun proxyableClass(
+    outermostPresentationClass: Class<*>,
+    outermostBehaviorClass: Class<*>,
+    valueClass: Class<*>,
+    pool: TypePool
+): TypeMapping? {
+    return when {
+        Proxy::class.java.isAssignableFrom(valueClass) -> {
+            proxyableClass(outermostPresentationClass, outermostBehaviorClass, valueClass.superclass, pool)
+        }
+        valueClass == outermostBehaviorClass -> {
+            TypeMapping(behavior = outermostBehaviorClass, presentation = outermostPresentationClass)
+        }
+        valueClass.name.startsWith("${outermostBehaviorClass.name}$") -> {
+            mostDerivedProxyableClass(outermostPresentationClass, valueClass, pool)
+        }
+        else -> {
+            null
+        }
+    }
+}
 
 /**
  * Determines what an inner class should be proxied to, if any.
@@ -208,7 +247,7 @@ private fun mostDerivedProxyableClass(
  * @param behaviorInstance The instance of behaviorClass which is being proxied.
  * @param pool A TypePool from which we can get superclasses of the behaviorClass.
  */
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "ReturnCount")
 private fun mkProxy(
     presentationClass: Class<*>,
     outermostPresentationClass: Class<*>,
@@ -218,36 +257,53 @@ private fun mkProxy(
     pool: TypePool
 ): Any {
     if (presentationClass == behaviorClass) return behaviorInstance
+    pool.getProxyOriginal(behaviorInstance)?.takeIf { existingProxy ->
+        presentationClass.isAssignableFrom(existingProxy.javaClass)
+    }?.let { return it }
 
     val subProxy = pool.getProxyInstantiator(presentationClass).newInstance()
     (subProxy as Proxy).setHandler { self, method, _, args ->
         // sync out
         behaviorClass.getPublicFields().forEach { it.set(behaviorInstance, self.javaClass.getField(it.name).get(self)) }
-        val result = behaviorClass.getMethod(method.name, *method.parameterTypes).invoke(behaviorInstance, *args)
+        // proxy arguments the opposite direction for compatibility with the real object
+        val arguments = method.parameterTypes.indices.map { i ->
+            val argumentProxying = proxyableClass(outermostBehaviorClass, outermostPresentationClass,
+                method.parameterTypes[i], pool)
+            val proxiedArgumentType = argumentProxying?.presentation ?: method.parameterTypes[i]
+            val argumentValue = proxyValue(args[i], outermostPresentationClass, outermostBehaviorClass, pool)
+            TypedArgument(proxiedArgumentType, argumentValue)
+        }
+        // actual proxied method call
+        val result = behaviorClass.getMethod(method.name, *arguments.map { it.type }.toTypedArray())
+            .invoke(behaviorInstance, *arguments.map { it.argument }.toTypedArray())
         // sync in
         behaviorClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(behaviorInstance)) }
-        // proxy result if necessary
-        if (result != null && result.javaClass.enclosingClass != null &&
-            result.javaClass.name.startsWith("${outermostBehaviorClass.name}$")
-        ) {
-            val innerMap = mostDerivedProxyableClass(outermostPresentationClass, result.javaClass, pool)
-            if (innerMap == null) {
-                return@setHandler result
-            } else {
-                val innerProxy = mkProxy(
-                    innerMap.presentation,
-                    outermostPresentationClass, innerMap.behavior, outermostBehaviorClass, result, pool
-                )
-                innerMap.behavior.getPublicFields()
-                    .forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
-                return@setHandler innerProxy
-            }
-        } else {
-            return@setHandler result
-        }
+        // return result proxied if necessary
+        proxyValue(result, outermostBehaviorClass, outermostPresentationClass, pool)
     }
 
+    pool.recordProxyOriginal(behaviorInstance, subProxy)
     return subProxy
+}
+
+/**
+ * Proxies (if necessary) one value of an unknown type.
+ */
+@Suppress("LiftReturnOrAssignment", "ReturnCount")
+private fun proxyValue(
+    value: Any?,
+    outermostBehaviorClass: Class<*>,
+    outermostPresentationClass: Class<*>,
+    pool: TypePool
+): Any? {
+    if (value == null) return null
+    val mapping = proxyableClass(outermostPresentationClass, outermostBehaviorClass, value.javaClass, pool)
+        ?: return value
+    val innerProxy = mkProxy(mapping.presentation, outermostPresentationClass,
+        mapping.behavior, outermostBehaviorClass, value, pool)
+    mapping.behavior.getPublicFields()
+        .forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(value)) }
+    return innerProxy
 }
 
 /** Replace qualified class name dots with forward slashes to match format in .class files. */
@@ -899,6 +955,15 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
      * the same reference to 'proxyClass' on future calls.
      */
     private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<*>> = mutableMapOf()
+    class ProxyHolder(val proxy: Any) {
+        // Prevent calls to proxied equals and hashCode
+        override fun equals(other: Any?): Boolean {
+            if (other !is ProxyHolder) return false
+            return other.proxy === proxy
+        }
+        override fun hashCode(): Int = System.identityHashCode(proxy)
+    }
+    private val proxyOriginals: WeakHashMap<ProxyHolder, Any> = WeakHashMap()
 
     private var parent: TypePool? = null
     private var loader: BytesClassLoader = BytesClassLoader()
@@ -964,6 +1029,14 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
             val proxyClass = factory.createClass()
             objenesis.getInstantiatorOf(proxyClass)
         }
+    }
+
+    fun recordProxyOriginal(behavior: Any, presentation: Any) {
+        proxyOriginals[ProxyHolder(presentation)] = behavior
+    }
+
+    fun getProxyOriginal(presentation: Any): Any? {
+        return proxyOriginals[ProxyHolder(presentation)]
     }
 
     fun getLoader(): EnumerableBytecodeLoader {

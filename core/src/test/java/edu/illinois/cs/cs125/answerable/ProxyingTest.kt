@@ -31,7 +31,7 @@ internal class ProxyingTest {
     }
 
     @Test
-    @Disabled("fields are not yet proxied - failure expected")
+    @Disabled("proxying of public fields is postponed indefinitely - failure expected")
     fun testCorrectFieldLinkedList() {
         val tg = PassedClassDesignRunner(examples.proxy.reference.FieldLinkedList::class.java, examples.proxy.FieldLinkedList::class.java)
         assertAllSucceeded(tg.runTestsUnsecured(0x0403))
@@ -103,6 +103,18 @@ internal class ProxyingTest {
     @Test
     fun testCollidingSubclassInnerClassWidget() {
         val tg = PassedClassDesignRunner(examples.proxy.reference.CollidingInnerClassWidget::class.java, examples.proxy.CollidingInnerClassWidget::class.java)
+        assertAllSucceeded(tg.runTestsUnsecured(0x0403))
+    }
+
+    @Test
+    fun testVerifyArgsProxying() {
+        val tg = PassedClassDesignRunner(examples.proxy.reference.WidgetArgumentWidget::class.java, examples.proxy.WidgetArgumentWidget::class.java)
+        assertAllSucceeded(tg.runTestsUnsecured(0x0403))
+    }
+
+    @Test
+    fun testReceiverCallArgsProxying() {
+        val tg = PassedClassDesignRunner(examples.proxy.reference.CopyableWidget::class.java, examples.proxy.CopyableWidget::class.java)
         assertAllSucceeded(tg.runTestsUnsecured(0x0403))
     }
 }
