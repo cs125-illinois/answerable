@@ -25,9 +25,7 @@ internal val defaultDoubleGen = object : Gen<Double> {
 
 internal val defaultFloatGen = object : Gen<Float> {
     override fun generate(complexity: Int, random: Random): Float {
-        val denom = random.nextDouble() * MAX_FP_DENOMINATOR + 1
-        val num = (random.nextDouble() * 2 * complexity * denom) - complexity * denom
-        return (num / denom).toFloat() // if complexity is > 1e38, this stops being uniform
+        return defaultDoubleGen(complexity, random).toFloat() // if complexity is > 1e38, this stops being uniform
     }
 }
 
