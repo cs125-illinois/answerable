@@ -270,7 +270,7 @@ private fun mkProxy(
             val argumentProxying = proxyableClass(outermostBehaviorClass, outermostPresentationClass,
                 method.parameterTypes[i], pool)
             val proxiedArgumentType = argumentProxying?.presentation ?: method.parameterTypes[i]
-            val argumentValue = proxyValue(args[i], outermostPresentationClass, outermostBehaviorClass, pool)
+            val argumentValue = mkValueProxy(args[i], outermostBehaviorClass, outermostPresentationClass, pool)
             TypedArgument(proxiedArgumentType, argumentValue)
         }
         // actual proxied method call
@@ -279,7 +279,7 @@ private fun mkProxy(
         // sync in
         behaviorClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(behaviorInstance)) }
         // return result proxied if necessary
-        proxyValue(result, outermostBehaviorClass, outermostPresentationClass, pool)
+        mkValueProxy(result, outermostPresentationClass, outermostBehaviorClass, pool)
     }
 
     pool.recordProxyOriginal(behaviorInstance, subProxy)
@@ -288,12 +288,16 @@ private fun mkProxy(
 
 /**
  * Proxies (if necessary) one value of an unknown type.
+ * @param value the value to potentially proxy, may be null
+ * @param outermostBehaviorClass the outermost real/original class
+ * @param outermostPresentationClass the outermost class of the proxy
+ * @param pool type pool to look for superclasses in
  */
 @Suppress("LiftReturnOrAssignment", "ReturnCount")
-private fun proxyValue(
+internal fun mkValueProxy(
     value: Any?,
-    outermostBehaviorClass: Class<*>,
     outermostPresentationClass: Class<*>,
+    outermostBehaviorClass: Class<*>,
     pool: TypePool
 ): Any? {
     if (value == null) return null

@@ -27,6 +27,7 @@ import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
 import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
 import edu.illinois.cs.cs125.answerable.typeManagement.mkOpenMirrorClass
 import edu.illinois.cs.cs125.answerable.typeManagement.mkProxy
+import edu.illinois.cs.cs125.answerable.typeManagement.mkValueProxy
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import edu.illinois.cs.cs125.answerable.typeManagement.verifyMemberAccess
 import java.lang.IllegalStateException
@@ -711,10 +712,15 @@ internal class TestRunWorker internal constructor(
                         usableReferenceClass.getField(it.name).set(subProxy, it.get(subReceiver))
                     }
                 }
+                val subBehaviorWithProxiedArgs = subBehavior.copy(
+                    args = subBehavior.args.map {
+                        mkValueProxy(it, usableReferenceClass, usableSubmissionClass, submissionTypePool)
+                    }.toTypedArray()
+                )
                 if (passRandomToVerify) {
-                    usableCustomVerifier.invoke(null, refBehavior, subBehavior, testRunnerRandom)
+                    usableCustomVerifier.invoke(null, refBehavior, subBehaviorWithProxiedArgs, testRunnerRandom)
                 } else {
-                    usableCustomVerifier.invoke(null, refBehavior, subBehavior)
+                    usableCustomVerifier.invoke(null, refBehavior, subBehaviorWithProxiedArgs)
                 }
             }
         } catch (ite: InvocationTargetException) {
