@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import kotlin.random.Random
 
 /**
@@ -10,7 +11,7 @@ import kotlin.random.Random
 fun runAnswerableTest(
     submissionClass: String,
     solutionClass: String,
-    solutionName: String = "",
+    solutionName: String = DEFAULT_EMPTY_NAME,
     randomSeed: Long = Random.nextLong()
 ): TestingResults {
     return TestGenerator(findClass(solutionClass), solutionName)

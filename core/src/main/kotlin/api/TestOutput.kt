@@ -1,7 +1,10 @@
 package edu.illinois.cs.cs125.answerable.api
 
 import edu.illinois.cs.cs125.answerable.Behavior
+import edu.illinois.cs.cs125.answerable.annotations.Solution
+import edu.illinois.cs.cs125.answerable.annotations.Verify
 import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
+import java.util.Arrays
 
 /**
  * A wrapper class used to pass data to custom verification methods.
@@ -114,7 +117,9 @@ data class OssifiedValue internal constructor(
     val type: String,
     val value: String,
     val identity: Int
-)
+) {
+    override fun toString(): String = value
+}
 
 internal fun Any?.ossify(pool: TypePool): OssifiedValue? {
     fun safeStringify(block: () -> String): String {
@@ -130,11 +135,11 @@ internal fun Any?.ossify(pool: TypePool): OssifiedValue? {
             }
         }
     }
-    return when (this) {
-        null -> {
+    return when {
+        this == null -> {
             null
         }
-        is Array<*> -> {
+        this is Array<*> -> {
             var componentType = this.javaClass.componentType
             var nestingLevel = 1
             while (componentType.isArray) {
@@ -145,13 +150,26 @@ internal fun Any?.ossify(pool: TypePool): OssifiedValue? {
             OssifiedValue(
                 originalName + "[]".repeat(nestingLevel),
                 safeStringify { this.contentDeepToString() }.replace(this.javaClass.name, originalName),
-                System.identityHashCode(this))
+                System.identityHashCode(this)
+            )
+        }
+        this.javaClass.isArray -> {
+            // Primitive array type
+            val componentType = this.javaClass.componentType
+            val stringifier = Arrays::class.java.getMethod("toString", this.javaClass)
+            OssifiedValue(
+                "$componentType[]",
+                safeStringify { stringifier(null, this) as String },
+                System.identityHashCode(this)
+            )
         }
         else -> {
             val originalName = pool.getOriginalClass(this.javaClass).typeName
-            OssifiedValue(originalName,
+            OssifiedValue(
+                originalName,
                 safeStringify { this.toString() }.replace(this.javaClass.name, originalName),
-                System.identityHashCode(this))
+                System.identityHashCode(this)
+            )
         }
     }
 }

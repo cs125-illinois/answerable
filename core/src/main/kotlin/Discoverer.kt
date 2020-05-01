@@ -5,7 +5,6 @@ package edu.illinois.cs.cs125.answerable
 import edu.illinois.cs.cs125.answerable.annotations.EdgeCase
 import edu.illinois.cs.cs125.answerable.annotations.Generator
 import edu.illinois.cs.cs125.answerable.annotations.Next
-import edu.illinois.cs.cs125.answerable.annotations.Precondition
 import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.UseGenerator
@@ -19,19 +18,6 @@ import java.lang.reflect.Member
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
-
-internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method? {
-    return this.declaredMethods.filter {
-        it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false
-    }.let { methods ->
-        if (methods.isEmpty()) {
-            return null
-        } else if (methods.size > 1) {
-            throw AnswerableMisuseException("Can't find singular solution method with tag `$name'.")
-        }
-        methods.first().also { it.isAccessible = true }
-    }
-}
 
 internal fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
 
@@ -267,14 +253,3 @@ internal fun Class<*>.getEnabledEdgeCases(enabledNames: Array<String>): Map<Type
 
 internal fun Class<*>.getEnabledSimpleCases(enabledNames: Array<String>): Map<Type, ArrayWrapper> =
     getEnabledCases(false, enabledNames)
-
-internal fun Class<*>.getPrecondition(name: String): Method? =
-    this.declaredMethods
-        .filter { it.getAnnotation(Precondition::class.java)?.name?.equals(name) ?: false }
-        .let {
-            when (it.size) {
-                0 -> null
-                1 -> it[0]
-                else -> throw AnswerableMisuseException("Multiple Preconditions found with name `$name'.")
-            }
-        }

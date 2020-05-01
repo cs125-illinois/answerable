@@ -6,6 +6,7 @@ import kotlin.random.Random
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -135,7 +136,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testEdgeCases() {
-        val out = TestGenerator(examples.testgeneration.reference.EdgeCases::class.java, "")
+        val out = TestGenerator(examples.testgeneration.reference.EdgeCases::class.java)
             .loadSubmission(examples.testgeneration.EdgeCases::class.java)
             .runTestsUnsecured(Random.nextLong())
 
@@ -144,7 +145,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testReceiverEdgeCases() {
-        val out = TestGenerator(examples.testgeneration.reference.ReceiverEdgeCase::class.java, "")
+        val out = TestGenerator(examples.testgeneration.reference.ReceiverEdgeCase::class.java)
             .loadSubmission(examples.testgeneration.ReceiverEdgeCase::class.java)
             .runTestsUnsecured(Random.nextLong())
 
@@ -192,7 +193,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testIntArrayParameter() {
-        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayParameter::class.java, "")
+        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayParameter::class.java)
                 .loadSubmission(examples.testgeneration.arrays.IntArrayParameter::class.java)
                 .runTestsUnsecured(Random.nextLong())
 
@@ -201,7 +202,7 @@ internal class TestGeneratorTest {
 
     @Test
     fun testIntArrayArrayParameter() {
-        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayArrayParameter::class.java, "")
+        val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayArrayParameter::class.java)
                 .loadSubmission(examples.testgeneration.arrays.IntArrayArrayParameter::class.java)
                 .runTestsUnsecured(Random.nextLong())
 
@@ -295,5 +296,13 @@ internal class TestGeneratorTest {
                 .loadSubmission(examples.lastten.reinitstatic.LastTen::class.java)
                 .runTestsUnsecured(Random.nextLong())
         assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
+    }
+
+    @Test // TODO: Implement the GENERATION_FAILED behavior then enable this test
+    @Disabled("will fail until the GENERATION_FAILED behavior is assessed")
+    fun testGenerationFailed() {
+        val result = PassedClassDesignRunner(examples.proxy.reference.Widget::class.java,
+            examples.proxy.ExplodingCtorWidget::class.java).runTestsUnsecured(0x0403)
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
 }

@@ -9,6 +9,8 @@ import edu.illinois.cs.cs125.answerable.TestGenerator
 import edu.illinois.cs.cs125.answerable.TestRunner
 import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.TestingResults
+import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
+import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.defaultArgs
 import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
@@ -42,7 +44,7 @@ class Service(private val environment: TestEnvironment) {
     fun loadNewQuestion(
         questionName: String,
         referenceClass: Class<*>,
-        solutionName: String = "",
+        solutionName: String = DEFAULT_EMPTY_NAME,
         testRunnerArgs: TestRunnerArgs = defaultArgs,
         bytecodeProvider: BytecodeProvider? = null
     ) {

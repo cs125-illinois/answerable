@@ -5,6 +5,7 @@ import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
 import edu.illinois.cs.cs125.answerable.TestGenerator
 import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.TestingResults
+import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.answerable.defaultArgs
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
 import edu.illinois.cs.cs125.jeed.core.CompiledSource
@@ -25,7 +26,7 @@ class Answerable {
         language: QuestionLanguage,
         referenceCode: String,
         className: String,
-        solutionName: String = "",
+        solutionName: String = DEFAULT_EMPTY_NAME,
         commonCode: List<String> = listOf(),
         testRunnerArgs: TestRunnerArgs = defaultArgs,
         classLoaderConfiguration: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLoaderConfiguration(),

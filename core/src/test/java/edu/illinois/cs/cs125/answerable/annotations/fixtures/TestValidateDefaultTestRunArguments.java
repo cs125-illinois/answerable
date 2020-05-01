@@ -7,16 +7,16 @@ import edu.illinois.cs.cs125.answerable.annotations.Verify;
 public class TestValidateDefaultTestRunArguments {
     @DefaultTestRunArguments
     @Solution
-    public void correct1() {}
+    public void correct0() {}
 
     @DefaultTestRunArguments
     @Verify(standalone = true)
-    public void correct2() {}
+    public void correct1() {}
 
     @DefaultTestRunArguments
-    public void broken1() {}
+    public void broken0() {}
 
     @DefaultTestRunArguments
     @Verify
-    public void broken2() {}
+    public void broken1() {}
 }

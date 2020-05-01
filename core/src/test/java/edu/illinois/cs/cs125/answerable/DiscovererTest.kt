@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.annotations.getSolution
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -14,14 +15,14 @@ internal class DiscovererTest {
     @Test
     fun testGetReferenceSolutionMethod() {
         val soln = findClass(correctAdderReference)
-        val ref = soln.getReferenceSolutionMethod()
+        val ref = soln.getSolution()
         assertEquals("add", ref?.name)
     }
 
     @Test
     fun testGetSolutionAttemptMethod() {
         val soln = findClass(correctAdderReference)
-        val solnMethod = soln.getReferenceSolutionMethod()
+        val solnMethod = soln.getSolution()
 
         val attempt = findClass(correctAdderAttempt)
         val attemptMethod = attempt.findSolutionAttemptMethod(solnMethod, soln)
@@ -34,7 +35,7 @@ internal class DiscovererTest {
     @Test
     fun testIsPrinter() {
         val printerReferenceClass = findClass(correctPrinterReference)
-        val printerReferenceMethod = printerReferenceClass.getReferenceSolutionMethod()
+        val printerReferenceMethod = printerReferenceClass.getSolution()
         assertTrue(printerReferenceMethod?.isPrinter() ?: false)
     }
 
@@ -44,19 +45,6 @@ internal class DiscovererTest {
         assertEquals(
             "[public static int examples.classdesign.correct1.reference.ClassDesign.numGets]",
             classDesignReferenceClass.getPublicFields().toString()
-        )
-    }
-
-    @Test
-    fun testGetPublicMethods() {
-        val classDesignReferenceClass = findClass(correctClassDesignReference)
-
-        assertEquals(
-            "[public java.lang.Object examples.classdesign.correct1.reference.ClassDesign.get(int), " +
-                "public static examples.classdesign.correct1.reference.ClassDesign " +
-                "examples.classdesign.correct1.reference.ClassDesign.next(" +
-                "examples.classdesign.correct1.reference.ClassDesign,int)]",
-            classDesignReferenceClass.getPublicMethods().toString()
         )
     }
 
