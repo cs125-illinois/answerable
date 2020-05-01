@@ -10,7 +10,8 @@ import edu.illinois.cs.cs125.answerable.load
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.fail
 
-private fun String.example(): Class<*> {
+// Internal so that TestErrors can also use it to access the fixtures.
+internal fun String.example(): Class<*> {
     return Class.forName("${Analyze::class.java.packageName}.fixtures.$this")
 }
 

@@ -499,9 +499,8 @@ data class CDAResult(
         get() = getMessages { true }
 }
 
-/* TODO: try this once everything else is working
-potential idea like:
-MutliplyMatchable<T>( come up with a better name
+/* Here's an idea to consider:
+MutliplyMatchable<T>(
   val: List<T> // submission is missing
   val: List<T> // submission has but shouldn't have
   // in a naive world everything in here matched, but in a really really cool world in the future,
@@ -511,8 +510,6 @@ MutliplyMatchable<T>( come up with a better name
   val matched = list1 && list 2 are empty and everything in list 3 matches
  */
 
-// Including this is low-cost over using strings and is easier to safely fix in the future if we, say,
-// want to report abstract classes as a kind mismatch rather than a modifier mismatch.
 enum class ClassKind {
     // enum classes can contain methods in Java
     CLASS, INTERFACE, ENUM;

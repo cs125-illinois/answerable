@@ -5,15 +5,6 @@ package edu.illinois.cs.cs125.answerable.classdesignanalysis
 import java.lang.IllegalStateException
 import java.lang.reflect.Type
 
-// TODO: goals for the rewrite here:
-//   (1) provide a toErrorMessage function for each type of component mismatch
-//   (2) Keep things private, because everything relies on the invariant that
-//       the argument is actually a mismatch.
-//   (3) Use the components to define CDAMatcher.toErrorMessage() here
-//   (4) Use the components to define CDAResult.toErrorMessage() in Analyze.kt
-
-
-
 internal fun AnalysisOutput.toErrorMsg() = when (this.result) {
     is Matched -> "Everything looks good!"
     is Mismatched -> when (this.tag) {
@@ -29,6 +20,17 @@ internal fun AnalysisOutput.toErrorMsg() = when (this.result) {
     }(this.result)
 }
 
+/**
+ * Turn a CDAMatcher into a nice message.
+ *
+ * If the matcher does not match, a 3-line message of the form
+ * AnalysisType mismatch;
+ * Expected: expected
+ * Found:    actual
+ * is generated.
+ */
+// The intention here is only to be a sane default behavior, as with everything else in Answerable.
+// If the user wants to produce their own error messages, the type, reference, and submission fields are all public.
 val CDAMatcher<*>.message: String
     get() = when (this.type) {
         AnalysisType.NAME -> nameMismatchMessage(this as CDAMatcher<String>)
@@ -43,14 +45,14 @@ val CDAMatcher<*>.message: String
     } ?: "${this.type.toString().capitalize()}: All good!"
 
 private fun <T> ifMismatched(matcher: CDAMatcher<T>, mkMsg: () -> String): String? =
-    if (matcher.match) mkMsg() else null
+    if (!matcher.match) mkMsg() else null
 
 private fun nameMismatchMessage(matcher: CDAMatcher<String>): String? = ifMismatched(matcher) {
     """
         |Class name mismatch;
         |Expected: ${matcher.reference}
         |Found:    ${matcher.submission}
-    """.trimIndent()
+    """.trimMargin()
 }
 
 
@@ -66,7 +68,7 @@ private fun kindMismatchMessage(matcher: CDAMatcher<ClassKind>): String? = ifMis
         |Class kind mismatch;
         |Expected: ${matcher.reference.asNoun()}
         |Found:    ${matcher.submission.asNoun()}
-    """.trimIndent()
+    """.trimMargin()
 }
 
 private fun modifierMismatchMessage(matcher: CDAMatcher<List<String>>): String? = ifMismatched(matcher) {
@@ -82,7 +84,7 @@ private fun typeParamMismatchMessage(matcher: CDAMatcher<List<String>>): String?
         |Type parameter mismatch;
         |Expected: ${matcher.reference.joinToString(prefix = "<", separator = ", ", postfix = ">")}
         |Found:    ${matcher.submission.joinToString(prefix = "<", separator = ", ", postfix = ">")}
-    """.trimIndent()
+    """.trimMargin()
 }
 
 private fun superclassMismatchMessage(matcher: CDAMatcher<String?>): String? = ifMismatched(matcher) {
@@ -92,7 +94,7 @@ private fun superclassMismatchMessage(matcher: CDAMatcher<String?>): String? = i
         |Superclass mismatch;
         |Expected: $expected
         |Found:    $found
-    """.trimIndent()
+    """.trimMargin()
 }
 
 private fun interfaceMismatchMessage(matcher: CDAMatcher<List<String>>, kind: ClassKind = ClassKind.CLASS): String? =
@@ -110,7 +112,7 @@ private fun interfaceMismatchMessage(matcher: CDAMatcher<List<String>>, kind: Cl
             |Interface mismatch;
             |Expected: $expected
             |Found:    $found
-        """.trimIndent()
+        """.trimMargin()
     }
 
 private fun fieldMismatchMessage(matcher: CDAMatcher<List<OssifiedField>>): String? = ifMismatched(matcher) {
