@@ -1,6 +1,7 @@
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
+import edu.illinois.cs.cs125.answerable.ExecutedTestStep
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -24,6 +25,49 @@ class TestService {
             WIDGET_JAVA_REFERENCE_CODE, "Widget")
         val runner = answerable.submit("WidgetGetter", WIDGET_JAVA_SUBMISSION_CODE)
         runner.runTests().assertAllSucceeded()
+    }
+
+    @Test
+    fun testJavaCodeQuestionCodeIncorrectAnswer() {
+        answerable.loadNewQuestion("WidgetGetter", QuestionLanguage.JAVA,
+            WIDGET_JAVA_REFERENCE_CODE, "Widget")
+        val result = answerable.submit(
+            "WidgetGetter",
+            WIDGET_JAVA_SUBMISSION_CODE.replace("return ", "return 2 * ")
+        ).runTests()
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
+    }
+
+    @Test
+    fun testClassQuestionJavaCodeAnswer() {
+        answerable.loadNewQuestion("WidgetGetter", examples.reference.Widget::class.java,
+            language = QuestionLanguage.JAVA)
+        val runner = answerable.submit("WidgetGetter", WIDGET_JAVA_SUBMISSION_CODE)
+        runner.runTests().assertAllSucceeded()
+    }
+
+    @Test
+    fun testSpecifyLanguageLate() {
+        answerable.loadNewQuestion("WidgetGetter", examples.reference.Widget::class.java)
+        val runner = answerable.submit("WidgetGetter", WIDGET_JAVA_SUBMISSION_CODE,
+            overrideLanguage = QuestionLanguage.JAVA)
+        runner.runTests().assertAllSucceeded()
+    }
+
+    @Test
+    fun testJavaCodeQuestionClassAnswer() {
+        answerable.loadNewQuestion("WidgetGetter", QuestionLanguage.JAVA,
+            WIDGET_JAVA_REFERENCE_CODE, "Widget")
+        val runner = answerable.submit("WidgetGetter", examples.Widget::class.java)
+        runner.runTests().assertAllSucceeded()
+    }
+
+    @Test
+    fun testJavaCodeQuestionClassIncorrectAnswer() {
+        answerable.loadNewQuestion("WidgetGetter", QuestionLanguage.JAVA,
+            WIDGET_JAVA_REFERENCE_CODE, "Widget")
+        val result = answerable.submit("WidgetGetter", examples.wrong.Widget::class.java).runTests()
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
 
     @Test

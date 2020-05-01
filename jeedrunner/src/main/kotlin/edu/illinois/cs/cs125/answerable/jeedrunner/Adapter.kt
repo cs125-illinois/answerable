@@ -29,7 +29,7 @@ val jeedOutputCapturer = object : OutputCapturer {
 
 fun jeedSandbox(loaderConfig: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLoaderConfiguration(),
                 executeConfig: Sandbox.ExecutionArguments = Sandbox.ExecutionArguments(),
-                maxTimeout: Long = 2000L): edu.illinois.cs.cs125.answerable.api.Sandbox {
+                maxTimeout: Long = 10000L): edu.illinois.cs.cs125.answerable.api.Sandbox {
     return object : edu.illinois.cs.cs125.answerable.api.Sandbox {
         private lateinit var sandboxedLoader: Sandbox.SandboxedClassLoader
         override fun transformLoader(loader: EnumerableBytecodeLoader): BytecodeClassProvider {

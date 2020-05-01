@@ -26,8 +26,8 @@ fun testFromStrings(
     solutionName: String = DEFAULT_EMPTY_NAME
 ): TestingResults {
 
-    val referenceSource: Source = Source(mapOf("Reference.java" to reference))
-    val submissionSource: Source = Source(mapOf("Submission.java" to submission))
+    val referenceSource = Source(mapOf("Reference.java" to reference))
+    val submissionSource = Source(mapOf("Submission.java" to submission))
 
     val commonSource: Source? = common?.run { Source(mapOf("Common.java" to common)) }
 

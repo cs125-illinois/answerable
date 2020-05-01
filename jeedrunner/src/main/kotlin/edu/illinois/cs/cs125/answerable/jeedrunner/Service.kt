@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
@@ -6,8 +8,10 @@ import edu.illinois.cs.cs125.answerable.TestGenerator
 import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
+import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.defaultArgs
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
+import edu.illinois.cs.cs125.jeed.core.CompilationFailed
 import edu.illinois.cs.cs125.jeed.core.CompiledSource
 import edu.illinois.cs.cs125.jeed.core.KompilationArguments
 import edu.illinois.cs.cs125.jeed.core.Sandbox
@@ -21,6 +25,7 @@ class Answerable {
     private val questions = mutableMapOf<String, Question>()
 
     @JvmOverloads
+    @Throws(CompilationFailed::class)
     fun loadNewQuestion(
         questionName: String,
         language: QuestionLanguage,
@@ -32,23 +37,69 @@ class Answerable {
         classLoaderConfiguration: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLoaderConfiguration(),
         executionArguments: Sandbox.ExecutionArguments = Sandbox.ExecutionArguments()
     ) {
-        require(!questions.containsKey(questionName)) { "A reference is already loaded for question $questionName" }
         val common = if (commonCode.any()) compile(commonCode, "Common", language) else null
         val refCL = compile(listOf(referenceCode), "Reference", language, common).classLoader
+        loadNewQuestionInternal(
+            questionName = questionName,
+            referenceClass = refCL.loadClass(className),
+            solutionName = solutionName,
+            language = language,
+            bytecodeProvider = answerableBytecodeProvider(refCL),
+            commonSource = common,
+            testRunnerArgs = testRunnerArgs,
+            classLoaderConfiguration = classLoaderConfiguration,
+            executionArguments = executionArguments
+        )
+    }
+
+    @JvmOverloads
+    fun loadNewQuestion(
+        questionName: String,
+        referenceClass: Class<*>,
+        solutionName: String = DEFAULT_EMPTY_NAME,
+        language: QuestionLanguage? = null,
+        testRunnerArgs: TestRunnerArgs = defaultArgs,
+        classLoaderConfiguration: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLoaderConfiguration(),
+        executionArguments: Sandbox.ExecutionArguments = Sandbox.ExecutionArguments(),
+        bytecodeProvider: BytecodeProvider? = null
+    ) {
+        loadNewQuestionInternal(
+            questionName = questionName,
+            referenceClass = referenceClass,
+            solutionName = solutionName,
+            language = language,
+            bytecodeProvider = bytecodeProvider,
+            commonSource = null,
+            testRunnerArgs = testRunnerArgs,
+            classLoaderConfiguration = classLoaderConfiguration,
+            executionArguments = executionArguments
+        )
+    }
+
+    private fun loadNewQuestionInternal(
+        questionName: String,
+        referenceClass: Class<*>,
+        solutionName: String,
+        language: QuestionLanguage?,
+        bytecodeProvider: BytecodeProvider?,
+        commonSource: CompiledSource?,
+        testRunnerArgs: TestRunnerArgs,
+        classLoaderConfiguration: Sandbox.ClassLoaderConfiguration,
+        executionArguments: Sandbox.ExecutionArguments
+    ) {
+        require(!questions.containsKey(questionName)) { "A reference is already loaded for question $questionName" }
         val testGenerator = prettifyPotentialTestGeneratorError(questionName) {
             TestGenerator(
-                refCL.loadClass(className),
+                referenceClass,
                 solutionName = solutionName,
-                bytecodeProvider = answerableBytecodeProvider(
-                    refCL
-                ),
+                bytecodeProvider = bytecodeProvider,
                 testRunnerArgs = testRunnerArgs
             )
         }
         questions[questionName] = Question(
             testGenerator = testGenerator,
             language = language,
-            commonSource = common,
+            commonSource = commonSource,
             classLoaderConfiguration = classLoaderConfiguration,
             executionConfiguration = executionArguments
         )
@@ -59,6 +110,7 @@ class Answerable {
     }
 
     @JvmOverloads
+    @Throws(CompilationFailed::class)
     fun submit(
         questionName: String,
         submissionCode: String,
@@ -76,16 +128,31 @@ class Answerable {
             parentSource = question.commonSource
         ).classLoader
         val testRunner = question.testGenerator.loadSubmission(
-            submissionClass = submissionCL.loadClass(question.testGenerator.referenceClass.name),
-            bytecodeProvider = answerableBytecodeProvider(
-                submissionCL
-            ),
+            submissionClass = submissionCL.loadClass(question.testGenerator.referenceClass.simpleName),
+            bytecodeProvider = answerableBytecodeProvider(submissionCL),
             testRunnerArgs = testRunnerArgs
         )
         return JeedTestRunner(testRunner, question.createJeedEnvironment())
     }
 
     @JvmOverloads
+    fun submit(
+        questionName: String,
+        submissionClass: Class<*>,
+        testRunnerArgs: TestRunnerArgs = defaultArgs,
+        bytecodeProvider: BytecodeProvider? = null
+    ): JeedTestRunner {
+        val question = questions[questionName] ?: error("No question named $questionName is currently loaded")
+        val testRunner = question.testGenerator.loadSubmission(
+            submissionClass = submissionClass,
+            bytecodeProvider = bytecodeProvider,
+            testRunnerArgs = testRunnerArgs
+        )
+        return JeedTestRunner(testRunner, question.createJeedEnvironment())
+    }
+
+    @JvmOverloads
+    @Throws(CompilationFailed::class)
     fun submitAndTest(
         questionName: String,
         submissionCode: String,
@@ -94,6 +161,17 @@ class Answerable {
         testRunnerArgs: TestRunnerArgs = defaultArgs
     ): TestingResults {
         return submit(questionName, submissionCode, overrideLanguage, testRunnerArgs).runTests(seed = seed)
+    }
+
+    @JvmOverloads
+    fun submitAndTest(
+        questionName: String,
+        submissionClass: Class<*>,
+        seed: Long = Random.nextLong(),
+        testRunnerArgs: TestRunnerArgs = defaultArgs,
+        bytecodeProvider: BytecodeProvider? = null
+    ): TestingResults {
+        return submit(questionName, submissionClass, testRunnerArgs, bytecodeProvider).runTests(seed = seed)
     }
 
     private fun compile(

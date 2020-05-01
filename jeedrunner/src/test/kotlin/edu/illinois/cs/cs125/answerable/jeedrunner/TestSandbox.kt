@@ -94,8 +94,10 @@ class TestSandbox {
     fun testTimeout() {
         val result = testFromStrings(reference = """
             import edu.illinois.cs.cs125.answerable.annotations.Solution;
+            import edu.illinois.cs.cs125.answerable.annotations.Timeout;
             public class Example {
                 @Solution
+                @Timeout(timeout = 2000)
                 public static int getThing() {
                     return 5;
                 }
