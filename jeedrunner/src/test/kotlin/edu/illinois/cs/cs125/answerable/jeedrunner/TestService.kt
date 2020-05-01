@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.lang.Exception
@@ -98,6 +99,53 @@ class TestService {
     }
 
     @Test
+    fun testKotlinCodeQuestionCodeAnswer() {
+        answerable.loadNewQuestion("Accumulate", QuestionLanguage.KOTLIN,
+            ACCUMULATOR_KOTLIN_REFERENCE_CODE, "Accumulator")
+        val runner = answerable.submit("Accumulate", ACCUMULATOR_KOTLIN_SUBMISSION_CODE)
+        runner.runTests().assertAllSucceeded()
+    }
+
+    @Test
+    fun testKotlinClassQuestionCodeAnswer() {
+        answerable.loadNewQuestion("Accumulate", examples.reference.Accumulator::class.java)
+        val runner = answerable.submit("Accumulate", ACCUMULATOR_KOTLIN_SUBMISSION_CODE, QuestionLanguage.KOTLIN)
+        runner.runTests().assertAllSucceeded()
+    }
+
+    @Test
+    fun testKotlinCodeQuestionClassAnswer() {
+        answerable.loadNewQuestion("Accumulate", QuestionLanguage.KOTLIN,
+            ACCUMULATOR_KOTLIN_REFERENCE_CODE, "Accumulator")
+        val runner = answerable.submit("Accumulate", examples.Accumulator::class.java)
+        runner.runTests().assertAllSucceeded()
+    }
+
+    @Test
+    fun testKotlinClassQuestionClassAnswer() {
+        answerable.loadNewQuestion("Accumulate", examples.reference.Accumulator::class.java)
+        val runner = answerable.submit("Accumulate", examples.Accumulator::class.java)
+        runner.runTests().assertAllSucceeded()
+    }
+
+    @Test
+    @Disabled("Jeed does not consult the parent file manager during kompilation")
+    fun testKotlinCommonCode() {
+        val commonCode = """
+            object Utils {
+                const val theNumberZero = 0
+                fun identity(value: Int) = value
+            }
+        """.trimIndent()
+        answerable.loadNewQuestion("Accumulate", QuestionLanguage.KOTLIN,
+            ACCUMULATOR_KOTLIN_REFERENCE_CODE.replace("= value", "= value + Utils.theNumberZero"),
+            "Accumulator", commonCode = listOf(commonCode))
+        val runner = answerable.submit("Accumulate",
+            ACCUMULATOR_KOTLIN_SUBMISSION_CODE.replace("+= more", "+= Utils.identity(more)"))
+        runner.runTests().assertAllSucceeded()
+    }
+
+    @Test
     fun testQuestionUnload() {
         assertFalse(answerable.unloadQuestion("WidgetGetter"))
         answerable.loadNewQuestion("WidgetGetter", QuestionLanguage.JAVA,
@@ -168,6 +216,39 @@ class TestService {
                 public int getSprings() {
                     return numSprings;
                 }
+            }
+        """.trimIndent()
+        val ACCUMULATOR_KOTLIN_REFERENCE_CODE = """
+            import edu.illinois.cs.cs125.answerable.annotations.*
+            import edu.illinois.cs.cs125.answerable.api.TestOutput
+            import edu.illinois.cs.cs125.answerable.api.defaultIntGenerator
+            import org.junit.jupiter.api.Assertions.assertEquals
+            import java.util.Random
+            class Accumulator(private var value: Int) {
+                @Solution
+                fun add(extra: Int) {
+                    value += extra
+                }
+                val current: Int
+                    get() = value
+            }
+            @Generator
+            fun generate(complexity: Int, random: Random): Accumulator {
+                return Accumulator(defaultIntGenerator(complexity, random))
+            }
+            @Verify
+            fun verify(ours: TestOutput<Accumulator>, theirs: TestOutput<Accumulator>) {
+                assertEquals(ours.receiver!!.current, theirs.receiver!!.current)
+            }
+        """.trimIndent()
+        val ACCUMULATOR_KOTLIN_SUBMISSION_CODE = """
+            class Accumulator(private val initialValue: Int) {
+                private var currentValue = initialValue
+                fun add(more: Int) {
+                    currentValue += more
+                }
+                val current: Int
+                    get() = currentValue
             }
         """.trimIndent()
     }

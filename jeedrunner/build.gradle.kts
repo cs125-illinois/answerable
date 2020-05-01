@@ -6,7 +6,7 @@ plugins {
 }
 
 application {
-    mainClassName = "edu.illinois.cs.cs125.answerable.MainKt"
+    mainClassName = "edu.illinois.cs.cs125.answerable.jeedrunner.MainKt"
 }
 
 version = "SNAPSHOT"

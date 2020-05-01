@@ -897,7 +897,8 @@ internal fun getDefiningKotlinFileClass(forClass: Class<*>, typePool: TypePool):
     val sourceFile = bcelClass.attributes.filterIsInstance<SourceFile>().firstOrNull() ?: return null
     val filename = sourceFile.sourceFileName ?: return null
     return try {
-        forClass.classLoader.loadClass(forClass.packageName + "." + filename.replace(".kt", "Kt"))
+        val packagePrefix = if (forClass.packageName.isEmpty()) "" else forClass.packageName + "."
+        forClass.classLoader.loadClass(packagePrefix + filename.replace(".kt", "Kt"))
     } catch (e: ClassNotFoundException) {
         null
     }
