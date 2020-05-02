@@ -1,4 +1,4 @@
-@file:Suppress("unused")
+@file:Suppress("unused", "NEWER_VERSION_IN_SINCE_KOTLIN")
 
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
@@ -78,6 +78,20 @@ class Answerable {
     }
 
     /**
+     * Creates a builder for a new question from reference solution code. Provides a Java equivalent for
+     * [loadNewQuestion]'s numerous optional arguments.
+     */
+    @SinceKotlin(JAVA_ONLY)
+    fun buildNewQuestion(
+        questionName: String,
+        language: QuestionLanguage,
+        referenceCode: String,
+        className: String
+    ): CodeQuestionBuilder {
+        return CodeQuestionBuilder(this, questionName, language, referenceCode, className)
+    }
+
+    /**
      * Loads a new question into the Answerable service with an already compiled reference solution class.
      * Submissions can then be tested against it with [submit]/[submitAndTest].
      *
@@ -116,6 +130,18 @@ class Answerable {
             classLoaderConfiguration = classLoaderConfiguration,
             executionArguments = executionArguments
         )
+    }
+
+    /**
+     * Creates a builder for a new question from a precompiled reference class. Provides a Java equivalent for
+     * [loadNewQuestion]'s numerous optional arguments.
+     */
+    @SinceKotlin(JAVA_ONLY)
+    fun buildNewQuestion(
+        questionName: String,
+        referenceClass: Class<*>
+    ): ClassQuestionBuilder {
+        return ClassQuestionBuilder(this, questionName, referenceClass)
     }
 
     private fun loadNewQuestionInternal(
@@ -164,7 +190,7 @@ class Answerable {
      * The submission class must be outside any package and must have the same unqualified name as the reference class.
      *
      * @throws IllegalArgumentException if there is no currently loaded question with the specified name,
-     *                                  or if no code language was specified here or during question loading
+     * @throws IllegalStateException if no code language was specified here or during question loading
      * @throws CompilationFailed if the [submissionCode] could not be compiled
      *
      * @param questionName the name of the question this submission is to
@@ -199,6 +225,17 @@ class Answerable {
     }
 
     /**
+     * Creates a builder for a code submission. Provides a Java equivalent for [submit]'s optional arguments.
+     */
+    @SinceKotlin(JAVA_ONLY)
+    fun buildSubmission(
+        questionName: String,
+        submissionCode: String
+    ): CodeSubmissionBuilder {
+        return CodeSubmissionBuilder(this, questionName, submissionCode)
+    }
+
+    /**
      * Makes a submission to a question from a precompiled class, producing a [JeedTestRunner] which can run
      * sandboxed tests on demand. Any common classes must have been loaded by the parent classloader of the submission
      * class's loader.
@@ -225,6 +262,17 @@ class Answerable {
             testRunnerArgs = testRunnerArgs
         )
         return JeedTestRunner(testRunner, question.createJeedEnvironment())
+    }
+
+    /**
+     * Creates a builder for a code submission. Provides a Java equivalent for [submit]'s optional arguments.
+     */
+    @SinceKotlin(JAVA_ONLY)
+    fun buildSubmission(
+        questionName: String,
+        submissionClass: Class<*>
+    ): ClassSubmissionBuilder {
+        return ClassSubmissionBuilder(this, questionName, submissionClass)
     }
 
     /**
