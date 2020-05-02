@@ -1,4 +1,4 @@
-@file:Suppress("NEWER_VERSION_IN_SINCE_KOTLIN")
+@file:Suppress("NEWER_VERSION_IN_SINCE_KOTLIN", "unused")
 
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
@@ -32,11 +32,22 @@ enum class QuestionLanguage(val extension: String) {
     KOTLIN("kt")
 }
 
+/**
+ * Allows running tests on a submission, multiple times or with a specified seed if desired.
+ * The Jeed-runner-specific version of [TestRunner].
+ */
 class JeedTestRunner internal constructor(
     private val answerableRunner: TestRunner,
     private val environment: TestEnvironment
 ) {
 
+    /**
+     * Tests the submission in the Jeed sandbox.
+     *
+     * @param seed the seed to use for random generation (defaults to random)
+     * @param testRunnerArgs any additional overrides of test run arguments
+     * @return the test results
+     */
     @JvmOverloads
     fun runTests(
         seed: Long = Random.nextLong(),

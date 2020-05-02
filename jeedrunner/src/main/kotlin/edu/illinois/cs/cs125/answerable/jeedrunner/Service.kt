@@ -8,6 +8,7 @@ import edu.illinois.cs.cs125.answerable.TestGenerator
 import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
+import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.defaultArgs
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
@@ -20,10 +21,34 @@ import edu.illinois.cs.cs125.jeed.core.compile
 import edu.illinois.cs.cs125.jeed.core.kompile
 import kotlin.random.Random
 
+/**
+ * Facilitates use of Answerable as a service by compiling code with Jeed, keeping track of questions, and running
+ * submissions in the Jeed sandbox.
+ */
 class Answerable {
 
+    /** Currently loaded questions. */
     private val questions = mutableMapOf<String, Question>()
 
+    /**
+     * Loads a new question into the Answerable service with code for the reference solution.
+     * Submissions can then be tested against it with [submit]/[submitAndTest].
+     *
+     * @throws IllegalArgumentException if the specified question name is already registered
+     * @throws CompilationFailed if the [referenceCode] or [commonCode] could not be compiled
+     * @throws AnswerableMisuseException if the reference solution code does not specify Answerable settings properly
+     * @throws AnswerableVerificationException if control functions rely on submission-specific members
+     *
+     * @param questionName the name to save this question as
+     * @param language the [QuestionLanguage] the reference solution is written in
+     * @param referenceCode code for the question and reference solution, in the [language] specified
+     * @param className the name of the class containing the @[Solution] annotation
+     * @param solutionName the specific solution name, if the question class contains multiple problems
+     * @param commonCode files containing any code usable by both reference and submission
+     * @param testRunnerArgs default test run arguments for the problem
+     * @param classLoaderConfiguration Jeed classloading restrictions for submissions
+     * @param executionArguments Jeed sandbox restrictions for submissions
+     */
     @JvmOverloads
     @Throws(CompilationFailed::class)
     fun loadNewQuestion(
@@ -52,6 +77,23 @@ class Answerable {
         )
     }
 
+    /**
+     * Loads a new question into the Answerable service with an already compiled reference solution class.
+     * Submissions can then be tested against it with [submit]/[submitAndTest].
+     *
+     * @throws IllegalArgumentException if the specified question name is already registered
+     * @throws AnswerableMisuseException if the reference solution code does not specify Answerable settings properly
+     * @throws AnswerableVerificationException if control functions rely on submission-specific members
+     *
+     * @param questionName the name to save this question as
+     * @param referenceClass the outer class containing the @[Solution]
+     * @param solutionName the specific solution name, if the question class contains multiple problems
+     * @param language the default language to use when compiling submission code
+     * @param testRunnerArgs default test run arguments for the problem
+     * @param classLoaderConfiguration Jeed classloading restrictions for submissions
+     * @param executionArguments Jeed sandbox restrictions for submissions
+     * @param bytecodeProvider the [BytecodeProvider] for the [referenceClass], if it was dynamically loaded
+     */
     @JvmOverloads
     fun loadNewQuestion(
         questionName: String,
@@ -105,10 +147,32 @@ class Answerable {
         )
     }
 
+    /**
+     * Removes a question from this service's records.
+     *
+     * @param questionName the name of the question to unload
+     * @return whether there was a question of the specified name
+     */
     fun unloadQuestion(questionName: String): Boolean {
         return questions.remove(questionName) != null
     }
 
+    /**
+     * Makes a code submission to a question, producing a [JeedTestRunner] which can run sandboxed tests on demand.
+     * By default the submission code will be assumed to be in the same language as the original reference. This can
+     * be overridden, and must be if the reference was loaded from a compiled class with no language specified.
+     * The submission class must be outside any package and must have the same unqualified name as the reference class.
+     *
+     * @throws IllegalArgumentException if there is no currently loaded question with the specified name,
+     *                                  or if no code language was specified here or during question loading
+     * @throws CompilationFailed if the [submissionCode] could not be compiled
+     *
+     * @param questionName the name of the question this submission is to
+     * @param submissionCode the submission code
+     * @param overrideLanguage the language to interpret [submissionCode] as
+     * @param testRunnerArgs additional test run arguments specific for running this submission
+     * @return a test runner that will execute tests of this submission
+     */
     @JvmOverloads
     @Throws(CompilationFailed::class)
     fun submit(
@@ -118,13 +182,12 @@ class Answerable {
         testRunnerArgs: TestRunnerArgs = defaultArgs
     ): JeedTestRunner {
         val question = questions[questionName] ?: error("No question named $questionName is currently loaded")
-        if (question.language == null && overrideLanguage == null) {
-            error("Reference $questionName does not have a language, so one must be specified as overrideLanguage")
-        }
+        val actualLanguage = overrideLanguage ?: question.language
+            ?: error("Reference $questionName does not have a language, so one must be specified as overrideLanguage")
         val submissionCL = compile(
             code = listOf(submissionCode),
             fileTitle = "Submission",
-            language = overrideLanguage ?: question.language ?: error("Impossible: language is no longer set"),
+            language = actualLanguage,
             parentSource = question.commonSource
         ).classLoader
         val testRunner = question.testGenerator.loadSubmission(
@@ -135,6 +198,19 @@ class Answerable {
         return JeedTestRunner(testRunner, question.createJeedEnvironment())
     }
 
+    /**
+     * Makes a submission to a question from a precompiled class, producing a [JeedTestRunner] which can run
+     * sandboxed tests on demand. Any common classes must have been loaded by the parent classloader of the submission
+     * class's loader.
+     *
+     * @throws IllegalArgumentException if there is no currently loaded question with the specified name
+     *
+     * @param questionName the name of the question this submission is to
+     * @param submissionClass the precompiled submission class
+     * @param testRunnerArgs additional test run arguments specific for running this submission
+     * @param bytecodeProvider the [BytecodeProvider] for the [submissionClass] if it was dynamically loaded
+     * @return a test runner that will execute tests of this submission
+     */
     @JvmOverloads
     fun submit(
         questionName: String,
@@ -151,6 +227,9 @@ class Answerable {
         return JeedTestRunner(testRunner, question.createJeedEnvironment())
     }
 
+    /**
+     * Calls [submit] and immediately tests the code submission with the given [seed].
+     */
     @JvmOverloads
     @Throws(CompilationFailed::class)
     fun submitAndTest(
@@ -163,6 +242,9 @@ class Answerable {
         return submit(questionName, submissionCode, overrideLanguage, testRunnerArgs).runTests(seed = seed)
     }
 
+    /**
+     * Calls [submit] and immediately tests the precompiled class submission with the given [seed].
+     */
     @JvmOverloads
     fun submitAndTest(
         questionName: String,
