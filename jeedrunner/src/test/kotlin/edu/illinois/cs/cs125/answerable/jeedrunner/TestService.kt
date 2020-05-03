@@ -72,26 +72,19 @@ class TestService {
     }
 
     @Test
+    fun testJavaClassQuestionClassAnswer() {
+        answerable.loadNewQuestion("WidgetGetter", examples.reference.Widget::class.java)
+        val result = answerable.submitAndTest("WidgetGetter", examples.Widget::class.java)
+        result.assertAllSucceeded()
+    }
+
+    @Test
     fun testJavaCommonCode() {
-        val commonAdder = """
-            public class Adder {
-                public static int oneMore(int value) {
-                    return value + 1;
-                }
-            }
-        """.trimIndent()
-        val commonSubtracter = """
-            public class Subtracter {
-                public static int oneLess(int value) {
-                    return value - 1;
-                }
-            }
-        """.trimIndent()
         answerable.loadNewQuestion("WidgetGetter", QuestionLanguage.JAVA,
             WIDGET_JAVA_REFERENCE_CODE
                 .replace("= setSprings", "= Adder.oneMore(setSprings)")
                 .replace("return springs", "return Subtracter.oneLess(springs)"),
-            "Widget", commonCode = listOf(commonAdder, commonSubtracter))
+            "Widget", commonCode = listOf(ADDER_JAVA_COMMON_CODE, SUBTRACTER_JAVA_COMMON_CODE))
         val runner = answerable.submit("WidgetGetter",
             WIDGET_JAVA_SUBMISSION_CODE
                 .replace("numSprings;", "Adder.oneMore(Subtracter.oneLess(numSprings));"))
@@ -189,7 +182,7 @@ class TestService {
     }
 
     companion object {
-        val WIDGET_JAVA_REFERENCE_CODE = """
+        @JvmField val WIDGET_JAVA_REFERENCE_CODE = """
             import edu.illinois.cs.cs125.answerable.annotations.*;
             import java.util.Random;
             public class Widget {
@@ -207,7 +200,7 @@ class TestService {
                 }
             }
         """.trimIndent()
-        val WIDGET_JAVA_SUBMISSION_CODE = """
+        @JvmField val WIDGET_JAVA_SUBMISSION_CODE = """
             public class Widget {
                 private int numSprings = 0;
                 public Widget(int mySprings) {
@@ -218,7 +211,21 @@ class TestService {
                 }
             }
         """.trimIndent()
-        val ACCUMULATOR_KOTLIN_REFERENCE_CODE = """
+        @JvmField val ADDER_JAVA_COMMON_CODE = """
+            public class Adder {
+                public static int oneMore(int value) {
+                    return value + 1;
+                }
+            }
+        """.trimIndent()
+        @JvmField val SUBTRACTER_JAVA_COMMON_CODE = """
+            public class Subtracter {
+                public static int oneLess(int value) {
+                    return value - 1;
+                }
+            }
+        """.trimIndent()
+        @JvmField val ACCUMULATOR_KOTLIN_REFERENCE_CODE = """
             import edu.illinois.cs.cs125.answerable.annotations.*
             import edu.illinois.cs.cs125.answerable.api.TestOutput
             import edu.illinois.cs.cs125.answerable.api.defaultIntGenerator
@@ -241,7 +248,7 @@ class TestService {
                 assertEquals(ours.receiver!!.current, theirs.receiver!!.current)
             }
         """.trimIndent()
-        val ACCUMULATOR_KOTLIN_SUBMISSION_CODE = """
+        @JvmField val ACCUMULATOR_KOTLIN_SUBMISSION_CODE = """
             class Accumulator(private val initialValue: Int) {
                 private var currentValue = initialValue
                 fun add(more: Int) {
