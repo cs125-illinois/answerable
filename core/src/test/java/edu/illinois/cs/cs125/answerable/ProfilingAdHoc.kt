@@ -1,6 +1,5 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.api.Service
 import examples.binarytree.reference.YourBinaryTree
 import examples.binarytree.size.ClassicBinaryTreeSizeTest
 import examples.sorting.ClassicSortTest
@@ -19,11 +18,11 @@ fun main() {
 }
 
 fun testAnswerable(repeats: Int) {
-    val answerableService = Service(unsecuredEnvironment)
-    answerableService.loadNewQuestion("size", YourBinaryTree::class.java, "size", TestRunnerArgs(numTests = 259, maxComplexity = 1024))
+    val testGenerator = TestGenerator(YourBinaryTree::class.java, "size", TestRunnerArgs(numTests = 259, maxComplexity = 1024))
     repeat(repeats) {
-        val result = answerableService.submitAndTest("size", examples.binarytree.size.YourBinaryTree::class.java)
-        result.assertAllSucceeded()
+        testGenerator.loadSubmission(examples.binarytree.size.YourBinaryTree::class.java)
+            .runTests(0x0403, unsecuredEnvironment)
+            .assertAllSucceeded()
     }
 }
 
@@ -34,12 +33,12 @@ fun testClassic(repeats: Int) {
 }
 
 fun testSortingAnswerable(repeats: Int) {
-    val answerableService = Service(unsecuredEnvironment)
-    answerableService.loadNewQuestion("sort", ArraySorter::class.java,
+    val testGenerator = TestGenerator(ArraySorter::class.java, "sort",
             TestRunnerArgs(maxComplexity = 1024, numSimpleEdgeMixedTests = 0, maxOnlySimpleCaseTests = 0, maxOnlyEdgeCaseTests = 0, numAllGeneratedTests = 1024))
     repeat(repeats) {
-        val result = answerableService.submitAndTest("sort", examples.sorting.ArraySorter::class.java)
-        result.assertAllSucceeded()
+        testGenerator.loadSubmission(examples.sorting.ArraySorter::class.java)
+            .runTests(0x0403, unsecuredEnvironment)
+            .assertAllSucceeded()
     }
 }
 

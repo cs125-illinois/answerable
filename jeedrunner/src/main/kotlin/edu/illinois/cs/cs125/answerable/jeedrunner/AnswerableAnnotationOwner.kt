@@ -1,4 +1,4 @@
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.jeedrunner
 
 import edu.illinois.cs.cs125.answerable.annotations.DefaultTestRunArguments
 import edu.illinois.cs.cs125.answerable.annotations.EdgeCase
@@ -25,18 +25,18 @@ class AnswerableAnnotationOwner : AbstractProcessor() {
 
     /** ALl Answerable annotations, from Annotations.kt in the main module. */
     private val answerableAnnotations = setOf(
-            Solution::class,
-            Timeout::class,
-            Next::class,
-            Generator::class,
-            UseGenerator::class,
-            EdgeCase::class,
-            SimpleCase::class,
-            Precondition::class,
-            Verify::class,
-            Helper::class,
-            Ignore::class,
-            DefaultTestRunArguments::class)
+        Solution::class,
+        Timeout::class,
+        Next::class,
+        Generator::class,
+        UseGenerator::class,
+        EdgeCase::class,
+        SimpleCase::class,
+        Precondition::class,
+        Verify::class,
+        Helper::class,
+        Ignore::class,
+        DefaultTestRunArguments::class)
 
     override fun process(annotations: Set<TypeElement>?, roundEnv: RoundEnvironment?): Boolean {
         // Do nothing, say the annotations were handled
@@ -50,5 +50,4 @@ class AnswerableAnnotationOwner : AbstractProcessor() {
     override fun getSupportedAnnotationTypes(): Set<String> {
         return answerableAnnotations.map { it.java.name }.toSet()
     }
-
 }

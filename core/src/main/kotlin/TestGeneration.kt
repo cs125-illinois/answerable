@@ -1313,7 +1313,7 @@ data class TestingResults(
 
     fun assertAllSucceeded() {
         classDesignAnalysisResult.forEach {
-            check(it.result is Matched) { "Class design check failed" }
+            check(it.result is Matched) { "Class design check failed: ${it.result}" }
         }
         testSteps.filterIsInstance<ExecutedTestStep>().also {
             check(it.isNotEmpty()) { "No tests were executed" }

@@ -3,10 +3,11 @@ import java.net.URI
 plugins {
     kotlin("jvm")
     application
+    id("org.jmailen.kotlinter")
 }
 
 application {
-    mainClassName = "edu.illinois.cs.cs125.answerable.MainKt"
+    mainClassName = "edu.illinois.cs.cs125.answerable.jeedrunner.MainKt"
 }
 
 version = "SNAPSHOT"

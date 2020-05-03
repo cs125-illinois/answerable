@@ -8,6 +8,7 @@ test-output/
 *.swp
 *.swo
 *.iml
+*.hprof
 
 # User-specific stuff
 .idea/**/workspace.xml
@@ -16,9 +17,11 @@ test-output/
 .idea/**/dictionaries
 .idea/**/shelf
 .idea/**/checkstyle-idea.xml
+.idea/**/vcs.xml
 
 # Generated files
 .idea/**/contentModel.xml
+.idea/**/modules.xml
 
 # Sensitive or high-churn files
 .idea/**/dataSources/
@@ -28,8 +31,10 @@ test-output/
 .idea/**/dynamic.xml
 .idea/**/uiDesigner.xml
 .idea/**/dbnavigator.xml
+.idea/**/misc.xml
 
 # Gradle
 .idea/**/gradle.xml
 .idea/**/libraries
+.idea/**/modules
 .idea/**/compiler.xml
