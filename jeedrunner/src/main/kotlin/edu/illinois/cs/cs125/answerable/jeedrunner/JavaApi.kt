@@ -36,7 +36,6 @@ abstract class QuestionBuilder<T : QuestionBuilder<T>> internal constructor(
     }
 
     abstract fun loadNewQuestion()
-
 }
 
 class CodeQuestionBuilder internal constructor(
@@ -71,14 +70,13 @@ class CodeQuestionBuilder internal constructor(
             executionArguments = executionArguments
         )
     }
-
 }
 
 class ClassQuestionBuilder internal constructor(
     service: Answerable,
     questionName: String,
     private val referenceClass: Class<*>
-): QuestionBuilder<ClassQuestionBuilder>(service, questionName) {
+) : QuestionBuilder<ClassQuestionBuilder>(service, questionName) {
 
     private var language: QuestionLanguage? = null
     private var bytecodeProvider: BytecodeProvider? = null
@@ -103,7 +101,6 @@ class ClassQuestionBuilder internal constructor(
             executionArguments = executionArguments
         )
     }
-
 }
 
 abstract class SubmissionBuilder<T : SubmissionBuilder<T>> internal constructor(
@@ -118,14 +115,13 @@ abstract class SubmissionBuilder<T : SubmissionBuilder<T>> internal constructor(
     }
 
     abstract fun submit(): JeedTestRunner
-
 }
 
 class CodeSubmissionBuilder internal constructor(
     service: Answerable,
     questionName: String,
     private val submissionCode: String
-): SubmissionBuilder<CodeSubmissionBuilder>(service, questionName) {
+) : SubmissionBuilder<CodeSubmissionBuilder>(service, questionName) {
 
     private var overrideLanguage: QuestionLanguage? = null
 
@@ -142,14 +138,13 @@ class CodeSubmissionBuilder internal constructor(
             testRunnerArgs = testRunnerArgs
         )
     }
-
 }
 
 class ClassSubmissionBuilder internal constructor(
     service: Answerable,
     questionName: String,
     private val submissionClass: Class<*>
-): SubmissionBuilder<ClassSubmissionBuilder>(service, questionName) {
+) : SubmissionBuilder<ClassSubmissionBuilder>(service, questionName) {
 
     private var bytecodeProvider: BytecodeProvider? = null
 
@@ -165,5 +160,4 @@ class ClassSubmissionBuilder internal constructor(
             testRunnerArgs = testRunnerArgs
         )
     }
-
 }

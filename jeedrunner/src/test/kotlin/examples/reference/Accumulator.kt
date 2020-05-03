@@ -5,8 +5,8 @@ import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.Verify
 import edu.illinois.cs.cs125.answerable.api.TestOutput
 import edu.illinois.cs.cs125.answerable.api.defaultIntGenerator
-import org.junit.jupiter.api.Assertions.assertEquals
 import java.util.Random
+import org.junit.jupiter.api.Assertions.assertEquals
 
 class Accumulator(private var value: Int) {
     @Solution

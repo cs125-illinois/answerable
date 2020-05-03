@@ -3,6 +3,7 @@ import java.net.URI
 plugins {
     kotlin("jvm")
     application
+    id("org.jmailen.kotlinter")
 }
 
 application {

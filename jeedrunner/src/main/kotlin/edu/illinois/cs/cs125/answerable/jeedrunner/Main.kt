@@ -3,6 +3,7 @@ package edu.illinois.cs.cs125.answerable.jeedrunner
 import java.io.File
 
 // TODO: Nicer command-line interface
+@Suppress("MagicNumber")
 fun main(args: Array<String>) {
     if (args.size == 2 || args.size == 3) {
         val refFname = args[0]

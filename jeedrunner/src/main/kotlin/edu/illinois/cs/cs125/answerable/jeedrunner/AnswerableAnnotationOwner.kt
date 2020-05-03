@@ -50,5 +50,4 @@ class AnswerableAnnotationOwner : AbstractProcessor() {
     override fun getSupportedAnnotationTypes(): Set<String> {
         return answerableAnnotations.map { it.java.name }.toSet()
     }
-
 }

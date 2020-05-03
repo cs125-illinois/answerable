@@ -9,9 +9,8 @@ import edu.illinois.cs.cs125.answerable.api.OutputCapturer
 import edu.illinois.cs.cs125.jeed.core.JeedClassLoader
 import edu.illinois.cs.cs125.jeed.core.Sandbox
 import edu.illinois.cs.cs125.jeed.core.sandbox
-
-import kotlinx.coroutines.*
 import kotlin.math.min
+import kotlinx.coroutines.runBlocking
 
 /**
  * The Answerable [OutputCapturer] that redirects output using Jeed's [Sandbox.redirectOutput].
@@ -29,7 +28,6 @@ val jeedOutputCapturer = object : OutputCapturer {
 
     override fun getStandardOut(): String? = stdOut
     override fun getStandardErr(): String? = stdErr
-
 }
 
 /**
@@ -42,9 +40,11 @@ val jeedOutputCapturer = object : OutputCapturer {
  * @param maxTimeout the longest the whole Answerable testing worker is allowed to run
  * @return an Answerable sandbox
  */
-fun jeedSandbox(loaderConfig: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLoaderConfiguration(),
-                executeConfig: Sandbox.ExecutionArguments = Sandbox.ExecutionArguments(),
-                maxTimeout: Long = 10000L): edu.illinois.cs.cs125.answerable.api.Sandbox {
+fun jeedSandbox(
+    loaderConfig: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLoaderConfiguration(),
+    executeConfig: Sandbox.ExecutionArguments = Sandbox.ExecutionArguments(),
+    maxTimeout: Long = 10000L
+): edu.illinois.cs.cs125.answerable.api.Sandbox {
     return object : edu.illinois.cs.cs125.answerable.api.Sandbox {
         private lateinit var sandboxedLoader: Sandbox.SandboxedClassLoader
         override fun transformLoader(loader: EnumerableBytecodeLoader): BytecodeClassProvider {

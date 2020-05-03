@@ -1,4 +1,4 @@
-@file:Suppress("unused", "NEWER_VERSION_IN_SINCE_KOTLIN")
+@file:Suppress("unused", "NEWER_VERSION_IN_SINCE_KOTLIN", "LongParameterList", "TooManyFunctions")
 
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
@@ -315,10 +315,10 @@ class Answerable {
         }.toMap())
         return when (language) {
             QuestionLanguage.JAVA -> {
-               source.compile(CompilationArguments(
-                   parentClassLoader = parentSource?.classLoader,
-                   parentFileManager = parentSource?.fileManager
-               ))
+                source.compile(CompilationArguments(
+                    parentClassLoader = parentSource?.classLoader,
+                    parentFileManager = parentSource?.fileManager
+                ))
             }
             QuestionLanguage.KOTLIN -> {
                 source.kompile(KompilationArguments(
@@ -344,7 +344,6 @@ class Answerable {
             )
         }
     }
-
 }
 
 /**

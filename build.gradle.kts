@@ -44,7 +44,8 @@ tasks.dependencyUpdates {
     gradleReleaseChannel = "current"
 }
 detekt {
-    input = files("core/src/main/kotlin")
+    val ignoredProjects = setOf("demo")
+    input = files(*subprojects.map { it.name }.minus(ignoredProjects).map { "$it/src/main/kotlin" }.toTypedArray())
     config = files("config/detekt/detekt.yml")
 }
 tasks.register("check") {

@@ -99,5 +99,4 @@ class TestCorrectness {
         assertTrue(result.classDesignAnalysisResult.all { it.result is Matched<*> })
         assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
-
 }
