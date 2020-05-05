@@ -122,7 +122,6 @@ class TestService {
     }
 
     @Test
-    @Disabled("Jeed does not consult the parent file manager during kompilation")
     fun testKotlinCommonCode() {
         val commonCode = """
             object Utils {

@@ -322,7 +322,8 @@ class Answerable {
             }
             QuestionLanguage.KOTLIN -> {
                 source.kompile(KompilationArguments(
-                    parentClassLoader = parentSource?.classLoader ?: ClassLoader.getSystemClassLoader()
+                    parentClassLoader = parentSource?.classLoader ?: ClassLoader.getSystemClassLoader(),
+                    parentFileManager = parentSource?.fileManager
                 ))
             }
         }
