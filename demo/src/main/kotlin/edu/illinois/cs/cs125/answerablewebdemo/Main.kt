@@ -113,5 +113,5 @@ public class Test {
             .toJson()
     )
 
-    Sandbox.shutdownThreadPool()
+    Sandbox.stop()
 }

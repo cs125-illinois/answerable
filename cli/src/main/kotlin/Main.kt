@@ -55,7 +55,7 @@ class Check : CliktCommand(help = "check submission against solution") {
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             println(e.message)
         } finally {
-            Sandbox.shutdownThreadPool()
+            Sandbox.stop()
         }
     }
 }
