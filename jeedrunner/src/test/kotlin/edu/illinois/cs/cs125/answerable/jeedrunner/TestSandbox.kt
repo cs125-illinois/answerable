@@ -1,27 +1,31 @@
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
 import edu.illinois.cs.cs125.answerable.ExecutedTestStep
+import edu.illinois.cs.cs125.jeed.core.Sandbox
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class TestSandbox {
 
-    /*private lateinit var originalOut: PrintStream
+    private lateinit var originalOut: PrintStream
 
-    @Before
+    @BeforeEach
     fun setup() {
+        Sandbox.stop()
         originalOut = System.out
     }
 
-    @After
+    @AfterEach
     fun teardown() {
+        Sandbox.stop()
         System.setOut(originalOut)
-    }*/
+    }
 
     @Test
     fun testDangerousSubmission() {
@@ -66,12 +70,11 @@ class TestSandbox {
     }
 
     @Test
-    @Disabled("Jeed does not play nicely with System.setOut")
     fun testPrintSuppression() {
         val output = ByteArrayOutputStream()
         System.setOut(PrintStream(output))
         val result = testFromStrings(reference = """
-            import edu.illinois.cs.cs125.answerable.api.*;
+            import edu.illinois.cs.cs125.answerable.annotations.*;
             public class Example {
                 @Solution
                 public static int getThing() {
