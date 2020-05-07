@@ -1,8 +1,14 @@
 package edu.illinois.cs.cs125.answerable.jeedrunner;
 
+import edu.illinois.cs.cs125.answerable.ExecutedTestStep;
+import edu.illinois.cs.cs125.answerable.TestingResults;
 import edu.illinois.cs.cs125.jeed.core.CompilationFailed;
+import edu.illinois.cs.cs125.jeed.core.Sandbox;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.Collections;
 
 public class TestServiceJavaApi {
 
@@ -87,6 +93,22 @@ public class TestServiceJavaApi {
                 .language(QuestionLanguage.KOTLIN).loadNewQuestion();
         answerable.buildSubmission("Accumulate", examples.Accumulator.class)
                 .submit().runTests().assertAllSucceeded();
+    }
+
+    @Test
+    public void testClassLoadingRestrictions() throws CompilationFailed {
+        Sandbox.ClassLoaderConfiguration restriction = new Sandbox.ClassLoaderConfiguration(
+                Collections.emptySet(), Collections.singleton("java.util."),
+                Collections.emptySet(), Collections.emptySet());
+        answerable.buildNewQuestion("Sort", QuestionLanguage.JAVA, TestService.SORT_JAVA_REFERENCE_CODE, "Sorter")
+            .classLoaderConfiguration(restriction).loadNewQuestion();
+        TestingResults results = answerable.buildSubmission("Sort", TestService.SORT_JAVA_SUBMISSION_CODE_CHEATY)
+            .submit().runTests();
+        Assertions.assertTrue(results.getTestSteps().stream().filter(ts -> ts instanceof ExecutedTestStep)
+                .anyMatch(ts -> !((ExecutedTestStep) ts).getSucceeded()));
+        results = answerable.buildSubmission("Sort", TestService.SORT_JAVA_SUBMISSION_CODE_LEGITIMATE)
+                .submit().runTests();
+        results.assertAllSucceeded();
     }
 
 }

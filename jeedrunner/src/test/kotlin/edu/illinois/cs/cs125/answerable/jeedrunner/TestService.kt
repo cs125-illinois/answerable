@@ -2,9 +2,11 @@ package edu.illinois.cs.cs125.answerable.jeedrunner
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.ExecutedTestStep
+import edu.illinois.cs.cs125.jeed.core.Sandbox
 import java.lang.Exception
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -179,6 +181,18 @@ class TestService {
         )
     }
 
+    @Test
+    fun testClassLoadingRestrictions() {
+        val restriction = Sandbox.ClassLoaderConfiguration(blacklistedClasses = setOf("java.util."))
+        answerable.loadNewQuestion("Sort", QuestionLanguage.JAVA, SORT_JAVA_REFERENCE_CODE, "Sorter",
+            classLoaderConfiguration = restriction)
+        val cheatyResult = answerable.submitAndTest("Sort", SORT_JAVA_SUBMISSION_CODE_CHEATY)
+        assertNotEquals(0, cheatyResult.testSteps.filterIsInstance<ExecutedTestStep>())
+        assertFalse { cheatyResult.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded } }
+        val result = answerable.submitAndTest("Sort", SORT_JAVA_SUBMISSION_CODE_LEGITIMATE)
+        result.assertAllSucceeded()
+    }
+
     companion object {
         @JvmField val WIDGET_JAVA_REFERENCE_CODE = """
             import edu.illinois.cs.cs125.answerable.annotations.*;
@@ -213,6 +227,51 @@ class TestService {
             public class Adder {
                 public static int oneMore(int value) {
                     return value + 1;
+                }
+            }
+        """.trimIndent()
+        @JvmField val SORT_JAVA_REFERENCE_CODE = """
+            import edu.illinois.cs.cs125.answerable.annotations.*;
+            import edu.illinois.cs.cs125.answerable.api.*;
+            import java.util.Arrays;
+            import org.junit.jupiter.api.Assertions;
+            public class Sorter {
+                @Solution
+                public static int[] sort(int[] values) {
+                    Arrays.sort(values);
+                    return values;
+                }
+                @Verify
+                public static void verify(TestOutput<Void> ours, TestOutput<Void> theirs) {
+                    Assertions.assertTrue(Arrays.equals((int[]) ours.getOutput(), (int[]) theirs.getOutput()));
+                }
+            }
+        """.trimIndent()
+        @JvmField val SORT_JAVA_SUBMISSION_CODE_CHEATY = """
+            import java.util.Arrays;
+            public class Sorter {
+                public static int[] sort(int[] values) {
+                    Arrays.sort(values);
+                    return values;
+                }
+            }
+        """.trimIndent()
+        @JvmField val SORT_JAVA_SUBMISSION_CODE_LEGITIMATE = """
+            public class Sorter {
+                public static int[] sort(int[] values) {
+                    boolean swapped = true;
+                    while (swapped) {
+                        swapped = false;
+                        for (int i = 1; i < values.length; i++) {
+                            if (values[i - 1] > values[i]) {
+                                int temp = values[i - 1];
+                                values[i - 1] = values[i];
+                                values[i] = temp;
+                                swapped = true;
+                            }
+                        }
+                    }
+                    return values;
                 }
             }
         """.trimIndent()

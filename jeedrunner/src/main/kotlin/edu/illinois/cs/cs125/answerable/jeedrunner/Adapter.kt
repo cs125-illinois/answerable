@@ -30,6 +30,9 @@ val jeedOutputCapturer = object : OutputCapturer {
     override fun getStandardErr(): String? = stdErr
 }
 
+private val ALWAYS_BANNED_CLASSES = Sandbox.ClassLoaderConfiguration.DEFAULT_BLACKLISTED_CLASSES +
+    setOf("edu.illinois.cs.cs125.answerable.")
+
 /**
  * Creates an Answerable sandbox that secures the environment using Jeed's [Sandbox].
  * The [executeConfig]'s timeout, maxOutputLines, and classLoaderConfiguration will be replaced, but other settings
@@ -62,13 +65,23 @@ fun jeedSandbox(
             }
         }
         override fun run(timeout: Long?, callback: Runnable): Boolean {
+            val filteredLoaderConfig = if (loaderConfig.whitelistedClasses.isEmpty()) {
+                Sandbox.ClassLoaderConfiguration(
+                    blacklistedClasses = loaderConfig.blacklistedClasses + ALWAYS_BANNED_CLASSES,
+                    unsafeExceptions = loaderConfig.unsafeExceptions,
+                    isolatedClasses = loaderConfig.isolatedClasses
+                )
+            } else {
+                loaderConfig
+            }
             val timeoutConfig = Sandbox.ExecutionArguments(
                 timeout = min(timeout ?: Long.MAX_VALUE, maxTimeout),
                 permissions = executeConfig.permissions,
                 maxExtraThreads = executeConfig.maxExtraThreads,
                 waitForShutdown = executeConfig.waitForShutdown,
-                classLoaderConfiguration = loaderConfig,
-                maxOutputLines = Int.MAX_VALUE)
+                classLoaderConfiguration = filteredLoaderConfig,
+                maxOutputLines = Int.MAX_VALUE
+            )
             val job: (Pair<ClassLoader, (() -> Unit) -> Pair<String, String>>) -> Any? = { callback.run() }
             val result = runBlocking {
                 Sandbox.execute(sandboxedLoader, timeoutConfig, job)
