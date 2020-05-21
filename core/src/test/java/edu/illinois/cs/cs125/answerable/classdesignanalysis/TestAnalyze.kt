@@ -129,7 +129,22 @@ internal class Analyze {
 
     @Test
     fun `should check type parameters correctly`() {
-        TODO("test not yet written!")
+        val klasses = setOf("ET", "T")
+        klasses.correctPairs("typeparameters").forEach { (first, second) ->
+            first.typeParametersMatch(second).also {
+                assertTrue(it.match)
+            }
+        }
+        klasses.incorrectPairs("typeparameters").forEach { (first, second) ->
+            first.typeParametersMatch(second).also {
+                assertFalse(it.match)
+            }
+        }
+        // we still need to do the ordering test, reference ET vs submission TE.
+        val matcher = "typeparameters.reference.ET".example()
+            .typeParametersMatch("typeparameters.TE".example())
+        assertEquals(listOf("E", "T"), matcher.reference)
+        assertEquals(listOf("T", "E"), matcher.submission)
     }
 
     @Test
