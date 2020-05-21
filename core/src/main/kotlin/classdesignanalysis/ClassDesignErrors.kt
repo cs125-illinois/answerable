@@ -20,6 +20,7 @@ internal fun AnalysisOutput.toErrorMsg() = when (this.result) {
     }(this.result)
 }
 
+const val noErrorMsg: String = "All good!"
 /**
  * Turn a CDAMatcher into a nice message.
  *
@@ -42,19 +43,31 @@ val CDAMatcher<*>.message: String
         AnalysisType.FIELDS -> fieldMismatchMessage(this as CDAMatcher<List<OssifiedField>>)
         AnalysisType.METHODS -> methodMismatchMessage(this as CDAMatcher<List<OssifiedExecutable>>)
         AnalysisType.INNER_CLASSES -> innerclassMismatchMessage(this as CDAMatcher<List<String>>)
-    } ?: "${this.type.toString().capitalize()}: All good!"
+    } ?: "${this.type.toString().capitalize()}: $noErrorMsg"
 
 private fun <T> ifMismatched(matcher: CDAMatcher<T>, mkMsg: () -> String): String? =
     if (!matcher.match) mkMsg() else null
 
-private fun nameMismatchMessage(matcher: CDAMatcher<String>): String? = ifMismatched(matcher) {
-    """
-        |Class name mismatch;
-        |Expected: ${matcher.reference}
-        |Found:    ${matcher.submission}
-    """.trimMargin()
+// kotlin is weird about allowing (T)->String to be instantiated by `toString` so a typical default parameter
+// doesn't quite get us what we need.
+private fun <T> mkSimpleMsg(matcher: CDAMatcher<T>, type: String, showFunc: ((T) -> String)? = null): String {
+    val show: (T) -> String = showFunc ?: { t: T -> t.toString() }
+    return formatSimpleMsg(type, show(matcher.reference), show(matcher.submission))
 }
+// A slightly more general way of creating messages that allows expected and actual to be formatted differently.
+// Passing two functions as arguments works out to be a bit messier than just computing the message in place,
+// but using a uniform formatting function keeps everything consistent. So this function and 'mkSimpleMsg'
+// form a nice middle ground.
+private fun formatSimpleMsg(type: String, expected: String, found: String): String =
+    """
+        |$type mismatch;
+        |Expected: $expected
+        |Found:    $found
+    """.trimMargin()
 
+private fun nameMismatchMessage(matcher: CDAMatcher<String>): String? = ifMismatched(matcher) {
+    mkSimpleMsg(matcher, "Class name")
+}
 
 // Consideration for if/when config takes a LanguageMode: in JavaMode, stick to "enum"
 // but in KotlinMode, use "enum class".
@@ -64,37 +77,23 @@ private fun ClassKind.asNoun() = when (this) {
     ClassKind.ENUM -> "an enum class"
 }
 private fun kindMismatchMessage(matcher: CDAMatcher<ClassKind>): String? = ifMismatched(matcher) {
-    """
-        |Class kind mismatch;
-        |Expected: ${matcher.reference.asNoun()}
-        |Found:    ${matcher.submission.asNoun()}
-    """.trimMargin()
+    mkSimpleMsg(matcher, "Class kind") { it.asNoun() }
 }
 
 private fun modifierMismatchMessage(matcher: CDAMatcher<List<String>>): String? = ifMismatched(matcher) {
-    """
-        |Class modifiers mismatch;
-        |Expected: ${matcher.reference.joinToString(separator = " ")}
-        |Found:    ${matcher.submission.joinToString(separator = " ")}
-    """.trimMargin()
+    mkSimpleMsg(matcher, "Class modifiers") { it.joinToString(separator = " ") }
 }
 
 private fun typeParamMismatchMessage(matcher: CDAMatcher<List<String>>): String? = ifMismatched(matcher) {
-    """
-        |Type parameter mismatch;
-        |Expected: ${matcher.reference.joinToString(prefix = "<", separator = ", ", postfix = ">")}
-        |Found:    ${matcher.submission.joinToString(prefix = "<", separator = ", ", postfix = ">")}
-    """.trimMargin()
+    mkSimpleMsg(matcher, "Class type parameter") { list ->
+        list.joinToString(prefix = "<", separator = ", ", postfix = ">")
+    }
 }
 
 private fun superclassMismatchMessage(matcher: CDAMatcher<String?>): String? = ifMismatched(matcher) {
     val expected: String = if (matcher.reference == null) "No class to be extended" else "extends ${matcher.reference}"
     val found: String = if (matcher.submission == null) "No class was extended" else "extends ${matcher.submission}"
-    return@ifMismatched """
-        |Superclass mismatch;
-        |Expected: $expected
-        |Found:    $found
-    """.trimMargin()
+    return@ifMismatched formatSimpleMsg("Superclass", expected, found)
 }
 
 private fun interfaceMismatchMessage(matcher: CDAMatcher<List<String>>, kind: ClassKind = ClassKind.CLASS): String? =
@@ -108,11 +107,7 @@ private fun interfaceMismatchMessage(matcher: CDAMatcher<List<String>>, kind: Cl
         val found: String =
             if (matcher.submission.isEmpty()) "No interfaces were $verbEd"
             else "$verbS ${matcher.submission.joinToString(separator = ", ")}"
-        return@ifMismatched """
-            |Interface mismatch;
-            |Expected: $expected
-            |Found:    $found
-        """.trimMargin()
+        return@ifMismatched formatSimpleMsg("Interface", expected, found)
     }
 
 private fun fieldMismatchMessage(matcher: CDAMatcher<List<OssifiedField>>): String? = ifMismatched(matcher) {
