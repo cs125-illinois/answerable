@@ -117,14 +117,23 @@ fun Class<*>.typeParametersMatch(other: Class<*>): CDAMatcher<List<String>> =
  * Component analyzer. Checks that the classes inherit from superclasses of the same name, as they appear in the
  * source.
  *
- * The lack of a superclass is reflected by null.
+ * All classes have a superclass. If one is not explicitly extended, it implicitly extends Object. For our purposes,
+ * an explicit extension of Object and an implicit one are indistinguishable, and we don't really care. If a class
+ * extends Object in /any/ way, it is reflected by null.
+ *
+ * Interfaces also have a null superclass, even if they extend other interfaces. Such extensions
+ * are reflected by [interfacesMatch].
  */
-fun Class<*>.superclassesMatch(other: Class<*>): CDAMatcher<String?> =
-    CDAMatcher(
+fun Class<*>.superclassesMatch(other: Class<*>): CDAMatcher<String?> {
+    fun unlessObject(type: Type?): Type? =
+        if (type == Object().javaClass) null else type
+
+    return CDAMatcher(
         AnalysisType.SUPERCLASS,
-        this.genericSuperclass?.simpleSourceName,
-        other.genericSuperclass?.simpleSourceName
+        unlessObject(this.genericSuperclass)?.simpleSourceName,
+        unlessObject(other.genericSuperclass)?.simpleSourceName
     )
+}
 
 /**
  * Component analyzer. Checks that the classes implement the same set of interfaces, as the names
@@ -489,13 +498,13 @@ data class CDAResult(
      * in the result. Includes the mismatches in the inner classes.
      * Messages are only included for mismatches.
      */
-    val CDAResult.errorMessages: List<String>
+    val errorMessages: List<String>
         get() = getMessages { match -> match != null && !match }
     /**
      * Produces a flat list of nice messages for all matchers in the result.
      * Includes messages in the inner classes.
      */
-    val CDAResult.messages: List<String>
+    val messages: List<String>
         get() = getMessages { true }
 }
 
