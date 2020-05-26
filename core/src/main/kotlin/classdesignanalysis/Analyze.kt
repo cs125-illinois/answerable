@@ -1,6 +1,5 @@
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
-import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.annotations.EdgeCase
 import edu.illinois.cs.cs125.answerable.annotations.Generator
 import edu.illinois.cs.cs125.answerable.annotations.Helper
@@ -10,7 +9,6 @@ import edu.illinois.cs.cs125.answerable.annotations.Precondition
 import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.Verify
-import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.publicFields
 import edu.illinois.cs.cs125.answerable.publicInnerClasses
 import edu.illinois.cs.cs125.answerable.publicMethods
@@ -171,7 +169,7 @@ fun Class<*>.fieldsMatch(other: Class<*>): CDAMatcher<List<OssifiedField>> {
  * return type, type parameters, and parameter types. All types are checked by name, as
  * they appear in the source.
  */
-fun Class<*>.methodsMatch(other: Class<*>, solutionName: String?): CDAMatcher<List<OssifiedExecutable>> {
+fun Class<*>.methodsMatch(other: Class<*>, solutionName: String = ""): CDAMatcher<List<OssifiedExecutable>> {
 
     fun methodFilter(method: Executable) = referenceAnnotations.none { method.isAnnotationPresent(it) } &&
         !(method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false)
@@ -233,190 +231,6 @@ fun Class<*>.innerClassesMatch(
     return Pair(nameMatcher, recursiveAnalysis.toMap())
 }
 
-class ClassDesignAnalysis(
-    private val solutionName: String? = null,
-    private val reference: Class<*>,
-    private val attempt: Class<*>
-) {
-    @Suppress("LongParameterList")
-    fun runSuite(
-        name: Boolean = true,
-        classStatus: Boolean = true,
-        classModifiers: Boolean = true,
-        typeParams: Boolean = true,
-        superClasses: Boolean = true,
-        fields: Boolean = true,
-        methods: Boolean = true
-    ): List<AnalysisOutput> {
-
-        val output = mutableListOf<AnalysisOutput>()
-        if (name) output.add(namesMatch())
-        if (classStatus) output.add(classStatusMatch())
-        if (classModifiers) output.add(classModifiersMatch())
-        if (typeParams) output.add(typeParamsMatch())
-        if (superClasses) output.add(superClassesMatch())
-        if (fields) output.add(publicFieldsMatch())
-        if (methods) output.add(publicMethodsMatch())
-
-        return output
-    }
-
-    private val referenceAnnotations = setOf(
-        Generator::class.java,
-        Verify::class.java,
-        Next::class.java,
-        EdgeCase::class.java,
-        SimpleCase::class.java,
-        Precondition::class.java,
-        Helper::class.java,
-        Ignore::class.java
-    )
-
-    private fun namesMatch() = AnalysisOutput(
-        AnalysisType.NAME,
-        if (reference.simpleName == attempt.simpleName) {
-            Matched(reference.simpleName)
-        } else {
-            Mismatched(
-                reference.simpleName,
-                attempt.simpleName
-            )
-        }
-    )
-
-    private fun classStatusMatch() =
-        AnalysisOutput(
-            AnalysisType.KIND,
-            if (reference.isInterface == attempt.isInterface) {
-                Matched(if (reference.isInterface) "interface" else "class")
-            } else {
-                val expected = if (reference.isInterface) "interface" else "class"
-                val actual = if (attempt.isInterface) "interface" else "class"
-                Mismatched(expected, actual)
-            }
-        )
-
-    private fun classModifiersMatch() =
-        AnalysisOutput(
-            AnalysisType.MODIFIERS,
-            if (reference.modifiers == attempt.modifiers) {
-                Matched(
-                    Modifier.toString(
-                        reference.modifiers
-                    )
-                )
-            } else {
-
-                val expected = Modifier.toString(reference.modifiers)
-                val actual = Modifier.toString(attempt.modifiers)
-
-                Mismatched(expected, actual)
-            }
-        )
-
-    // Order is significant since it's part of the class API
-    fun typeParamsMatch() = AnalysisOutput(
-        AnalysisType.TYPE_PARAMS,
-        run {
-            val refTypes = reference.typeParameters.map { it.name }
-            val attTypes = attempt.typeParameters.map { it.name }
-            return@run if (refTypes == attTypes) {
-                Matched(refTypes)
-            } else {
-                Mismatched(refTypes, attTypes)
-            }
-        })
-
-    // Order is not significant here
-    private fun superClassesMatch() =
-        AnalysisOutput(
-            AnalysisType.SUPERCLASS,
-            if (reference.genericSuperclass == attempt.genericSuperclass &&
-                reference.genericInterfaces contentEquals attempt.genericInterfaces
-            ) {
-                Matched(
-                    Pair(
-                        reference.genericSuperclass,
-                        reference.genericInterfaces
-                    )
-                )
-            } else {
-                Mismatched(
-                    Pair(reference.genericSuperclass, reference.genericInterfaces),
-                    Pair(attempt.genericSuperclass, attempt.genericInterfaces)
-                )
-            }
-        )
-
-
-
-    private fun publicFieldsMatch() =
-        AnalysisOutput(
-            AnalysisType.FIELDS,
-            run {
-                fun mkFieldString(field: Field): String {
-                    val sb = StringBuilder()
-                    printModifiersIfNonzero(
-                        sb,
-                        field.modifiers,
-                        false
-                    )
-                    sb.append(field.type.simpleName).append(" ")
-                    sb.append(field.simpleName())
-                    return sb.toString()
-                }
-
-                // order is irrelevant; we only care about the API
-                val refFields =
-                    reference.publicFields
-                        .filter { field -> referenceAnnotations.none { field.isAnnotationPresent(it) } }
-                        .map(::mkFieldString)
-                        .sorted()
-                val attFields =
-                    attempt.publicFields
-                        .map(::mkFieldString)
-                        .sorted()
-
-                return@run if (refFields == attFields) {
-                    Matched(refFields)
-                } else {
-                    Mismatched(
-                        refFields,
-                        attFields
-                    )
-                }
-            })
-
-    private fun <T> Collection<T>.filterOut(filter: (T) -> Boolean) = this.filterNot(filter)
-
-    fun publicMethodsMatch() = AnalysisOutput(
-        AnalysisType.METHODS,
-        run {
-            val refMethodData =
-                (reference.publicMethods + reference.constructors)
-                    .filter { method -> referenceAnnotations.none { method.isAnnotationPresent(it) } }
-                    .filterOut { method ->
-                        method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false
-                    }
-                    .map { it.answerableName() }
-                    .sorted()
-            val attMethodData =
-                (attempt.publicMethods + attempt.constructors)
-                    .map { it.answerableName() }
-                    .sorted()
-
-            // if everything matched, then we're done.
-            return@run if (refMethodData == attMethodData) {
-                Matched(refMethodData)
-            } else {
-                Mismatched(
-                    refMethodData,
-                    attMethodData
-                )
-            }
-        })
-}
-
 class CDAConfig(
     val checkName: Boolean = true,
     val checkKind: Boolean = true,
@@ -427,11 +241,14 @@ class CDAConfig(
     val checkFields: Boolean = true,
     val checkMethods: Boolean = true,
     val checkInnerClasses: Boolean = true,
-    val solutionName: String? = null
-)
+    val solutionName: String = ""
+) {
+
+}
 val defaultCDAConfig = CDAConfig()
 
-// TODO: Move into ClassDesignMatch as part of refactor
+// This was temporarily an inner class of CDAMatcher but it created unnecessarily verbose code and
+// it didn't seem like it belonged there. This can be moved in the future with no real damage. 5/26/20
 enum class AnalysisType {
     NAME, KIND, MODIFIERS, TYPE_PARAMS, SUPERCLASS, INTERFACES, INNER_CLASSES, FIELDS, METHODS;
 
@@ -656,40 +473,8 @@ fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
 fun Class<*>.publicMethods(filter: (executable: Executable) -> Boolean = { true }) =
     (this.publicMethods + this.constructors).filter(filter)
 
-class AnalysisOutput(val tag: AnalysisType, val result: AnalysisResult<*>) : DefaultSerializable {
-    override fun toString() = this.toErrorMsg() // see ClassDesignErrors.kt
-    override fun toJson() = this.defaultToJson()
-}
-
-fun List<AnalysisOutput>.toJson() = this.joinToString(prefix = "[", postfix = "]") { it.toJson() }
-
-sealed class AnalysisResult<out T> : DefaultSerializable {
-    override fun toJson() = this.defaultToJson()
-}
-
-data class Matched<T>(val found: T) : AnalysisResult<T>()
-data class Mismatched<T>(val expected: T, val found: T) : AnalysisResult<T>()
-
 fun Type.simpleName() = this.typeName.split(".").last()
 fun Executable.simpleName() = this.name.split(".").last()
 fun Executable.answerableName() = OssifiedExecutable(this).answerableName
 fun Field.simpleName() = this.name.split(".").last()
 fun Field.answerableName() = OssifiedField(this).answerableName
-
-private fun printModifiersIfNonzero(sb: StringBuilder, mask: Int, isDefault: Boolean) {
-    var mod = mask
-
-    if (mod != 0 && !isDefault) {
-        sb.append(Modifier.toString(mod)).append(' ')
-    } else {
-        val accessModifiers = Modifier.PUBLIC or Modifier.PROTECTED or Modifier.PRIVATE
-        val accessMod = mod and (accessModifiers) // infix bitwise &
-        if (accessMod != 0)
-            sb.append(Modifier.toString(accessMod)).append(' ')
-        if (isDefault)
-            sb.append("default ")
-        mod = mod and accessModifiers.inv()
-        if (mod != 0)
-            sb.append(Modifier.toString(mod)).append(' ')
-    }
-}

@@ -1,5 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.classDesignAnalysis
+import org.junit.jupiter.api.Assertions
 import kotlin.random.Random
 
 /**
@@ -16,6 +18,24 @@ fun runAnswerableTest(
     return TestGenerator(findClass(solutionClass), solutionName)
         .loadSubmission(findClass(submissionClass))
         .runTestsUnsecured(randomSeed)
+}
+
+internal fun assertClassDesignPasses(solution: Class<*>, submission: Class<*>) {
+    val result = classDesignAnalysis(
+        solution,
+        submission
+    )
+    result.errorMessages.forEach {
+        Assertions.fail(it)
+    }
+}
+
+internal fun assertClassDesignFails(solution: Class<*>, submission: Class<*>) {
+    val results = classDesignAnalysis(
+        solution,
+        submission
+    )
+    Assertions.assertFalse(results.allMatch)
 }
 
 /**
