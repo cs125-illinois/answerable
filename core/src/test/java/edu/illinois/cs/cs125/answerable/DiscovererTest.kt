@@ -44,7 +44,20 @@ internal class DiscovererTest {
         val classDesignReferenceClass = findClass(correctClassDesignReference)
         assertEquals(
             "[public static int examples.classdesign.correct1.reference.ClassDesign.numGets]",
-            classDesignReferenceClass.getPublicFields().toString()
+            classDesignReferenceClass.publicFields.toString()
+        )
+    }
+
+    @Test
+    fun testGetPublicMethods() {
+        val classDesignReferenceClass = findClass(correctClassDesignReference)
+
+        assertEquals(
+            "[public java.lang.Object examples.classdesign.correct1.reference.ClassDesign.get(int), " +
+                "public static examples.classdesign.correct1.reference.ClassDesign " +
+                "examples.classdesign.correct1.reference.ClassDesign.next(" +
+                "examples.classdesign.correct1.reference.ClassDesign,int,java.util.Random)]",
+            classDesignReferenceClass.publicMethods.toString()
         )
     }
 

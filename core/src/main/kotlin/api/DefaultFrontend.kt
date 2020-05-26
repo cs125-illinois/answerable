@@ -7,13 +7,6 @@ import edu.illinois.cs.cs125.answerable.Behavior
 import edu.illinois.cs.cs125.answerable.DiscardedTestStep
 import edu.illinois.cs.cs125.answerable.ExecutedTestStep
 import edu.illinois.cs.cs125.answerable.TestingResults
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.AnalysisOutput
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.AnalysisResult
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.Mismatched
-import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
-import java.lang.IllegalStateException
-import java.lang.reflect.Type
 import java.util.Arrays
 
 /**
@@ -116,48 +109,7 @@ internal fun TestingResults.defaultToJson(): String =
         |  numSimpleAndEdgeCaseTests: $numSimpleAndEdgeCaseTests,
         |  numMixedTests: $numMixedTests,
         |  numAllGeneratedTests: $numAllGeneratedTests,
-        |  classDesignAnalysisResult: ${classDesignAnalysisResult.toJson()},
+        |  classDesignAnalysisResult: ${classDesignAnalysisResult.messages.joinToString(separator = ",")},
         |  testSteps: ${testSteps.toJson()}
         |}
     """.trimMargin()
-
-internal fun <T> AnalysisResult<T>.defaultToJson() = when (this) {
-    is Matched -> """
-        |{
-        |  matched: true,
-        |  found: ${found.showExpectedOrFound()}
-        |}
-    """.trimMargin()
-    is Mismatched -> """
-        |{
-        |  matched: false,
-        |  expected: ${expected.showExpectedOrFound()}
-        |  found: ${found.showExpectedOrFound()}
-        |}
-    """.trimMargin()
-}
-
-internal fun AnalysisOutput.defaultToJson() = """
-    |{
-    |  tag: "$tag",
-    |  matched: ${if (result is Matched) "true" else "false"},
-    |  result: ${result.toJson()}
-    |}
-""".trimMargin()
-
-private fun <T> T.showExpectedOrFound() = when (this) {
-    is String -> "\"$this\""
-    is List<*> -> this.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
-    is Pair<*, *> -> {
-        @Suppress("UNCHECKED_CAST")
-        this as Pair<Type, Array<Type>>
-
-        """
-                    |{
-                    |  superclass: "${this.first.sourceName}"
-                    |  interfaces: ${this.second.joinToString(prefix = "[", postfix = "]") { "\"${it.sourceName}\"" }}
-                    |}
-                """.trimMargin()
-    }
-    else -> throw IllegalStateException("An analysis result contained an impossible type. Please report a bug.")
-}

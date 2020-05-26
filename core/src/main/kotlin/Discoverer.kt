@@ -19,6 +19,21 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 
+fun String.load(): Class<*> = Class.forName(this)
+
+internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method? {
+    return this.declaredMethods.filter {
+        it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false
+    }.let { methods ->
+        if (methods.isEmpty()) {
+            return null
+        } else if (methods.size > 1) {
+            throw AnswerableMisuseException("Can't find singular solution method with tag `$name'.")
+        }
+        methods.first().also { it.isAccessible = true }
+    }
+}
+
 internal fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
 
 @Suppress("ThrowsCount")
@@ -60,11 +75,14 @@ internal fun Class<*>.findSolutionAttemptMethod(matchTo: Method?, correspondingC
     return methods[0].also { it.isAccessible = true }
 }
 
-internal fun Class<*>.getPublicFields(): List<Field> =
-    this.declaredFields.filter { Modifier.isPublic(it.modifiers) }
+internal val Class<*>.publicFields: List<Field>
+    get() = declaredFields.filter { Modifier.isPublic(it.modifiers) }
 
-internal fun Class<*>.getPublicMethods(): List<Method> =
-    declaredMethods.filter { Modifier.isPublic(it.modifiers) }
+internal val Class<*>.publicMethods: List<Method>
+    get() = declaredMethods.filter { Modifier.isPublic(it.modifiers) }
+
+internal val Class<*>.publicInnerClasses: List<Class<*>>
+    get() = declaredClasses.filter { Modifier.isPublic(it.modifiers) }
 
 internal fun Class<*>.getAllGenerators(): List<Method> =
     this.declaredMethods

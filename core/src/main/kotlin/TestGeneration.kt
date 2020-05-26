@@ -19,10 +19,11 @@ import edu.illinois.cs.cs125.answerable.api.OssifiedValue
 import edu.illinois.cs.cs125.answerable.api.TestOutput
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.api.ossify
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.AnalysisOutput
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.ClassDesignAnalysis
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAConfig
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAResult
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.classDesignAnalysis
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.noCDAResult
 import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
 import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
 import edu.illinois.cs.cs125.answerable.typeManagement.mkOpenMirrorClass
@@ -230,7 +231,7 @@ class TestGenerator(
         val dryRunOutput = PassedClassDesignRunner(
             this,
             mkOpenMirrorClass(referenceClass, typePool, "dryrunopenref_"),
-            listOf(), mergedArgs, typePool.getLoader(),
+            noCDAResult, mergedArgs, typePool.getLoader(),
             timeoutOverride = 10000
         ).runTestsUnsecured(0x0403)
 
@@ -267,23 +268,23 @@ class TestGenerator(
         testRunnerArgs: TestRunnerArgs = defaultArgs,
         bytecodeProvider: BytecodeProvider? = null
     ): TestRunner {
-        val cda = ClassDesignAnalysis(
+        val cdaResult = classDesignAnalysis(
             referenceClass,
             submissionClass,
-            solutionName
-        ).runSuite()
-        val cdaPassed = cda.all { ao -> ao.result is Matched }
+            CDAConfig(solutionName = solutionName)
+        )
+        val cdaPassed = cdaResult.allMatch
 
         return if (cdaPassed) {
             PassedClassDesignRunner(
                 this,
                 submissionClass,
-                cda,
+                cdaResult,
                 testRunnerArgs.applyOver(this.mergedArgs),
                 bytecodeProvider
             )
         } else {
-            FailedClassDesignTestRunner(referenceClass, solutionName, submissionClass, cda)
+            FailedClassDesignTestRunner(referenceClass, solutionName, submissionClass, cdaResult)
         }
     }
 }
@@ -296,7 +297,13 @@ interface TestRunner {
     fun runTests(seed: Long, environment: TestEnvironment): TestingResults
 }
 
-internal fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunnerArgs = defaultArgs) =
+/**
+ * Perform a test run in an unsecured environment.
+ *
+ * This function is inherently dangerous and allows a submission class to run arbitrary code
+ * on your JVM! Prefer passing a secured environment to runTests.
+ */
+fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunnerArgs = defaultArgs) =
     this.runTests(seed, unsecuredEnvironment, testRunnerArgs)
 
 /**
@@ -308,7 +315,7 @@ internal fun TestRunner.runTestsUnsecured(seed: Long, testRunnerArgs: TestRunner
 class PassedClassDesignRunner internal constructor(
     private val testGenerator: TestGenerator,
     private val submissionClass: Class<*>,
-    private val cachedClassDesignAnalysisResult: List<AnalysisOutput> = listOf(),
+    private val cachedClassDesignAnalysisResult: CDAResult = noCDAResult,
     private val testRunnerArgs: TestRunnerArgs, // Already merged by TestGenerator#loadSubmission
     private val bytecodeProvider: BytecodeProvider?,
     private val timeoutOverride: Long? = null
@@ -317,14 +324,14 @@ class PassedClassDesignRunner internal constructor(
     internal constructor(
         testGenerator: TestGenerator,
         submissionClass: Class<*>,
-        cdaResult: List<AnalysisOutput> = listOf(),
+        cdaResult: CDAResult = noCDAResult,
         testRunnerArgs: TestRunnerArgs = defaultArgs
     ) : this(testGenerator, submissionClass, cdaResult, testRunnerArgs, null)
 
     internal constructor(
         referenceClass: Class<*>,
         submissionClass: Class<*>,
-        cdaResult: List<AnalysisOutput> = listOf(),
+        cdaResult: CDAResult = noCDAResult,
         testRunnerArgs: TestRunnerArgs = defaultArgs
     ) : this(TestGenerator(referenceClass), submissionClass, cdaResult, testRunnerArgs)
 
@@ -708,7 +715,7 @@ internal class TestRunWorker internal constructor(
                 assertEquals(refBehavior.stdErr, subBehavior.stdErr)
             } else {
                 if (subProxy != null) {
-                    usableSubmissionClass.getPublicFields().forEach {
+                    usableSubmissionClass.publicFields.forEach {
                         usableReferenceClass.getField(it.name).set(subProxy, it.get(subReceiver))
                     }
                 }
@@ -975,9 +982,9 @@ internal class TestRunWorker internal constructor(
  */
 class FailedClassDesignTestRunner(
     private val referenceClass: Class<*>,
-    private val solutionName: String?,
+    private val solutionName: String,
     private val submissionClass: Class<*>,
-    private val failedCDAResult: List<AnalysisOutput>
+    private val failedCDAResult: CDAResult
 ) : TestRunner {
     override fun runTests(seed: Long, environment: TestEnvironment): TestingResults =
         TestingResults(
@@ -1283,7 +1290,7 @@ data class TestingResults(
     /** The submission class for this testing run. */
     val testedClass: Class<*>,
     /** The [Solution.name] of the @[Solution] annotation that this test used. */
-    val solutionName: String?,
+    val solutionName: String,
     /** The time (in ms since epoch) that this test run started. Only the main testing loop is considered. */
     val startTime: Long,
     /** The time (in ms since epoch) that this test run ended. Only the main testing loop is considered. */
@@ -1305,16 +1312,15 @@ data class TestingResults(
     /** The number of tests which contained purely generated inputs. */
     val numAllGeneratedTests: Int,
     /** The results of class design analysis between the [referenceClass] and [testedClass]. */
-    val classDesignAnalysisResult: List<AnalysisOutput>,
+    val classDesignAnalysisResult: CDAResult,
     /** The list of [TestStep]s that were performed during this test run. */
     val testSteps: List<TestStep>
 ) : DefaultSerializable {
     override fun toJson() = defaultToJson()
 
     fun assertAllSucceeded() {
-        classDesignAnalysisResult.forEach {
-            check(it.result is Matched) { "Class design check failed: ${it.result}" }
-        }
+        check(classDesignAnalysisResult.allMatch) { "Class design analysis failed" }
+
         testSteps.filterIsInstance<ExecutedTestStep>().also {
             check(it.isNotEmpty()) { "No tests were executed" }
         }.forEach {

@@ -1,35 +1,9 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.ClassDesignAnalysis
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.Mismatched
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.toErrorMsg
 import examples.adder.correct.reference.Adder
 import examples.testgeneration.KtPrecondition
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-
-internal fun assertClassDesignPasses(solution: Class<*>, submission: Class<*>) {
-    val result = ClassDesignAnalysis(
-        solution,
-        submission,
-        DEFAULT_EMPTY_NAME
-    ).runSuite()
-    result.map { it.result }.filterIsInstance<Mismatched<*>>().forEach {
-        Assertions.fail(it.toString())
-    }
-}
-
-internal fun assertClassDesignFails(solution: Class<*>, submission: Class<*>) {
-    val results = ClassDesignAnalysis(
-        solution,
-        submission,
-        DEFAULT_EMPTY_NAME
-    ).runSuite()
-    Assertions.assertFalse(results.all { it.result is Matched })
-    results.filter { it.result is Mismatched }.forEach { println(it.toErrorMsg()) }
-}
 
 class KotlinTest {
 
@@ -62,17 +36,8 @@ class KotlinTest {
                 examples.testgeneration.ktfilter.StringFilterer::class.java)
     }
 
-    private fun assertAllSucceeded(results: TestingResults) {
-        results.testSteps.forEach {
-            if (it is ExecutedTestStep) {
-                Assertions.assertNull(it.assertErr)
-                Assertions.assertTrue(it.succeeded)
-            }
-        }
-    }
-
     private fun assertClassesPass(solution: Class<*>, submission: Class<*>) {
-        assertAllSucceeded(PassedClassDesignRunner(solution, submission).runTestsUnsecured(0x0403))
+        PassedClassDesignRunner(solution, submission).runTestsUnsecured(0x0403).assertAllSucceeded()
     }
 
     @Test

@@ -1,10 +1,17 @@
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
 import com.marcinmoskala.math.combinations
+import edu.illinois.cs.cs125.answerable.load
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 
-private fun String.example(): Class<*> {
-    return Class.forName("${TestAnalyze::class.java.packageName}.fixtures.$this")
+// Internal so that TestErrors can also use it to access the fixtures.
+internal fun String.example(): Class<*> {
+    return Class.forName("${Analyze::class.java.packageName}.fixtures.$this")
 }
 
 private fun Set<String>.correctPairs(type: String): Set<List<Class<*>>> =
@@ -28,35 +35,60 @@ private fun Set<String>.incorrectPairs(type: String): Set<List<Class<*>>> =
         }
     }.toSet()
 
-class TestAnalyze {
+private fun analyze(
+    referenceName: String,
+    submissionName: String,
+    config: CDAConfig = defaultCDAConfig
+): CDAResult = classDesignAnalysis(referenceName.load(), submissionName.load(), config)
+
+internal class Analyze {
+    @Test
+    fun `should accept matching classes`() {
+        val root = "examples.classdesign.correct"
+        // ClassDesign class. @Next method should be ignored.
+        val result1 = analyze("${root}1.reference.ClassDesign", "${root}1.ClassDesign")
+        assertTrue(result1.allMatch)
+        assertTrue(result1.errorMessages.isEmpty())
+        // IterableList interface. @Next method should be ignored.
+        val result2 = analyze("${root}2.reference.IterableList", "${root}2.IterableList")
+        assertTrue(result2.allMatch)
+        assertTrue(result2.errorMessages.isEmpty())
+    }
+
     @Test
     fun `should check class names correctly`() {
         val klasses = setOf("Foo", "Bar")
         klasses.correctPairs("names").forEach { (first, second) ->
             first.namesMatch(second).also {
-                assert(it.matched)
+                assertTrue(it.match)
+                assertEquals(it.message, "Name: $noErrorMsg")
             }
         }
         klasses.incorrectPairs("names").forEach { (first, second) ->
             first.namesMatch(second).also {
-                assert(!it.matched)
+                assertFalse(it.match)
+                assertNotEquals(it.message, "Name: $noErrorMsg")
             }
         }
     }
 
     @Test
-    fun `should check class types correctly`() {
+    fun `should check class kinds correctly`() {
         val klasses = setOf("Klass", "Interfase")
         klasses.correctPairs("types").forEach { (first, second) ->
-            first.typesMatch(second).also {
-                assert(it.matched)
+            first.kindsMatch(second).also {
+                assertTrue(it.match)
             }
         }
         klasses.incorrectPairs("types").forEach { (first, second) ->
-            first.typesMatch(second).also {
-                assert(!it.matched)
+            first.kindsMatch(second).also {
+                assertFalse(it.match)
             }
         }
+
+        val matcher = "types.Klass".example().kindsMatch("types.Interfase".example())
+        assertEquals(ClassKind.CLASS, matcher.reference)
+        assertEquals(ClassKind.INTERFACE, matcher.submission)
     }
 
     @Test
@@ -64,27 +96,51 @@ class TestAnalyze {
         val klasses = setOf("Abstrict", "Finol", "StractFp")
         klasses.correctPairs("modifiers").forEach { (first, second) ->
             first.modifiersMatch(second).also {
-                assert(it.matched)
+                assertTrue(it.match)
             }
         }
         klasses.incorrectPairs("modifiers").forEach { (first, second) ->
             first.modifiersMatch(second).also {
-                assert(!it.matched)
+                assertFalse(it.match)
             }
         }
+
+        val matcher = "modifiers.Abstrict".example().modifiersMatch("modifiers.Finol".example())
+        assertEquals(listOf("public", "abstract"), matcher.reference)
+        assertEquals(listOf("public", "final"), matcher.submission)
+    }
+
+    @Test
+    fun `should check type parameters correctly`() {
+        val klasses = setOf("ET", "T")
+        klasses.correctPairs("typeparameters").forEach { (first, second) ->
+            first.typeParametersMatch(second).also {
+                assertTrue(it.match)
+            }
+        }
+        klasses.incorrectPairs("typeparameters").forEach { (first, second) ->
+            first.typeParametersMatch(second).also {
+                assertFalse(it.match)
+            }
+        }
+        // we still need to do the ordering test, reference ET vs submission TE.
+        val matcher = "typeparameters.reference.ET".example()
+            .typeParametersMatch("typeparameters.TE".example())
+        assertEquals(listOf("E", "T"), matcher.reference)
+        assertEquals(listOf("T", "E"), matcher.submission)
     }
 
     @Test
     fun `should check class parents correctly`() {
         val klasses = setOf("Parent", "Child", "Parent_ExtendsObject")
         klasses.correctPairs("parents").forEach { (first, second) ->
-            first.parentsMatch(second).also {
-                assert(it.matched)
+            first.superclassesMatch(second).also {
+                assertTrue(it.match)
             }
         }
         klasses.incorrectPairs("parents").forEach { (first, second) ->
-            first.parentsMatch(second).also {
-                assert(!it.matched)
+            first.superclassesMatch(second).also {
+                assertFalse(it.match)
             }
         }
     }
@@ -102,66 +158,125 @@ class TestAnalyze {
         )
         klasses.correctPairs("interfaces").forEach { (first, second) ->
             first.interfacesMatch(second).also {
-                assert(it.matched)
+                assertTrue(it.match)
             }
         }
         klasses.incorrectPairs("interfaces").forEach { (first, second) ->
             first.interfacesMatch(second).also {
-                assert(!it.matched)
+                assertFalse(it.match)
             }
         }
     }
 
     @Test
+        /**
+         * this is the only test that checks public api message formatting.
+         */
     fun `should check class fields correctly`() {
-        "examples.classdesign.publicapi.fields.reference.Simple".load().publicFieldsMatch(
-            "examples.classdesign.publicapi.fields.Simple".load()
+        val fieldsPath = "examples.classdesign.publicapi.fields"
+        "$fieldsPath.reference.Simple".load().fieldsMatch(
+            "$fieldsPath.Simple".load()
         ).also {
-            assert(it.matched)
+            assertTrue(it.match)
         }
-        "examples.classdesign.publicapi.fields.reference.Simple".load().publicFieldsMatch(
-            "examples.classdesign.publicapi.fields.String".load()
+        "$fieldsPath.reference.Simple".load().fieldsMatch(
+            "$fieldsPath.String".load()
         ).also {
-            assert(!it.matched)
+            assertFalse(it.match)
+        }
+    }
+
+    @Test
+    fun `should generate field names correctly`() {
+        fun nameShouldBe(className: String, fieldName: String, expected: String) {
+            "examples.classdesign.publicapi.fields.$className".load().declaredFields.also {
+                it.find { field -> field.name == fieldName }?.answerableName().also { actual ->
+                    assertEquals(expected, actual)
+                } ?: fail("didn't have field")
+            }
+        }
+
+        nameShouldBe("BadNames", "myInt", "public static int myInt")
+        nameShouldBe("BadNames", "myString", "public String myString")
+        nameShouldBe("MultipleTooMany", "extra2", "public byte extra2")
+        nameShouldBe("TypeParam", "FIRST", "public final T FIRST")
+    }
+
+    @Test
+    fun `should check inner classes correctly`() {
+        val existenceClasses = setOf(
+            "FooAndBar",
+            "FooAndPrivate",
+            "FooAndPrivateBad"
+        )
+        val correctnessClasses = setOf(
+            "OneInnerMethod",
+            "TwoInnerMethods" // if one inner analysis works, and outer analyses work, all inners work.
+        )
+
+        existenceClasses.correctPairs("innerclasses").forEach { (first, second) ->
+            first.innerClassesMatch(second).also {
+                assertTrue(it.first.match)
+            }
+        }
+        existenceClasses.incorrectPairs("innerclasses").forEach { (first, second) ->
+            first.innerClassesMatch(second).also {
+                // only one thing needs to not match
+                assertFalse(it.first.match)
+            }
+        }
+
+        correctnessClasses.correctPairs("innerclasses").forEach { (first, second) ->
+            first.innerClassesMatch(second).also {
+                assertTrue(it.first.match)
+                assertTrue(it.second.all { (_, result) -> result.allMatch })
+            }
+        }
+        correctnessClasses.incorrectPairs("innerclasses").forEach { (first, second) ->
+            first.innerClassesMatch(second).also {
+                assertTrue(it.first.match)
+                assertFalse(it.second.all { (_, result) -> result.allMatch })
+            }
         }
     }
 
     @Test
     fun `should generate method names correctly`() {
-        "examples.classdesign.publicapi.methods.Constructor".load().constructors.first()
+        val methodsPath = "examples.classdesign.publicapi.methods"
+        "$methodsPath.Constructor".load().constructors.first()
             .answerableName().also {
-                assert("public Constructor(int, boolean)" == it)
+                assertEquals("public Constructor(int, boolean)", it)
             }
-        "examples.classdesign.publicapi.methods.MissingFinal".load().declaredMethods.first()
+        "$methodsPath.MissingFinal".load().declaredMethods.first()
             .answerableName().also {
-                assert("public <T> T foo(String, T)" == it)
+                assertEquals("public <T> T foo(String, T)", it)
             }
-        "examples.classdesign.publicapi.methods.MissingThrow".load().declaredMethods.first()
+        "$methodsPath.MissingThrow".load().declaredMethods.first()
             .answerableName().also {
-                assert("public void foo() throws IllegalStateException" == it)
+                assertEquals("public void foo() throws IllegalStateException", it)
             }
-        "examples.classdesign.publicapi.methods.Simple".load().declaredMethods.also { methods ->
+        "$methodsPath.Simple".load().declaredMethods.also { methods ->
             methods.find { it.name == "zero" }?.answerableName().also {
-                assert("public static int zero()" == it)
-            } ?: assert(false) { "Didn't find method" }
+                assertEquals("public static int zero()", it)
+            } ?: fail("Didn't find method")
             methods.find { it.name == "toString" }?.answerableName().also {
-                assert("public String toString()" == it)
-            } ?: assert(false) { "Didn't find method" }
+                assertEquals("public String toString()", it)
+            } ?: fail("Didn't find method")
             methods.find { it.name == "lt" }?.answerableName().also {
-                assert("public boolean lt(int, int)" == it)
-            } ?: assert(false) { "Didn't find method" }
+                assertEquals("public boolean lt(int, int)", it)
+            } ?: fail("Didn't find method")
         }
-        "examples.classdesign.publicapi.methods.Throws".load().declaredMethods.first()
+        "$methodsPath.Throws".load().declaredMethods.first()
             .answerableName().also {
-                assert("public void foo() throws IllegalStateException, StackOverflowError" == it)
+                assertEquals("public void foo() throws IllegalStateException, StackOverflowError", it)
             }
-        "examples.classdesign.publicapi.methods.TypeParam".load().declaredMethods.first()
+        "$methodsPath.TypeParam".load().declaredMethods.first()
             .answerableName().also {
-                assert("public final <T> T foo(String, T)" == it)
+                assertEquals("public final <T> T foo(String, T)", it)
             }
-        "examples.classdesign.publicapi.methods.Varargs".load().declaredMethods.first()
+        "$methodsPath.Varargs".load().declaredMethods.first()
             .answerableName().also {
-                assert("public void multi(int, int...)" == it)
+                assertEquals("public void multi(int, int...)", it)
             }
     }
 }

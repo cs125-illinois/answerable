@@ -13,7 +13,7 @@ import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.api.EnumerableBytecodeLoader
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.simpleName
-import edu.illinois.cs.cs125.answerable.getPublicFields
+import edu.illinois.cs.cs125.answerable.publicFields
 import java.lang.IllegalStateException
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
@@ -264,7 +264,7 @@ private fun mkProxy(
     val subProxy = pool.getProxyInstantiator(presentationClass).newInstance()
     (subProxy as Proxy).setHandler { self, method, _, args ->
         // sync out
-        behaviorClass.getPublicFields().forEach { it.set(behaviorInstance, self.javaClass.getField(it.name).get(self)) }
+        behaviorClass.publicFields.forEach { it.set(behaviorInstance, self.javaClass.getField(it.name).get(self)) }
         // proxy arguments the opposite direction for compatibility with the real object
         val arguments = method.parameterTypes.indices.map { i ->
             val argumentProxying = proxyableClass(outermostBehaviorClass, outermostPresentationClass,
@@ -277,7 +277,7 @@ private fun mkProxy(
         val result = behaviorClass.getMethod(method.name, *arguments.map { it.type }.toTypedArray())
             .invoke(behaviorInstance, *arguments.map { it.argument }.toTypedArray())
         // sync in
-        behaviorClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(behaviorInstance)) }
+        behaviorClass.publicFields.forEach { self.javaClass.getField(it.name).set(self, it.get(behaviorInstance)) }
         // return result proxied if necessary
         mkValueProxy(result, outermostPresentationClass, outermostBehaviorClass, pool)
     }
@@ -305,7 +305,7 @@ internal fun mkValueProxy(
         ?: return value
     val innerProxy = mkProxy(mapping.presentation, outermostPresentationClass,
         mapping.behavior, outermostBehaviorClass, value, pool)
-    mapping.behavior.getPublicFields()
+    mapping.behavior.publicFields
         .forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(value)) }
     return innerProxy
 }
