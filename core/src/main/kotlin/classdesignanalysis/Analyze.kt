@@ -41,9 +41,7 @@ import java.lang.reflect.Type
  * superclass (or lack thereof), implemented interfaces, fields, and methods. Inner classes are analyzed recursively.
  * Components can be individually disabled via the [config].
  */
-fun classDesignAnalysis(
-    reference: Class<*>, submission: Class<*>, config: CDAConfig = defaultCDAConfig
-): CDAResult {
+fun classDesignAnalysis(reference: Class<*>, submission: Class<*>, config: CDAConfig = defaultCDAConfig): CDAResult {
     val innerClassesResult: Pair<CDAMatcher<List<String>>, Map<String, CDAResult>>? =
         runIf(config.checkInnerClasses) { reference.innerClassesMatch(submission, config) }
     return CDAResult(
@@ -242,9 +240,7 @@ class CDAConfig(
     val checkMethods: Boolean = true,
     val checkInnerClasses: Boolean = true,
     val solutionName: String = ""
-) {
-
-}
+)
 val defaultCDAConfig = CDAConfig()
 
 // This was temporarily an inner class of CDAMatcher but it created unnecessarily verbose code and
@@ -465,7 +461,6 @@ class OssifiedExecutable(executable: Executable) {
         return result
     }
 }
-
 
 fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
     this.publicFields.filter(filter)

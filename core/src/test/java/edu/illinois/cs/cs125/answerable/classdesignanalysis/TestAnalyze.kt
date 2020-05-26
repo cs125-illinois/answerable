@@ -1,16 +1,13 @@
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
-
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
-
 import com.marcinmoskala.math.combinations
 import edu.illinois.cs.cs125.answerable.load
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.fail
+import org.junit.jupiter.api.Test
 
 // Internal so that TestErrors can also use it to access the fixtures.
 internal fun String.example(): Class<*> {
@@ -73,20 +70,6 @@ internal class Analyze {
                 assertNotEquals(it.message, "Name: $noErrorMsg")
             }
         }
-    }
-
-    @Test
-        /**
-         * This is the only test that checks that simple error messages are formatted correctly;
-         * they are all formatted in the same way.
-         */
-    fun `should correctly identify components of name mismatch`() {
-        val matcher = "names.Foo".example().namesMatch("names.Bar".example())
-        val ref = "Foo"
-        val sub = "Bar"
-        assertEquals(ref, matcher.reference)
-        assertEquals(sub, matcher.submission)
-        assertEquals("Class name mismatch;\nExpected: $ref\nFound:    $sub", matcher.message)
     }
 
     @Test
@@ -160,14 +143,6 @@ internal class Analyze {
                 assertFalse(it.match)
             }
         }
-
-        val matcher = "parents.Parent".example().superclassesMatch("parents.Child".example())
-        assertNull(matcher.reference)
-        assertEquals("Parent", matcher.submission)
-        assertEquals(
-            "Superclass mismatch;\nExpected: No class to be extended\nFound:    extends Parent",
-            matcher.message
-        )
     }
 
     @Test
@@ -191,15 +166,6 @@ internal class Analyze {
                 assertFalse(it.match)
             }
         }
-
-        val matcher = "interfaces.ImplementsFoo".example()
-            .interfacesMatch("interfaces.ImplementsFooBar".example())
-        assertEquals(listOf("Foo"), matcher.reference)
-        assertEquals(listOf("Bar", "Foo"), matcher.submission)
-        assertEquals(
-            "Interface mismatch;\nExpected: implements Foo\nFound:    implements Bar, Foo",
-            matcher.message
-        )
     }
 
     @Test
@@ -218,15 +184,6 @@ internal class Analyze {
         ).also {
             assertFalse(it.match)
         }
-
-        val matcher = "$fieldsPath.reference.Simple".load()
-            .fieldsMatch("$fieldsPath.OneTooMany".load())
-        assertEquals(listOf("public String s", "public static int a"), matcher.reference.map { it.answerableName })
-        assertEquals(
-            listOf("public String s", "public boolean extra", "public static int a"),
-            matcher.submission.map { it.answerableName }
-        )
-        assertEquals("Found an unexpected public field:\n  public boolean extra", matcher.message)
     }
 
     @Test
@@ -269,7 +226,7 @@ internal class Analyze {
             }
         }
 
-        correctnessClasses.correctPairs("innerclasses").forEach{ (first, second) ->
+        correctnessClasses.correctPairs("innerclasses").forEach { (first, second) ->
             first.innerClassesMatch(second).also {
                 assertTrue(it.first.match)
                 assertTrue(it.second.all { (_, result) -> result.allMatch })
