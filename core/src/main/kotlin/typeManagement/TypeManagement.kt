@@ -265,8 +265,6 @@ private fun mkProxy(
     (subProxy as Proxy).setHandler { self, method, _, args ->
         // sync out
         behaviorClass.publicFields.forEach { it.set(behaviorInstance, self.javaClass.getField(it.name).get(self)) }
-        val result = behaviorClass.getMethod(method.name, *method.parameterTypes).invoke(behaviorInstance, *args)
-        behaviorClass.publicFields.forEach { it.set(behaviorInstance, self.javaClass.getField(it.name).get(self)) }
         // proxy arguments the opposite direction for compatibility with the real object
         val arguments = method.parameterTypes.indices.map { i ->
             val argumentProxying = proxyableClass(outermostBehaviorClass, outermostPresentationClass,
@@ -280,26 +278,6 @@ private fun mkProxy(
             .invoke(behaviorInstance, *arguments.map { it.argument }.toTypedArray())
         // sync in
         behaviorClass.publicFields.forEach { self.javaClass.getField(it.name).set(self, it.get(behaviorInstance)) }
-        // proxy result if necessary
-        if (result != null && result.javaClass.enclosingClass != null &&
-            result.javaClass.name.startsWith("${outermostBehaviorClass.name}$")
-        ) {
-            val innerMap = mostDerivedProxyableClass(outermostPresentationClass, result.javaClass, pool)
-            if (innerMap == null) {
-                return@setHandler result
-            } else {
-                val innerProxy = mkProxy(
-                    innerMap.presentation,
-                    outermostPresentationClass, innerMap.behavior, outermostBehaviorClass, result, pool
-                )
-                innerMap.behavior.publicFields
-                    .forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
-                return@setHandler innerProxy
-            }
-        } else {
-            return@setHandler result
-        }
-        behaviorClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(behaviorInstance)) }
         // return result proxied if necessary
         mkValueProxy(result, outermostPresentationClass, outermostBehaviorClass, pool)
     }
@@ -327,7 +305,7 @@ internal fun mkValueProxy(
         ?: return value
     val innerProxy = mkProxy(mapping.presentation, outermostPresentationClass,
         mapping.behavior, outermostBehaviorClass, value, pool)
-    mapping.behavior.getPublicFields()
+    mapping.behavior.publicFields
         .forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(value)) }
     return innerProxy
 }

@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.classDesignAnalysis
 import kotlin.random.Random
 import org.junit.jupiter.api.Assertions

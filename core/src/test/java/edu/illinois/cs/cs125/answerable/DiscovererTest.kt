@@ -56,7 +56,7 @@ internal class DiscovererTest {
             "[public java.lang.Object examples.classdesign.correct1.reference.ClassDesign.get(int), " +
                 "public static examples.classdesign.correct1.reference.ClassDesign " +
                 "examples.classdesign.correct1.reference.ClassDesign.next(" +
-                "examples.classdesign.correct1.reference.ClassDesign,int)]",
+                "examples.classdesign.correct1.reference.ClassDesign,int,java.util.Random)]",
             classDesignReferenceClass.publicMethods.toString()
         )
     }

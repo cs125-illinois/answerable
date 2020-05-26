@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
+import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.answerable.annotations.EdgeCase
 import edu.illinois.cs.cs125.answerable.annotations.Generator
 import edu.illinois.cs.cs125.answerable.annotations.Helper
@@ -166,8 +167,10 @@ fun Class<*>.fieldsMatch(other: Class<*>): CDAMatcher<List<OssifiedField>> {
  * return type, type parameters, and parameter types. All types are checked by name, as
  * they appear in the source.
  */
-fun Class<*>.methodsMatch(other: Class<*>, solutionName: String = ""): CDAMatcher<List<OssifiedExecutable>> {
-
+fun Class<*>.methodsMatch(
+    other: Class<*>,
+    solutionName: String = DEFAULT_EMPTY_NAME
+): CDAMatcher<List<OssifiedExecutable>> {
     fun methodFilter(method: Executable) = referenceAnnotations.none { method.isAnnotationPresent(it) } &&
         !(method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false)
 
@@ -238,7 +241,7 @@ class CDAConfig(
     val checkFields: Boolean = true,
     val checkMethods: Boolean = true,
     val checkInnerClasses: Boolean = true,
-    val solutionName: String = ""
+    val solutionName: String = DEFAULT_EMPTY_NAME
 )
 val defaultCDAConfig = CDAConfig()
 
