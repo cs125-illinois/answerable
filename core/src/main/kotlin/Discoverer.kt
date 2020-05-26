@@ -76,11 +76,14 @@ internal fun Class<*>.findSolutionAttemptMethod(matchTo: Method?, correspondingC
     return methods[0].also { it.isAccessible = true }
 }
 
-internal fun Class<*>.getPublicFields(): List<Field> =
-    this.declaredFields.filter { Modifier.isPublic(it.modifiers) }
+internal val Class<*>.publicFields: List<Field>
+    get() = declaredFields.filter { Modifier.isPublic(it.modifiers) }
 
-internal fun Class<*>.getPublicMethods(): List<Method> =
-    declaredMethods.filter { Modifier.isPublic(it.modifiers) }
+internal val Class<*>.publicMethods: List<Method>
+    get() = declaredMethods.filter { Modifier.isPublic(it.modifiers) }
+
+internal val Class<*>.publicInnerClasses: List<Class<*>>
+    get() = declaredClasses.filter { Modifier.isPublic(it.modifiers) }
 
 internal fun Class<*>.getAllGenerators(): List<Method> =
     this.declaredMethods

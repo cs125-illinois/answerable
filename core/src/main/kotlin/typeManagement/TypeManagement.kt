@@ -13,7 +13,7 @@ import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.api.EnumerableBytecodeLoader
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.simpleName
-import edu.illinois.cs.cs125.answerable.getPublicFields
+import edu.illinois.cs.cs125.answerable.publicFields
 import java.lang.IllegalStateException
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
@@ -222,10 +222,10 @@ private fun mkProxy(
     val subProxy = pool.getProxyInstantiator(presentationClass).newInstance()
     (subProxy as Proxy).setHandler { self, method, _, args ->
         // sync out
-        behaviorClass.getPublicFields().forEach { it.set(behaviorInstance, self.javaClass.getField(it.name).get(self)) }
+        behaviorClass.publicFields.forEach { it.set(behaviorInstance, self.javaClass.getField(it.name).get(self)) }
         val result = behaviorClass.getMethod(method.name, *method.parameterTypes).invoke(behaviorInstance, *args)
         // sync in
-        behaviorClass.getPublicFields().forEach { self.javaClass.getField(it.name).set(self, it.get(behaviorInstance)) }
+        behaviorClass.publicFields.forEach { self.javaClass.getField(it.name).set(self, it.get(behaviorInstance)) }
         // proxy result if necessary
         if (result != null && result.javaClass.enclosingClass != null &&
             result.javaClass.name.startsWith("${outermostBehaviorClass.name}$")
@@ -238,7 +238,7 @@ private fun mkProxy(
                     innerMap.presentation,
                     outermostPresentationClass, innerMap.behavior, outermostBehaviorClass, result, pool
                 )
-                innerMap.behavior.getPublicFields()
+                innerMap.behavior.publicFields
                     .forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(result)) }
                 return@setHandler innerProxy
             }

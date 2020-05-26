@@ -710,7 +710,7 @@ internal class TestRunWorker internal constructor(
                 assertEquals(refBehavior.stdErr, subBehavior.stdErr)
             } else {
                 if (subProxy != null) {
-                    usableSubmissionClass.getPublicFields().forEach {
+                    usableSubmissionClass.publicFields.forEach {
                         usableReferenceClass.getField(it.name).set(subProxy, it.get(subReceiver))
                     }
                 }

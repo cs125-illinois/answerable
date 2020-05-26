@@ -11,8 +11,8 @@ import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.Verify
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
-import edu.illinois.cs.cs125.answerable.getPublicFields
-import edu.illinois.cs.cs125.answerable.getPublicMethods
+import edu.illinois.cs.cs125.answerable.publicFields
+import edu.illinois.cs.cs125.answerable.publicMethods
 import edu.illinois.cs.cs125.answerable.typeManagement.simpleSourceName
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -125,6 +125,10 @@ fun Class<*>.typeParametersMatch(other: Class<*>): CDAMatcher<List<String>> =
  * are reflected by [interfacesMatch].
  */
 fun Class<*>.superclassesMatch(other: Class<*>): CDAMatcher<String?> {
+    // It would make sense to instead leave "Object" in the matcher itself, and only strip it in messages for
+    // the purpose of not having "extends Object" in the message (which can be confusing for beginners).
+    // Doing it this way is a design decision, so if people complain about it in the future, change it!
+    // Nothing ties us down to doing it this way.
     fun unlessObject(type: Type?): Type? =
         if (type == Object().javaClass) null else type
 
@@ -357,12 +361,12 @@ class ClassDesignAnalysis(
 
                 // order is irrelevant; we only care about the API
                 val refFields =
-                    reference.getPublicFields()
+                    reference.publicFields
                         .filter { field -> referenceAnnotations.none { field.isAnnotationPresent(it) } }
                         .map(::mkFieldString)
                         .sorted()
                 val attFields =
-                    attempt.getPublicFields()
+                    attempt.publicFields
                         .map(::mkFieldString)
                         .sorted()
 
@@ -380,7 +384,7 @@ class ClassDesignAnalysis(
         AnalysisType.METHODS,
         run {
             val refMethodData =
-                (reference.getPublicMethods() + reference.constructors)
+                (reference.publicMethods + reference.constructors)
                     .filter { method -> referenceAnnotations.none { method.isAnnotationPresent(it) } }
                     .filterOut { method ->
                         method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false
@@ -388,7 +392,7 @@ class ClassDesignAnalysis(
                     .map { it.answerableName() }
                     .sorted()
             val attMethodData =
-                (attempt.getPublicMethods() + attempt.constructors)
+                (attempt.publicMethods + attempt.constructors)
                     .map { it.answerableName() }
                     .sorted()
 
@@ -622,10 +626,10 @@ class OssifiedExecutable(executable: Executable) {
 
 
 fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
-    this.getPublicFields().filter(filter)
+    this.publicFields.filter(filter)
 
 fun Class<*>.publicMethods(filter: (executable: Executable) -> Boolean = { true }) =
-    (this.getPublicMethods() + this.constructors).filter(filter)
+    (this.publicMethods + this.constructors).filter(filter)
 
 // alias filterNot with a more sensible name
 // TODO: can toss this after refactor
