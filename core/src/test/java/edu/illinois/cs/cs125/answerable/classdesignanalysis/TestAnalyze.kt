@@ -54,8 +54,8 @@ internal class Analyze {
         assertTrue(result1.errorMessages.isEmpty())
         // IterableList interface. @Next method should be ignored.
         val result2 = analyze("${root}2.reference.IterableList", "${root}2.IterableList")
-        assertTrue(result1.allMatch)
-        assertTrue(result1.errorMessages.isEmpty())
+        assertTrue(result2.allMatch)
+        assertTrue(result2.errorMessages.isEmpty())
     }
 
     @Test
@@ -164,7 +164,10 @@ internal class Analyze {
         val matcher = "parents.Parent".example().superclassesMatch("parents.Child".example())
         assertNull(matcher.reference)
         assertEquals("Parent", matcher.submission)
-        assertEquals("Superclass mismatch;\nExpected: extends Object\nFound:    extends Parent", matcher.message)
+        assertEquals(
+            "Superclass mismatch;\nExpected: No class to be extended\nFound:    extends Parent",
+            matcher.message
+        )
     }
 
     @Test

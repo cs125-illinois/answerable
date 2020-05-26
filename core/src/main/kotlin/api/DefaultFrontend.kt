@@ -116,7 +116,7 @@ internal fun TestingResults.defaultToJson(): String =
         |  numSimpleAndEdgeCaseTests: $numSimpleAndEdgeCaseTests,
         |  numMixedTests: $numMixedTests,
         |  numAllGeneratedTests: $numAllGeneratedTests,
-        |  classDesignAnalysisResult: ${classDesignAnalysisResult.toJson()},
+        |  classDesignAnalysisResult: ${classDesignAnalysisResult.messages.joinToString(separator = ",")},
         |  testSteps: ${testSteps.toJson()}
         |}
     """.trimMargin()

@@ -233,7 +233,7 @@ fun Class<*>.innerClassesMatch(
     return Pair(nameMatcher, recursiveAnalysis.toMap())
 }
 
-/*class ClassDesignAnalysis(
+class ClassDesignAnalysis(
     private val solutionName: String? = null,
     private val reference: Class<*>,
     private val attempt: Class<*>
@@ -387,6 +387,8 @@ fun Class<*>.innerClassesMatch(
                 }
             })
 
+    private fun <T> Collection<T>.filterOut(filter: (T) -> Boolean) = this.filterNot(filter)
+
     fun publicMethodsMatch() = AnalysisOutput(
         AnalysisType.METHODS,
         run {
@@ -413,7 +415,7 @@ fun Class<*>.innerClassesMatch(
                 )
             }
         })
-}*/
+}
 
 class CDAConfig(
     val checkName: Boolean = true,
@@ -518,6 +520,22 @@ data class CDAResult(
     val messages: List<String>
         get() = getMessages { true }
 }
+
+val noCDAResult: CDAResult = classDesignAnalysis(
+    Any().javaClass, // just need two classes, they won't be inspected
+    Any().javaClass,
+    CDAConfig(
+        checkName = false,
+        checkKind = false,
+        checkModifiers = false,
+        checkTypeParams = false,
+        checkFields = false,
+        checkMethods = false,
+        checkSuperclasses = false,
+        checkInterfaces = false,
+        checkInnerClasses = false
+    )
+)
 
 /* Here's an idea to consider:
 MutliplyMatchable<T>(
