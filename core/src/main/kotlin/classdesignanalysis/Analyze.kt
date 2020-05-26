@@ -155,12 +155,16 @@ fun Class<*>.interfacesMatch(other: Class<*>): CDAMatcher<List<String>> =
  * Component analyzer. Checks that the classes have the same public fields, by name and type.
  * The type is checked by name, as it appears in the source.
  */
-fun Class<*>.fieldsMatch(other: Class<*>): CDAMatcher<List<OssifiedField>> =
-    CDAMatcher(
+fun Class<*>.fieldsMatch(other: Class<*>): CDAMatcher<List<OssifiedField>> {
+
+    fun fieldFilter(field: Field) = referenceAnnotations.none { field.isAnnotationPresent(it) }
+
+    return CDAMatcher(
         AnalysisType.FIELDS,
-        this.publicFields().map { OssifiedField(it) }.sortedBy { it.answerableName },
-        other.publicFields().map { OssifiedField(it) }.sortedBy { it.answerableName }
+        this.publicFields(::fieldFilter).map { OssifiedField(it) }.sortedBy { it.answerableName },
+        other.publicFields(::fieldFilter).map { OssifiedField(it) }.sortedBy { it.answerableName }
     )
+}
 
 /**
  * Component analyzer. Checks that the classes have the same public methods, by name,
@@ -168,16 +172,7 @@ fun Class<*>.fieldsMatch(other: Class<*>): CDAMatcher<List<OssifiedField>> =
  * they appear in the source.
  */
 fun Class<*>.methodsMatch(other: Class<*>, solutionName: String?): CDAMatcher<List<OssifiedExecutable>> {
-    val referenceAnnotations = setOf(
-        Generator::class.java,
-        Verify::class.java,
-        Next::class.java,
-        EdgeCase::class.java,
-        SimpleCase::class.java,
-        Precondition::class.java,
-        Helper::class.java,
-        Ignore::class.java
-    )
+
     fun methodFilter(method: Executable) = referenceAnnotations.none { method.isAnnotationPresent(it) } &&
         !(method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false)
 
@@ -187,6 +182,17 @@ fun Class<*>.methodsMatch(other: Class<*>, solutionName: String?): CDAMatcher<Li
         other.publicMethods(::methodFilter).map { OssifiedExecutable(it) }.sortedBy { it.answerableName }
     )
 }
+
+private val referenceAnnotations = setOf(
+    Generator::class.java,
+    Verify::class.java,
+    Next::class.java,
+    EdgeCase::class.java,
+    SimpleCase::class.java,
+    Precondition::class.java,
+    Helper::class.java,
+    Ignore::class.java
+)
 
 // You can't currently put the solution method /inside/ an inner class
 // for Answerable's purposes but this incidentally supports it for the purposes of CDA.
@@ -227,7 +233,7 @@ fun Class<*>.innerClassesMatch(
     return Pair(nameMatcher, recursiveAnalysis.toMap())
 }
 
-class ClassDesignAnalysis(
+/*class ClassDesignAnalysis(
     private val solutionName: String? = null,
     private val reference: Class<*>,
     private val attempt: Class<*>
@@ -407,7 +413,7 @@ class ClassDesignAnalysis(
                 )
             }
         })
-}
+}*/
 
 class CDAConfig(
     val checkName: Boolean = true,
@@ -631,10 +637,6 @@ fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
 
 fun Class<*>.publicMethods(filter: (executable: Executable) -> Boolean = { true }) =
     (this.publicMethods + this.constructors).filter(filter)
-
-// alias filterNot with a more sensible name
-// TODO: can toss this after refactor
-fun <T> Iterable<T>.filterOut(p: (T) -> Boolean) = this.filterNot(p)
 
 class AnalysisOutput(val tag: AnalysisType, val result: AnalysisResult<*>) : DefaultSerializable {
     override fun toString() = this.toErrorMsg() // see ClassDesignErrors.kt
