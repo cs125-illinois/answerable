@@ -19,7 +19,6 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 
-// TODO: analyze inner classes recursively
 /*
  * For the purposes of analysis, all Types are compared by name as the name appears in the source code.
  * This is fine for using Answerable as a "I have one class written by a student that I want to test" system.
