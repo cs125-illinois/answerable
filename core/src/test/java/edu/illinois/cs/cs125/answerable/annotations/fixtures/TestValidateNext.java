@@ -7,20 +7,20 @@ import java.util.Random;
 
 public class TestValidateNext {
     @Next
-    public static int correct1(int complexity, Random random) {
+    public static int correct0(Object o, int complexity, Random random) {
         return 0;
     }
     @Next
-    public static void correct2(int complexity, Random random) {
+    public static void correct1(Object b, int complexity, Random random) {
         return;
     }
 
     @Next
-    public int broken1(int complexity, Random random) {
+    public int broken0(int complexity, Random random) {
         return 0;
     }
     @Next
-    public static void broken2(int complexity) {
+    public static void broken1(int complexity) {
         return;
     }
 }

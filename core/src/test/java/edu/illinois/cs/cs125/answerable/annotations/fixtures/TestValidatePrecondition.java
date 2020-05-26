@@ -10,30 +10,39 @@ public class TestValidatePrecondition {
     public boolean correct0() {
         return true;
     }
-    @Precondition(name="0")
-    public int broken0() {
+
+    @Solution(name="1")
+    public void solution1() {}
+    @Precondition(name="1")
+    public int broken1() {
         return 1;
     }
 
-    @Solution(name="1")
-    public static void solution1() {}
-    @Precondition(name="1")
-    public static boolean correct1() {
+    @Solution(name="2")
+    public static void solution2() {}
+    @Precondition(name="2")
+    public static boolean correct2() {
         return false;
     }
-    @Precondition(name="1")
-    public boolean broken1() {
+
+    @Solution(name="3")
+    public static void solution3() {}
+    @Precondition(name="3")
+    public boolean broken3() {
         return true;
     }
 
-    @Solution(name="2")
-    public void solution1(int unused) {}
-    @Precondition(name="2")
-    public boolean correct1(int unused) {
+    @Solution(name="4")
+    public void solution4(int unused) {}
+    @Precondition(name="4")
+    public boolean correct4(int unused) {
         return false;
     }
-    @Precondition(name="2")
-    public boolean broken1(boolean unused) {
+
+    @Solution(name="5")
+    public void solution5(int unused) {}
+    @Precondition(name="5")
+    public boolean broken5(boolean unused) {
         return true;
     }
 }

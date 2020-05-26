@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Assertions
 fun runAnswerableTest(
     submissionClass: String,
     solutionClass: String,
-    solutionName: String = "",
+    solutionName: String = DEFAULT_EMPTY_NAME,
     randomSeed: Long = Random.nextLong()
 ): TestingResults {
     return TestGenerator(findClass(solutionClass), solutionName)

@@ -6,8 +6,8 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.long
-import edu.illinois.cs.cs125.answerable.TestGenerator
-import edu.illinois.cs.cs125.answerable.unsecuredEnvironment
+import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
+import edu.illinois.cs.cs125.jeed.core.Sandbox
 import java.util.Properties
 import kotlin.random.Random
 import mu.KotlinLogging
@@ -40,16 +40,23 @@ class Check : CliktCommand(help = "check submission against solution") {
     )
     private val solutionName: String by option(
         help = "solution name to use when solution class contains multiple solutions"
-    ).default("")
+    ).default(DEFAULT_EMPTY_NAME)
     private val randomSeed: Long by option(
         help = "random seed to use for test generation"
     ).long().default(Random.nextLong())
 
     override fun run() {
-        TestGenerator(getSolutionClass(solutionClass), solutionName)
-            .loadSubmission(getAttemptClass(submissionClass))
-            .runTests(randomSeed, unsecuredEnvironment)
-            .assertAllSucceeded()
+        val service = edu.illinois.cs.cs125.answerable.jeedrunner.Answerable()
+        service.loadNewQuestion("cli", getSolutionClass(solutionClass), solutionName = solutionName)
+        val result = service.submitAndTest("cli", getAttemptClass(submissionClass), seed = randomSeed)
+        try {
+            result.assertAllSucceeded()
+            println("Tests passed")
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            println(e.message)
+        } finally {
+            Sandbox.stop()
+        }
     }
 }
 

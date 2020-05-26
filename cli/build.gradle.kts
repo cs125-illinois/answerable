@@ -11,7 +11,7 @@ plugins {
     id("org.jmailen.kotlinter")
 }
 dependencies {
-    implementation(project(":core"))
+    implementation(project(":jeedrunner"))
     implementation("ch.qos.logback:logback-classic:1.2.3")
     implementation("io.github.microutils:kotlin-logging:1.7.9")
     implementation("com.github.ajalt:clikt:2.6.0")

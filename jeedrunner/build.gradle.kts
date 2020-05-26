@@ -3,10 +3,11 @@ import java.net.URI
 plugins {
     kotlin("jvm")
     application
+    id("org.jmailen.kotlinter")
 }
 
 application {
-    mainClassName = "edu.illinois.cs.cs125.answerable.MainKt"
+    mainClassName = "edu.illinois.cs.cs125.answerable.jeedrunner.MainKt"
 }
 
 version = "SNAPSHOT"
@@ -22,7 +23,7 @@ dependencies {
     api(project(":core"))
 
     // Jeed and dependencies
-    api("com.github.cs125-illinois:jeed:2020.4.7")
+    api("com.github.cs125-illinois:jeed:2020.5.3")
     implementation("com.github.ben-manes.caffeine:caffeine:2.8.1")
 
     // Tests

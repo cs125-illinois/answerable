@@ -2,12 +2,16 @@
 
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.answerable.annotations.DefaultTestRunArguments
 import edu.illinois.cs.cs125.answerable.annotations.Generator
 import edu.illinois.cs.cs125.answerable.annotations.Solution
-import edu.illinois.cs.cs125.answerable.annotations.Timeout
 import edu.illinois.cs.cs125.answerable.annotations.Verify
-import edu.illinois.cs.cs125.answerable.annotations.validateStaticSignatures
+import edu.illinois.cs.cs125.answerable.annotations.getPrecondition
+import edu.illinois.cs.cs125.answerable.annotations.getSolution
+import edu.illinois.cs.cs125.answerable.annotations.getTimeout
+import edu.illinois.cs.cs125.answerable.annotations.getVerify
+import edu.illinois.cs.cs125.answerable.annotations.validateAnnotations
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.OssifiedTestOutput
@@ -24,6 +28,7 @@ import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
 import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
 import edu.illinois.cs.cs125.answerable.typeManagement.mkOpenMirrorClass
 import edu.illinois.cs.cs125.answerable.typeManagement.mkProxy
+import edu.illinois.cs.cs125.answerable.typeManagement.mkValueProxy
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import edu.illinois.cs.cs125.answerable.typeManagement.verifyMemberAccess
 import java.lang.IllegalStateException
@@ -57,7 +62,7 @@ import org.opentest4j.AssertionFailedError
  */
 class TestGenerator(
     val referenceClass: Class<*>,
-    val solutionName: String = "",
+    val solutionName: String = DEFAULT_EMPTY_NAME,
     testRunnerArgs: TestRunnerArgs = defaultArgs,
     internal val bytecodeProvider: BytecodeProvider? = null
 ) {
@@ -70,7 +75,7 @@ class TestGenerator(
         if ('$' in referenceClass.name) {
             throw AnswerableMisuseException("Reference class names cannot contain '$', sorry.")
         }
-        validateStaticSignatures(referenceClass)
+        referenceClass.validateAnnotations()
     }
 
     // "Usable" members are from the opened (un-final-ified) mirror of the original reference class.
@@ -90,15 +95,15 @@ class TestGenerator(
     internal val usableControlClass: Class<*> =
         if (controlClass == referenceClass) usableReferenceClass
         else mkOpenMirrorClass(controlClass, mapOf(referenceClass to usableReferenceClass), typePool, "controlmirror_")
-    internal val usableReferenceMethod: Method? = usableReferenceClass.getReferenceSolutionMethod(solutionName)
+    internal val usableReferenceMethod: Method? = usableReferenceClass.getSolution(solutionName)
 
-    private val referenceMethod: Method? = referenceClass.getReferenceSolutionMethod(solutionName)
+    private val referenceMethod: Method? = referenceClass.getSolution(solutionName)
     internal val enabledNames: Array<String> =
         referenceMethod?.getAnnotation(Solution::class.java)?.enabled ?: arrayOf()
 
     internal val usablePrecondition: Method? = usableControlClass.getPrecondition(solutionName)
-    private val customVerifier: Method? = controlClass.getCustomVerifier(solutionName)
-    internal val usableCustomVerifier: Method? = usableControlClass.getCustomVerifier(solutionName)
+    private val customVerifier: Method? = controlClass.getVerify(solutionName)
+    internal val usableCustomVerifier: Method? = usableControlClass.getVerify(solutionName)
     internal val mergedArgs: TestRunnerArgs
 
     init {
@@ -143,8 +148,7 @@ class TestGenerator(
     internal val simpleCases: Map<Type, ArrayWrapper?> =
         getSimpleCases(usableControlClass, paramsWithReceiver.map { it.first }.toTypedArray())
 
-    internal val timeout = referenceMethod?.getAnnotation(Timeout::class.java)?.timeout
-        ?: (customVerifier?.getAnnotation(Timeout::class.java)?.timeout ?: 0)
+    internal val timeout = referenceMethod?.getTimeout() ?: customVerifier?.getTimeout() ?: 0
 
     // Default constructor case is for when there is no @Generator and no @Next, but
     // we can still construct receiver objects via a default constructor.
@@ -469,7 +473,7 @@ internal class TestRunWorker internal constructor(
         .let { testGenerator.buildGeneratorMap(randomForSubmission, it) }
 
     private val receiverGenStrategy = testGenerator.receiverGenStrategy
-    private val capturePrint = usableReferenceMethod?.getAnnotation(Solution::class.java)?.prints ?: false
+    private val capturePrint = usableReferenceMethod?.isPrinter() ?: false
     private val isStatic = testGenerator.isStatic
 
     private fun calculateNumCases(cases: Map<Type, ArrayWrapper?>): Int =
@@ -715,10 +719,15 @@ internal class TestRunWorker internal constructor(
                         usableReferenceClass.getField(it.name).set(subProxy, it.get(subReceiver))
                     }
                 }
+                val subBehaviorWithProxiedArgs = subBehavior.copy(
+                    args = subBehavior.args.map {
+                        mkValueProxy(it, usableReferenceClass, usableSubmissionClass, submissionTypePool)
+                    }.toTypedArray()
+                )
                 if (passRandomToVerify) {
-                    usableCustomVerifier.invoke(null, refBehavior, subBehavior, testRunnerRandom)
+                    usableCustomVerifier.invoke(null, refBehavior, subBehaviorWithProxiedArgs, testRunnerRandom)
                 } else {
-                    usableCustomVerifier.invoke(null, refBehavior, subBehavior)
+                    usableCustomVerifier.invoke(null, refBehavior, subBehaviorWithProxiedArgs)
                 }
             }
         } catch (ite: InvocationTargetException) {
@@ -805,6 +814,7 @@ internal class TestRunWorker internal constructor(
 
         var i = 0
         while (testingBlockCounts.numTests < numTests) {
+            // TODO: Catch exceptions from generation and report the test as Behavior.GENERATION_FAILED
             val refMethodArgs: Array<Any?>
             val subMethodArgs: Array<Any?>
             @Suppress("MagicNumber")
@@ -1191,7 +1201,7 @@ internal fun ArrayWrapper?.isNullOrEmpty() = this == null || this.size == 0
 /**
  * The types of behaviors that methods under test can have.
  */
-enum class Behavior { RETURNED, THREW, VERIFY_ONLY }
+enum class Behavior { RETURNED, THREW, VERIFY_ONLY, GENERATION_FAILED }
 
 /**
  * Represents a single iteration of the main testing loop.

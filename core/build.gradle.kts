@@ -21,6 +21,7 @@ dependencies {
     implementation("org.junit.jupiter:junit-jupiter:5.6.2")
     implementation("org.objenesis:objenesis:3.1")
     implementation("com.google.code.gson:gson:2.8.6")
+    implementation("io.github.classgraph:classgraph:4.8.75")
 
     testImplementation("com.marcinmoskala:DiscreteMathToolkit:1.0.3")
 }
