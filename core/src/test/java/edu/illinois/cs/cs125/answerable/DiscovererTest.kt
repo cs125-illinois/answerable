@@ -43,7 +43,7 @@ internal class DiscovererTest {
         val classDesignReferenceClass = findClass(correctClassDesignReference)
         assertEquals(
             "[public static int examples.classdesign.correct1.reference.ClassDesign.numGets]",
-            classDesignReferenceClass.getPublicFields().toString()
+            classDesignReferenceClass.publicFields.toString()
         )
     }
 
@@ -56,7 +56,7 @@ internal class DiscovererTest {
                 "public static examples.classdesign.correct1.reference.ClassDesign " +
                 "examples.classdesign.correct1.reference.ClassDesign.next(" +
                 "examples.classdesign.correct1.reference.ClassDesign,int)]",
-            classDesignReferenceClass.getPublicMethods().toString()
+            classDesignReferenceClass.publicMethods.toString()
         )
     }
 

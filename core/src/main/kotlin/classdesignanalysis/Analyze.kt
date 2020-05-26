@@ -12,6 +12,7 @@ import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.Verify
 import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.publicFields
+import edu.illinois.cs.cs125.answerable.publicInnerClasses
 import edu.illinois.cs.cs125.answerable.publicMethods
 import edu.illinois.cs.cs125.answerable.typeManagement.simpleSourceName
 import java.lang.reflect.Executable
@@ -207,8 +208,8 @@ fun Class<*>.innerClassesMatch(
     // We want to use the names as seen in the source. Currently, 'simpleSourceName' simply delegates
     // to 'simpleName' for classes, but this could feasibly change in the future
     // (for example, to gather a qualified name instead).
-    val ourInnerClasses: List<Class<*>> = this.declaredClasses.sortedBy { it.simpleSourceName }
-    val theirInnerClasses: List<Class<*>> = other.declaredClasses.sortedBy { it.simpleSourceName }
+    val ourInnerClasses: List<Class<*>> = this.publicInnerClasses.sortedBy { it.simpleSourceName }
+    val theirInnerClasses: List<Class<*>> = other.publicInnerClasses.sortedBy { it.simpleSourceName }
     val nameMatcher: CDAMatcher<List<String>> =
         CDAMatcher(
             AnalysisType.INNER_CLASSES,

@@ -243,6 +243,44 @@ internal class Analyze {
     }
 
     @Test
+    fun `should check inner classes correctly`() {
+        val existenceClasses = setOf(
+            "FooAndBar",
+            "FooAndPrivate",
+            "FooAndPrivateBad"
+        )
+        val correctnessClasses = setOf(
+            "OneInnerMethod",
+            "TwoInnerMethods" // if one inner analysis works, and outer analyses work, all inners work.
+        )
+
+        existenceClasses.correctPairs("innerclasses").forEach { (first, second) ->
+            first.innerClassesMatch(second).also {
+                assertTrue(it.first.match)
+            }
+        }
+        existenceClasses.incorrectPairs("innerclasses").forEach { (first, second) ->
+            first.innerClassesMatch(second).also {
+                // only one thing needs to not match
+                assertFalse(it.first.match)
+            }
+        }
+
+        correctnessClasses.correctPairs("innerclasses").forEach{ (first, second) ->
+            first.innerClassesMatch(second).also {
+                assertTrue(it.first.match)
+                assertTrue(it.second.all { (_, result) -> result.allMatch })
+            }
+        }
+        correctnessClasses.incorrectPairs("innerclasses").forEach { (first, second) ->
+            first.innerClassesMatch(second).also {
+                assertTrue(it.first.match)
+                assertFalse(it.second.all { (_, result) -> result.allMatch })
+            }
+        }
+    }
+
+    @Test
     fun `should generate method names correctly`() {
         val methodsPath = "examples.classdesign.publicapi.methods"
         "$methodsPath.Constructor".load().constructors.first()
