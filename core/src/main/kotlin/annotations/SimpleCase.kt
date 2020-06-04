@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
+import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
 import edu.illinois.cs.cs125.answerable.SourceLocation
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -31,13 +32,7 @@ annotation class SimpleCase(
             val message = if (method.isAnnotationPresent(EdgeCase::class.java)) {
                 "Can't use both @SimpleCase and @EdgeCase on the same method"
             } else {
-                method.validateCase().let { error ->
-                    if (error == null) {
-                        null
-                    } else {
-                        "@SimpleCase $error"
-                    }
-                }
+                method.validateCase()?.let { error -> "@SimpleCase $error" }
             }
             if (message == null) {
                 null
@@ -54,13 +49,7 @@ annotation class SimpleCase(
             val message = if (field.isAnnotationPresent(EdgeCase::class.java)) {
                 "Can't use both @SimpleCase and @EdgeCase on the same field"
             } else {
-                field.validateCase().let { error ->
-                    if (error == null) {
-                        null
-                    } else {
-                        "@SimpleCase $error"
-                    }
-                }
+                field.validateCase()?.let { error -> "@SimpleCase $error" }
             }
             if (message == null) {
                 null

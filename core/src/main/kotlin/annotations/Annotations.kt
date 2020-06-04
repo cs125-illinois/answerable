@@ -19,30 +19,22 @@ data class AnnotationError(val kind: Kind, val location: SourceLocation, val mes
 }
 
 internal fun Class<*>.validateAnnotations() {
-    mutableListOf<AnnotationError>().also {
-        it.addAll(Solution.validate(this))
-    }.also {
-        it.addAll(Precondition.validate(this))
-    }.also {
-        it.addAll(Verify.validate((this)))
-    }.also {
-        it.addAll(Timeout.validate(this))
-    }.also {
-        it.addAll(Next.validate(this))
-    }.also {
-        it.addAll(Generator.validate(this))
-    }.also {
-        it.addAll(EdgeCase.validate(this))
-    }.also {
-        it.addAll(SimpleCase.validate(this))
-    }.also {
-        it.addAll(DefaultTestRunArguments.validate(this))
-    }.also {
-        if (it.isEmpty()) {
-            return
-        } else {
-            throw AnswerableMisuseException(it.map { it.toString() }.joinToString(separator = ","))
-        }
+    val annotationErrors = mutableListOf<AnnotationError>()
+
+    annotationErrors.addAll(Solution.validate(this))
+    annotationErrors.addAll(Precondition.validate(this))
+    annotationErrors.addAll(Verify.validate((this)))
+    annotationErrors.addAll(Timeout.validate(this))
+    annotationErrors.addAll(Next.validate(this))
+    annotationErrors.addAll(Generator.validate(this))
+    annotationErrors.addAll(EdgeCase.validate(this))
+    annotationErrors.addAll(SimpleCase.validate(this))
+    annotationErrors.addAll(DefaultTestRunArguments.validate(this))
+
+    if (annotationErrors.isEmpty()) {
+        return
+    } else {
+        throw AnswerableMisuseException(annotationErrors.joinToString(separator = ","))
     }
 }
 

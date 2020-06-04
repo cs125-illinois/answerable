@@ -1,6 +1,7 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.SourceLocation
+import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import java.lang.reflect.Method
 
 /**
@@ -29,7 +30,7 @@ annotation class DefaultTestRunArguments(
         fun validateMethod(m: Method) = m.ifHasAnnotation(DefaultTestRunArguments::class.java) { method ->
             val message = if (method.isAnnotationPresent(Verify::class.java)) {
                 if (!method.getAnnotation(Verify::class.java).standalone) {
-                    "@DefaultTestRunArguments can only be applied to a standalone @VerifyMethod"
+                    "@DefaultTestRunArguments can only be applied to a standalone @Verify method"
                 } else {
                     null
                 }

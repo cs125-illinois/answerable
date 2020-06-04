@@ -1,3 +1,4 @@
+@file:Suppress("TooManyFunctions")
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME

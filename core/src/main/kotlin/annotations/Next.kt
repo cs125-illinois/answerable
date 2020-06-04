@@ -1,5 +1,7 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
+import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
+import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
 import edu.illinois.cs.cs125.answerable.SourceLocation
 import edu.illinois.cs.cs125.answerable.isStatic
 import java.lang.reflect.Method
@@ -48,6 +50,7 @@ annotation class Next(
                 "@Next methods must be static"
             } else if (!(method.parameterTypes.takeLast(2).toTypedArray() contentEquals parameterTypes)) {
                 "@Next methods must take parameters (int, Random)"
+                // TODO: this case is not right, regressed during refactor
             } else {
                 null
             }

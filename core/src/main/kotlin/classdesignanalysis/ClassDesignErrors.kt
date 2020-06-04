@@ -4,7 +4,7 @@ package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
 import java.lang.IllegalStateException
 
-const val noErrorMsg: String = "All good!"
+const val NO_ERROR_MSG: String = "All good!"
 /**
  * Turn a CDAMatcher into a nice message.
  *
@@ -29,7 +29,7 @@ val CDAMatcher<*>.message: String
         AnalysisType.FIELDS -> fieldMismatchMessage(this as CDAMatcher<List<OssifiedField>>)
         AnalysisType.METHODS -> methodMismatchMessage(this as CDAMatcher<List<OssifiedExecutable>>)
         AnalysisType.INNER_CLASSES -> innerclassMismatchMessage(this as CDAMatcher<List<String>>)
-    } ?: "${this.type.toString().capitalize()}: $noErrorMsg"
+    } ?: "${this.type.toString().capitalize()}: $NO_ERROR_MSG"
 
 private fun <T> ifMismatched(matcher: CDAMatcher<T>, mkMsg: () -> String): String? =
     if (!matcher.match) mkMsg() else null
