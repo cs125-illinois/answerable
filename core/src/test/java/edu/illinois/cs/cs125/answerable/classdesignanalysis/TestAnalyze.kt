@@ -61,13 +61,13 @@ internal class Analyze {
         klasses.correctPairs("names").forEach { (first, second) ->
             first.namesMatch(second).also {
                 assertTrue(it.match)
-                assertEquals(it.message, "Name: $noErrorMsg")
+                assertEquals(it.message, "Name: $NO_ERROR_MSG")
             }
         }
         klasses.incorrectPairs("names").forEach { (first, second) ->
             first.namesMatch(second).also {
                 assertFalse(it.match)
-                assertNotEquals(it.message, "Name: $noErrorMsg")
+                assertNotEquals(it.message, "Name: $NO_ERROR_MSG")
             }
         }
     }

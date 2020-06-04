@@ -1,7 +1,6 @@
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
 import edu.illinois.cs.cs125.answerable.ExecutedTestStep
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.Matched
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -51,7 +50,7 @@ class TestCorrectness {
                 }
             }
         """.trimIndent(), className = "Example")
-        assertTrue(result.classDesignAnalysisResult.all { it.result is Matched<*> })
+        assertTrue(result.classDesignAnalysisResult.allMatch)
         assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
@@ -96,7 +95,7 @@ class TestCorrectness {
                 }
             }
         """.trimIndent(), className = "Adder")
-        assertTrue(result.classDesignAnalysisResult.all { it.result is Matched<*> })
+        assertTrue(result.classDesignAnalysisResult.allMatch)
         assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 }
