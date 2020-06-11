@@ -8,6 +8,7 @@ plugins {
     id("org.jetbrains.dokka") version "0.10.1" apply false
     id("com.github.ben-manes.versions") version "0.28.0"
     id("io.gitlab.arturbosch.detekt") version "1.8.0"
+    `maven-publish`
 }
 allprojects {
     repositories {
