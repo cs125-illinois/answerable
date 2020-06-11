@@ -17,11 +17,7 @@ allprojects {
         maven(url = "https://jitpack.io")
     }
     tasks.withType<KotlinCompile> {
-        // So the JavaVersion enum is pretty weird. There's a comment in the source that points out explicitly
-        // that version numbers > 8 are written as X instead of as 1.X, and then says "to maintain backwards
-        // compatibility, we do the wrong thing for versions 9 and 10. ?????
-        // getMajorVersion() gets the number of any version without the 1., so it's good enough here.
-        val javaVersion = JavaVersion.VERSION_1_10.majorVersion
+        val javaVersion = JavaVersion.VERSION_1_8.toString()
         sourceCompatibility = javaVersion
         targetCompatibility = javaVersion
         kotlinOptions {
