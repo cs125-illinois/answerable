@@ -11,6 +11,8 @@ plugins {
     kotlin("plugin.serialization")
     id("org.jetbrains.dokka")
     id("org.jmailen.kotlinter")
+    `maven-publish`
+    maven
 }
 dependencies {
     implementation(kotlin("reflect"))
