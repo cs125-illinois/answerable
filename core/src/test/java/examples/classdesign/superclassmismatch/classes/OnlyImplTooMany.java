@@ -1,7 +1,6 @@
 package examples.classdesign.superclassmismatch.classes;
 
-import java.util.List;
 import java.util.Collection;
+import java.util.List;
 
-public abstract class OnlyImplTooMany implements Collection, List {
-}
+public abstract class OnlyImplTooMany implements Collection, List {}

@@ -4,15 +4,14 @@ import edu.illinois.cs.cs125.answerable.annotations.Solution;
 
 public class IntArrayArrayParameter {
 
-    @Solution
-    public static int sum(int[][] matrix) {
-        int sum = 0;
-        for (int[] r : matrix) {
-            for (int n : r) {
-                sum += n;
-            }
-        }
-        return sum;
+  @Solution
+  public static int sum(int[][] matrix) {
+    int sum = 0;
+    for (int[] r : matrix) {
+      for (int n : r) {
+        sum += n;
+      }
     }
-
+    return sum;
+  }
 }

@@ -4,11 +4,10 @@ import edu.illinois.cs.cs125.answerable.annotations.Solution;
 
 public class MissingReceiverGenerator {
 
-    public MissingReceiverGenerator(int unused) { }
+  public MissingReceiverGenerator(int unused) {}
 
-    @Solution
-    public int test() {
-        return 0;
-    }
-
+  @Solution
+  public int test() {
+    return 0;
+  }
 }

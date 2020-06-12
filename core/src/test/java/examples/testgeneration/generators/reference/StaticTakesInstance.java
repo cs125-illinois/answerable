@@ -4,9 +4,8 @@ import edu.illinois.cs.cs125.answerable.annotations.Solution;
 
 public class StaticTakesInstance {
 
-    @Solution(prints = true)
-    public static void accept(StaticTakesInstance instance) {
-        System.out.println("OK");
-    }
-
+  @Solution(prints = true)
+  public static void accept(StaticTakesInstance instance) {
+    System.out.println("OK");
+  }
 }

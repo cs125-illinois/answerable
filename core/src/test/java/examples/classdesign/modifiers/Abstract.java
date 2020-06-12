@@ -1,3 +1,3 @@
 package examples.classdesign.modifiers;
 
-public abstract class Abstract { }
+public abstract class Abstract {}

@@ -5,6 +5,7 @@ package edu.illinois.cs.cs125.answerable.classdesignanalysis.fixtures.innerclass
  * assert that extra/missing public classes are caught and that private classes aren't considered.
  */
 public class FooAndPrivateBad {
-    public class Foo {}
-    public class Private {}
+  public class Foo {}
+
+  public class Private {}
 }

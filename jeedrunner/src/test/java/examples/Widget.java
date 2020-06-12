@@ -2,14 +2,13 @@ package examples;
 
 public class Widget {
 
-    private int numSprings;
+  private int numSprings;
 
-    public Widget(int mySprings) {
-        numSprings = mySprings;
-    }
+  public Widget(int mySprings) {
+    numSprings = mySprings;
+  }
 
-    public int getSprings() {
-        return numSprings;
-    }
-
+  public int getSprings() {
+    return numSprings;
+  }
 }

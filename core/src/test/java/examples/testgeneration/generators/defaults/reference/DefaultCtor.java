@@ -4,16 +4,15 @@ import edu.illinois.cs.cs125.answerable.annotations.Solution;
 
 public class DefaultCtor {
 
-    private int count;
+  private int count;
 
-    public DefaultCtor() {
-        count = 100;
-    }
+  public DefaultCtor() {
+    count = 100;
+  }
 
-    @Solution
-    int accumulate(int n) {
-        count += n;
-        return count;
-    }
-
+  @Solution
+  int accumulate(int n) {
+    count += n;
+    return count;
+  }
 }

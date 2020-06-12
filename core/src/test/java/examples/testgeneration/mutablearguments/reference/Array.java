@@ -4,11 +4,10 @@ import edu.illinois.cs.cs125.answerable.annotations.Solution;
 
 public class Array {
 
-    @Solution
-    public static void mutate(int[] array) {
-        for (int i = 0; i < array.length; i++) {
-            array[i]--;
-        }
+  @Solution
+  public static void mutate(int[] array) {
+    for (int i = 0; i < array.length; i++) {
+      array[i]--;
     }
-
+  }
 }

@@ -1,3 +1,3 @@
 package examples.classdesign.statusmismatch;
 
-public class Question { }
+public class Question {}

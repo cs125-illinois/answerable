@@ -2,42 +2,41 @@ package examples.verify;
 
 import edu.illinois.cs.cs125.answerable.annotations.Generator;
 import edu.illinois.cs.cs125.answerable.annotations.Solution;
-
 import java.util.Random;
 
 public class OverloadedSafeMethodAccessWidget {
 
-    private int numSprings;
+  private int numSprings;
 
-    public OverloadedSafeMethodAccessWidget(int springs) {
-        numSprings = springs;
-    }
+  public OverloadedSafeMethodAccessWidget(int springs) {
+    numSprings = springs;
+  }
 
-    @Solution
-    public void moreSprings(int extras) {
-        oneMoreSpring();
-        numSprings += extras;
-    }
+  @Solution
+  public void moreSprings(int extras) {
+    oneMoreSpring();
+    numSprings += extras;
+  }
 
-    public int getSprings() {
-        return numSprings;
-    }
+  public int getSprings() {
+    return numSprings;
+  }
 
-    private int oneMoreSpring() {
-        numSprings++;
-        return numSprings;
-    }
+  private int oneMoreSpring() {
+    numSprings++;
+    return numSprings;
+  }
 
-    public int oneMoreSpring(boolean returnZero) {
-        int newSprings = oneMoreSpring();
-        return returnZero ? 0 : newSprings;
-    }
+  public int oneMoreSpring(boolean returnZero) {
+    int newSprings = oneMoreSpring();
+    return returnZero ? 0 : newSprings;
+  }
 
-    @Generator
-    public static OverloadedSafeMethodAccessWidget generate(int complexity, Random random) {
-        OverloadedSafeMethodAccessWidget widget = new OverloadedSafeMethodAccessWidget(random.nextInt(complexity + 1));
-        widget.oneMoreSpring(true);
-        return widget;
-    }
-
+  @Generator
+  public static OverloadedSafeMethodAccessWidget generate(int complexity, Random random) {
+    OverloadedSafeMethodAccessWidget widget =
+        new OverloadedSafeMethodAccessWidget(random.nextInt(complexity + 1));
+    widget.oneMoreSpring(true);
+    return widget;
+  }
 }

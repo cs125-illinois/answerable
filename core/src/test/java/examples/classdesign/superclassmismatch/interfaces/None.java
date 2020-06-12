@@ -1,3 +1,3 @@
 package examples.classdesign.superclassmismatch.interfaces;
 
-public interface None { }
+public interface None {}

@@ -1,5 +1,5 @@
 package examples.classdesign.publicapi.fields;
 
 public class StaticInt {
-    public static int a;
+  public static int a;
 }

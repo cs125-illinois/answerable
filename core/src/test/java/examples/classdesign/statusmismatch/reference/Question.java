@@ -1,3 +1,3 @@
 package examples.classdesign.statusmismatch.reference;
 
-public interface Question { }
+public interface Question {}

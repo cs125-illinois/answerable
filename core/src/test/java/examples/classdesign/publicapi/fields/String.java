@@ -1,5 +1,5 @@
 package examples.classdesign.publicapi.fields;
 
 public class String {
-    public String s;
+  public String s;
 }

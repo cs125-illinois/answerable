@@ -4,38 +4,36 @@ import edu.illinois.cs.cs125.answerable.annotations.Generator;
 import edu.illinois.cs.cs125.answerable.annotations.Helper;
 import edu.illinois.cs.cs125.answerable.annotations.Next;
 import edu.illinois.cs.cs125.answerable.annotations.Solution;
-
 import java.util.Random;
 
 public class StaticInitGeneratorWidget {
 
-    @Helper
-    private static StaticInitGeneratorWidget first = new StaticInitGeneratorWidget(8);
+  @Helper private static StaticInitGeneratorWidget first = new StaticInitGeneratorWidget(8);
 
-    private int numSprings;
+  private int numSprings;
 
-    public StaticInitGeneratorWidget(int springs) {
-        numSprings = springs;
-    }
+  public StaticInitGeneratorWidget(int springs) {
+    numSprings = springs;
+  }
 
-    @Solution
-    public void moreSprings(int extras) {
-        numSprings += extras + 1;
-    }
+  @Solution
+  public void moreSprings(int extras) {
+    numSprings += extras + 1;
+  }
 
-    public int getSprings() {
-        return numSprings;
-    }
+  public int getSprings() {
+    return numSprings;
+  }
 
-    @Generator
-    public static StaticInitGeneratorWidget generate(int complexity, Random random) {
-        return first;
-    }
+  @Generator
+  public static StaticInitGeneratorWidget generate(int complexity, Random random) {
+    return first;
+  }
 
-    @Next
-    public static StaticInitGeneratorWidget next(StaticInitGeneratorWidget previous, int iteration, Random random) {
-        if (previous == null) previous = first;
-        return new StaticInitGeneratorWidget(previous.getSprings());
-    }
-
+  @Next
+  public static StaticInitGeneratorWidget next(
+      StaticInitGeneratorWidget previous, int iteration, Random random) {
+    if (previous == null) previous = first;
+    return new StaticInitGeneratorWidget(previous.getSprings());
+  }
 }

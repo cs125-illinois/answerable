@@ -4,8 +4,7 @@ import java.util.Arrays;
 
 public class MultiDimensionalPrimitiveArrays {
 
-    public static void test(int[][] nums) {
-        System.out.println(Arrays.deepToString(nums));
-    }
-
+  public static void test(int[][] nums) {
+    System.out.println(Arrays.deepToString(nums));
+  }
 }

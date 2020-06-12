@@ -5,6 +5,7 @@ plugins {
     kotlin("jvm") version kotlinVersion apply false
     kotlin("plugin.serialization") version kotlinVersion apply false
     id("org.jmailen.kotlinter") version "2.4.0" apply false
+    id("com.github.sherter.google-java-format") version "0.9"
     id("org.jetbrains.dokka") version "0.10.1" apply false
     id("com.github.ben-manes.versions") version "0.28.0"
     id("io.gitlab.arturbosch.detekt") version "1.9.1"
