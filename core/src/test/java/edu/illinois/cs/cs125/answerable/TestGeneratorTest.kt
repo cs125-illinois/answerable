@@ -160,8 +160,6 @@ internal class TestGeneratorTest {
             .loadSubmission(examples.testgeneration.PreconditionTest::class.java)
             .runTestsUnsecured(Random.nextLong())
 
-        println(out.toJson())
-
         assertTrue(
             out.testSteps.any { it is ExecutedTestStep }
         )
