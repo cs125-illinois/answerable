@@ -19,11 +19,11 @@ dependencies {
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.javassist:javassist:3.27.0-GA")
-    implementation("org.apache.bcel:bcel:6.4.1")
+    implementation("org.apache.bcel:bcel:6.5.0")
     implementation("org.junit.jupiter:junit-jupiter:5.6.2")
     implementation("org.objenesis:objenesis:3.1")
     implementation("com.google.code.gson:gson:2.8.6")
-    implementation("io.github.classgraph:classgraph:4.8.75")
+    implementation("io.github.classgraph:classgraph:4.8.86")
 
     testImplementation("com.marcinmoskala:DiscreteMathToolkit:1.0.3")
 }

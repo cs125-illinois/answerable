@@ -49,7 +49,8 @@ internal class TestErrors {
             .fieldsMatch("$fieldsPath.OneTooMany".load())
         Assertions.assertEquals(
             listOf("public String s", "public static int a"),
-            matcher.reference.map { it.answerableName })
+            matcher.reference.map { it.answerableName }
+        )
         Assertions.assertEquals(
             listOf("public String s", "public boolean extra", "public static int a"),
             matcher.submission.map { it.answerableName }

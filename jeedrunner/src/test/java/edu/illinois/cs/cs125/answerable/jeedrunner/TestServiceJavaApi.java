@@ -99,7 +99,7 @@ public class TestServiceJavaApi {
     public void testClassLoadingRestrictions() throws CompilationFailed {
         Sandbox.ClassLoaderConfiguration restriction = new Sandbox.ClassLoaderConfiguration(
                 Collections.emptySet(), Collections.singleton("java.util."),
-                Collections.emptySet(), Collections.emptySet());
+                Collections.emptySet(), Collections.emptySet(), false);
         answerable.buildNewQuestion("Sort", QuestionLanguage.JAVA, TestService.SORT_JAVA_REFERENCE_CODE, "Sorter")
             .classLoaderConfiguration(restriction).loadNewQuestion();
         TestingResults results = answerable.buildSubmission("Sort", TestService.SORT_JAVA_SUBMISSION_CODE_CHEATY)

@@ -1,4 +1,5 @@
-import java.net.URI
+group = "com.github.cs125-illinois"
+version = "2020.4.0"
 
 plugins {
     kotlin("jvm")
@@ -6,28 +7,20 @@ plugins {
     id("org.jmailen.kotlinter")
 }
 
-application {
-    mainClassName = "edu.illinois.cs.cs125.answerable.jeedrunner.MainKt"
-}
-
-version = "SNAPSHOT"
-
-repositories {
-    mavenCentral()
-    maven { url = URI("https://jitpack.io") }
-}
-
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.5")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.7")
     api(project(":core"))
 
     // Jeed and dependencies
-    api("com.github.cs125-illinois:jeed:2020.5.3")
-    implementation("com.github.ben-manes.caffeine:caffeine:2.8.1")
+    api("com.github.cs125-illinois:jeed:2020.6.1")
+    implementation("com.github.ben-manes.caffeine:caffeine:2.8.4")
 
-    // Tests
     testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
+}
+
+application {
+    mainClassName = "edu.illinois.cs.cs125.answerable.jeedrunner.MainKt"
 }
 
 tasks.test {

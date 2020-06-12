@@ -20,10 +20,13 @@ internal data class Question(
     val executionConfiguration: Sandbox.ExecutionArguments
 ) {
     fun createJeedEnvironment(): TestEnvironment {
-        return TestEnvironment(jeedOutputCapturer, jeedSandbox(
-            loaderConfig = classLoaderConfiguration,
-            executeConfig = executionConfiguration
-        ))
+        return TestEnvironment(
+            jeedOutputCapturer,
+            jeedSandbox(
+                loaderConfig = classLoaderConfiguration,
+                executeConfig = executionConfiguration
+            )
+        )
     }
 }
 

@@ -31,8 +31,9 @@ import edu.illinois.cs.cs125.answerable.typeManagement.mkProxy
 import edu.illinois.cs.cs125.answerable.typeManagement.mkValueProxy
 import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import edu.illinois.cs.cs125.answerable.typeManagement.verifyMemberAccess
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.opentest4j.AssertionFailedError
 import java.lang.IllegalStateException
-import java.lang.reflect.Array as ReflectArray
 import java.lang.reflect.Constructor
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
@@ -42,8 +43,7 @@ import java.lang.reflect.Type
 import java.lang.reflect.WildcardType
 import java.util.Random
 import kotlin.math.min
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.opentest4j.AssertionFailedError
+import java.lang.reflect.Array as ReflectArray
 
 /**
  * A generator for testing runs.
@@ -363,9 +363,12 @@ class PassedClassDesignRunner internal constructor(
         val startTime = System.currentTimeMillis()
 
         // the tests are executed here
-        val timedOut = !environment.sandbox.run(if (timeLimit == 0L) null else timeLimit, Runnable {
-            worker.runTests(seed, testRunnerArgs.applyOver(this.testRunnerArgs), testSteps, testingBlockCounts)
-        })
+        val timedOut = !environment.sandbox.run(
+            if (timeLimit == 0L) null else timeLimit,
+            Runnable {
+                worker.runTests(seed, testRunnerArgs.applyOver(this.testRunnerArgs), testSteps, testingBlockCounts)
+            }
+        )
         val endTime = System.currentTimeMillis()
 
         // Restore reference class static field values
@@ -1086,14 +1089,21 @@ private class GeneratorMapBuilder(
         }
         return when (requested) {
             is ParameterizedType -> when (known) {
-                is ParameterizedType -> requested.rawType == known.rawType &&
-                    requested.actualTypeArguments.indices
-                        .all { generatorCompatible(requested.actualTypeArguments[it], known.actualTypeArguments[it]) }
+                is ParameterizedType ->
+                    requested.rawType == known.rawType &&
+                        requested.actualTypeArguments.indices
+                            .all {
+                                generatorCompatible(
+                                    requested.actualTypeArguments[it],
+                                    known.actualTypeArguments[it]
+                                )
+                            }
                 else -> false
             }
             is WildcardType -> when (known) {
-                is Class<*> -> requested.lowerBounds.elementAtOrNull(0) == known ||
-                    requested.upperBounds.elementAtOrNull(0) == known
+                is Class<*> ->
+                    requested.lowerBounds.elementAtOrNull(0) == known ||
+                        requested.upperBounds.elementAtOrNull(0) == known
                 is ParameterizedType -> {
                     val hasLower = requested.lowerBounds.size == 1
                     val matchesLower = hasLower && generatorCompatible(requested.lowerBounds[0], known)
@@ -1118,9 +1128,11 @@ private class GeneratorMapBuilder(
             }.toList().firstOrNull()?.second?.value
         }
 
-        val discovered = mutableMapOf(*requiredGenerators
-            .map { it to (GenWrapper(selectGenerator(it) ?: throw lazyGenError(it.first), random)) }
-            .toTypedArray())
+        val discovered = mutableMapOf(
+            *requiredGenerators
+                .map { it to (GenWrapper(selectGenerator(it) ?: throw lazyGenError(it.first), random)) }
+                .toTypedArray()
+        )
         if (receiverType != null) {
             // Add a receiver generator if possible - don't fail here if not found because there might be a default
             // constructor

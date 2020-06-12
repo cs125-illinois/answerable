@@ -169,9 +169,9 @@ internal class Analyze {
     }
 
     @Test
-        /**
-         * this is the only test that checks public api message formatting.
-         */
+    /**
+     * this is the only test that checks public api message formatting.
+     */
     fun `should check class fields correctly`() {
         val fieldsPath = "examples.classdesign.publicapi.fields"
         "$fieldsPath.reference.Simple".load().fieldsMatch(

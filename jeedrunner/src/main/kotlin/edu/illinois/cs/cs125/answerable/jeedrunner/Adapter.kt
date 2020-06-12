@@ -9,8 +9,8 @@ import edu.illinois.cs.cs125.answerable.api.OutputCapturer
 import edu.illinois.cs.cs125.jeed.core.JeedClassLoader
 import edu.illinois.cs.cs125.jeed.core.Sandbox
 import edu.illinois.cs.cs125.jeed.core.sandbox
-import kotlin.math.min
 import kotlinx.coroutines.runBlocking
+import kotlin.math.min
 
 /**
  * The Answerable [OutputCapturer] that redirects output using Jeed's [Sandbox.redirectOutput].
@@ -21,9 +21,10 @@ val jeedOutputCapturer = object : OutputCapturer {
     private var stdErr: String? = null
 
     override fun runCapturingOutput(code: Runnable) {
-        val output = Sandbox.redirectOutput { code.run() }
-        stdOut = output.first
-        stdErr = output.second
+        Sandbox.redirectOutput { code.run() }.also {
+            stdOut = it.stdout
+            stdErr = it.stderr
+        }
     }
 
     override fun getStandardOut(): String? = stdOut
@@ -60,7 +61,7 @@ fun jeedSandbox(
                 override fun getLoader() = sandboxedLoader
                 override fun getBytecode(clazz: Class<*>): ByteArray {
                     return sandboxedLoader.knownClasses[clazz.name]
-                            ?: throw ClassNotFoundException("Jeed did not provide $clazz")
+                        ?: throw ClassNotFoundException("Jeed did not provide $clazz")
                 }
             }
         }
@@ -82,7 +83,7 @@ fun jeedSandbox(
                 classLoaderConfiguration = filteredLoaderConfig,
                 maxOutputLines = Int.MAX_VALUE
             )
-            val job: (Pair<ClassLoader, (() -> Unit) -> Pair<String, String>>) -> Any? = { callback.run() }
+            val job: (Pair<ClassLoader, (() -> Unit) -> Sandbox.RedirectedOutput>) -> Any? = { callback.run() }
             val result = runBlocking {
                 Sandbox.execute(sandboxedLoader, timeoutConfig, job)
             }

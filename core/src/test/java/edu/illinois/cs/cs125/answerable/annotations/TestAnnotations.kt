@@ -33,9 +33,11 @@ class TestAnnotations {
             Precondition.validate(klass).also { errors ->
                 assert(errors.size == 3)
                 assert(errors.all { it.kind == AnnotationError.Kind.Precondition })
-                assert(errors.all {
-                    it.location.methodName?.contains("broken") ?: false
-                })
+                assert(
+                    errors.all {
+                        it.location.methodName?.contains("broken") ?: false
+                    }
+                )
             }
         }
         "TestDuplicatePrecondition".test().also { klass ->
@@ -58,9 +60,11 @@ class TestAnnotations {
             Verify.validate(klass).also { errors ->
                 assert(errors.size == 1) { errors }
                 assert(errors.all { it.kind == AnnotationError.Kind.Verify })
-                assert(errors.all {
-                    it.location.methodName?.contains("broken") ?: false
-                })
+                assert(
+                    errors.all {
+                        it.location.methodName?.contains("broken") ?: false
+                    }
+                )
             }
         }
         "TestDuplicateVerify".test().also { klass ->
@@ -134,9 +138,11 @@ class TestAnnotations {
         EdgeCase.validate(klass).also { errors ->
             assert(errors.size == 10) { errors.size }
             assert(errors.all { it.kind == AnnotationError.Kind.EdgeCase })
-            assert(errors.all {
-                it.location.methodName?.contains("broken") ?: it.location.fieldName?.contains("broken") ?: false
-            })
+            assert(
+                errors.all {
+                    it.location.methodName?.contains("broken") ?: it.location.fieldName?.contains("broken") ?: false
+                }
+            )
         }
     }
 
@@ -147,9 +153,11 @@ class TestAnnotations {
         SimpleCase.validate(klass).also { errors ->
             assert(errors.size == 10)
             assert(errors.all { it.kind == AnnotationError.Kind.SimpleCase })
-            assert(errors.all {
-                it.location.methodName?.contains("broken") ?: it.location.fieldName?.contains("broken") ?: false
-            })
+            assert(
+                errors.all {
+                    it.location.methodName?.contains("broken") ?: it.location.fieldName?.contains("broken") ?: false
+                }
+            )
         }
     }
 

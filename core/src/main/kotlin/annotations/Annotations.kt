@@ -80,7 +80,7 @@ internal fun Class<*>.methodsWithAnyAnnotation(vararg klasses: Class<out Annotat
 
 internal fun findAnnotation(klass: Class<out Annotation>, prefix: String = "") = ClassGraph()
     .enableAllInfo()
-    .whitelistPackages(prefix)
+    .acceptPackages(prefix)
     .scan()
     .allClasses
     .map {

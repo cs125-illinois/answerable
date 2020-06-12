@@ -290,17 +290,17 @@ data class CDAResult(
 ) {
     val allMatch: Boolean
         get() = names?.match ?: true &&
-                kinds?.match ?: true &&
-                modifiers?.match ?: true &&
-                typeParams?.match ?: true &&
-                superclass?.match ?: true &&
-                interfaces?.match ?: true &&
-                fields?.match ?: true &&
-                methods?.match ?: true &&
-                innerClasses?.match ?: true &&
-                innerClassAnalyses?.all { entry ->
-                    entry.value.allMatch
-                } ?: true
+            kinds?.match ?: true &&
+            modifiers?.match ?: true &&
+            typeParams?.match ?: true &&
+            superclass?.match ?: true &&
+            interfaces?.match ?: true &&
+            fields?.match ?: true &&
+            methods?.match ?: true &&
+            innerClasses?.match ?: true &&
+            innerClassAnalyses?.all { entry ->
+            entry.value.allMatch
+        } ?: true
 
     private fun getMessages(include: (Boolean?) -> Boolean): List<String> {
         val messages: MutableList<String> = mutableListOf()

@@ -52,15 +52,18 @@ internal fun Type.correspondsTo(other: Type, mapFrom: Class<*>, mapTo: Class<*>)
     if (this == other) return true
     return when (this) {
         is Class<*> -> this == mapFrom && other == mapTo
-        is GenericArrayType -> other is GenericArrayType &&
+        is GenericArrayType ->
+            other is GenericArrayType &&
                 this.genericComponentType.correspondsTo(other.genericComponentType, mapFrom, mapTo)
-        is ParameterizedType -> other is ParameterizedType &&
+        is ParameterizedType ->
+            other is ParameterizedType &&
                 this.rawType.correspondsTo(other.rawType, mapFrom, mapTo) &&
                 this.actualTypeArguments.size == other.actualTypeArguments.size &&
                 this.actualTypeArguments.indices.all {
                     this.actualTypeArguments[it].correspondsTo(other.actualTypeArguments[it], mapFrom, mapTo)
                 }
-        is WildcardType -> other is WildcardType &&
+        is WildcardType ->
+            other is WildcardType &&
                 this.lowerBounds.size == other.lowerBounds.size &&
                 this.upperBounds.size == other.upperBounds.size &&
                 this.lowerBounds.indices.all {

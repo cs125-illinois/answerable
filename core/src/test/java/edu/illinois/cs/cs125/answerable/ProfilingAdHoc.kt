@@ -33,8 +33,10 @@ fun testClassic(repeats: Int) {
 }
 
 fun testSortingAnswerable(repeats: Int) {
-    val testGenerator = TestGenerator(ArraySorter::class.java, "sort",
-            TestRunnerArgs(maxComplexity = 1024, numSimpleEdgeMixedTests = 0, maxOnlySimpleCaseTests = 0, maxOnlyEdgeCaseTests = 0, numAllGeneratedTests = 1024))
+    val testGenerator = TestGenerator(
+        ArraySorter::class.java, "sort",
+        TestRunnerArgs(maxComplexity = 1024, numSimpleEdgeMixedTests = 0, maxOnlySimpleCaseTests = 0, maxOnlyEdgeCaseTests = 0, numAllGeneratedTests = 1024)
+    )
     repeat(repeats) {
         testGenerator.loadSubmission(examples.sorting.ArraySorter::class.java)
             .runTests(0x0403, unsecuredEnvironment)

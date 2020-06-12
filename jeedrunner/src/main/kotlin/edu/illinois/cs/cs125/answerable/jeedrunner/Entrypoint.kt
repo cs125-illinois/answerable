@@ -33,13 +33,17 @@ fun testFromStrings(
 
     val comCL = commonSource?.compile()
     val refCL = referenceSource
-            .compile(CompilationArguments(
+        .compile(
+            CompilationArguments(
                 parentClassLoader = comCL?.classLoader, parentFileManager = comCL?.fileManager
-            )).classLoader
+            )
+        ).classLoader
     val subCL = submissionSource
-            .compile(CompilationArguments(
+        .compile(
+            CompilationArguments(
                 parentClassLoader = comCL?.classLoader, parentFileManager = comCL?.fileManager
-            )).classLoader
+            )
+        ).classLoader
 
     return TestGenerator(
         refCL.loadClass(className),

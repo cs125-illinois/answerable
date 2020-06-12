@@ -36,7 +36,8 @@ class AnswerableAnnotationOwner : AbstractProcessor() {
         Verify::class,
         Helper::class,
         Ignore::class,
-        DefaultTestRunArguments::class)
+        DefaultTestRunArguments::class
+    )
 
     override fun process(annotations: Set<TypeElement>?, roundEnv: RoundEnvironment?): Boolean {
         // Do nothing, say the annotations were handled

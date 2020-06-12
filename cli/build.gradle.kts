@@ -13,22 +13,12 @@ plugins {
 dependencies {
     implementation(project(":jeedrunner"))
     implementation("ch.qos.logback:logback-classic:1.2.3")
-    implementation("io.github.microutils:kotlin-logging:1.7.9")
-    implementation("com.github.ajalt:clikt:2.6.0")
+    implementation("io.github.microutils:kotlin-logging:1.7.10")
+    implementation("com.github.ajalt:clikt:2.7.1")
 }
-val mainClass = "edu.illinois.cs.cs125.answerable.cli.MainKt"
 application {
     applicationName = "answerable"
-    mainClassName = mainClass
-}
-tasks.test {
-    useJUnitPlatform()
-    systemProperties["logback.configurationFile"] = File(projectDir, "src/test/resources/logback-test.xml").absolutePath
-}
-tasks.jar {
-    manifest {
-        attributes["Main-Class"] = mainClass
-    }
+    mainClassName = "edu.illinois.cs.cs125.answerable.cli.MainKt"
 }
 task("createProperties") {
     doLast {

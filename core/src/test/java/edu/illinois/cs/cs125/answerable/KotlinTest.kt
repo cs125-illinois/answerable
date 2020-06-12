@@ -20,20 +20,26 @@ class KotlinTest {
 
     @Test
     fun testDefaultCtorClassDesign() {
-        assertClassDesignPasses(examples.ktclassdesign.correctctor.reference.DefaultConstructorWidget::class.java,
-                examples.ktclassdesign.correctctor.DefaultConstructorWidget::class.java)
+        assertClassDesignPasses(
+            examples.ktclassdesign.correctctor.reference.DefaultConstructorWidget::class.java,
+            examples.ktclassdesign.correctctor.DefaultConstructorWidget::class.java
+        )
     }
 
     @Test
     fun testDefaultCtorMissingVal() {
-        assertClassDesignFails(examples.ktclassdesign.correctctor.reference.DefaultConstructorWidget::class.java,
-                examples.ktclassdesign.ctormissingval.DefaultConstructorWidget::class.java)
+        assertClassDesignFails(
+            examples.ktclassdesign.correctctor.reference.DefaultConstructorWidget::class.java,
+            examples.ktclassdesign.ctormissingval.DefaultConstructorWidget::class.java
+        )
     }
 
     @Test
     fun testStringFilterClassDesign() {
-        assertClassDesignPasses(examples.testgeneration.ktfilter.reference.StringFilterer::class.java,
-                examples.testgeneration.ktfilter.StringFilterer::class.java)
+        assertClassDesignPasses(
+            examples.testgeneration.ktfilter.reference.StringFilterer::class.java,
+            examples.testgeneration.ktfilter.StringFilterer::class.java
+        )
     }
 
     private fun assertClassesPass(solution: Class<*>, submission: Class<*>) {
@@ -57,7 +63,9 @@ class KotlinTest {
 
     @Test
     fun testStandaloneVerify() {
-        assertClassesPass(examples.testgeneration.standaloneverify.reference.KtStandaloneVerify::class.java,
-                examples.testgeneration.standaloneverify.KtStandaloneVerify::class.java)
+        assertClassesPass(
+            examples.testgeneration.standaloneverify.reference.KtStandaloneVerify::class.java,
+            examples.testgeneration.standaloneverify.KtStandaloneVerify::class.java
+        )
     }
 }

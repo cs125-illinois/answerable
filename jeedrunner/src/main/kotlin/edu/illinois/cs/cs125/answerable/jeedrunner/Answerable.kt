@@ -310,21 +310,27 @@ class Answerable {
         language: QuestionLanguage,
         parentSource: CompiledSource? = null
     ): CompiledSource {
-        val source = Source(code.mapIndexed { i, file ->
-            "$fileTitle$i.${language.extension}" to file
-        }.toMap())
+        val source = Source(
+            code.mapIndexed { i, file ->
+                "$fileTitle$i.${language.extension}" to file
+            }.toMap()
+        )
         return when (language) {
             QuestionLanguage.JAVA -> {
-                source.compile(CompilationArguments(
-                    parentClassLoader = parentSource?.classLoader,
-                    parentFileManager = parentSource?.fileManager
-                ))
+                source.compile(
+                    CompilationArguments(
+                        parentClassLoader = parentSource?.classLoader,
+                        parentFileManager = parentSource?.fileManager
+                    )
+                )
             }
             QuestionLanguage.KOTLIN -> {
-                source.kompile(KompilationArguments(
-                    parentClassLoader = parentSource?.classLoader ?: ClassLoader.getSystemClassLoader(),
-                    parentFileManager = parentSource?.fileManager
-                ))
+                source.kompile(
+                    KompilationArguments(
+                        parentClassLoader = parentSource?.classLoader ?: ClassLoader.getSystemClassLoader(),
+                        parentFileManager = parentSource?.fileManager
+                    )
+                )
             }
         }
     }

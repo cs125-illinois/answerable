@@ -2,13 +2,13 @@ package edu.illinois.cs.cs125.answerable
 
 import examples.testgeneration.validation.reference.Adder
 import examples.testgeneration.validation.reference.ArgsOnStandaloneVerify
-import kotlin.random.Random
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import kotlin.random.Random
 
 internal class TestGeneratorTest {
 
@@ -25,8 +25,11 @@ internal class TestGeneratorTest {
 
         assertTrue(Pair(Array<IntArray>::class.java, null) in tg.generators.keys, "Generators does not contain key `Array<Array<Int>>'.")
 
-        assertTrue(tg.loadSubmission(examples.testgeneration.generators.defaults.MultiDimensionalPrimitiveArrays::class.java).runTestsUnsecured(0x0403)
-            .testSteps.all { it as ExecutedTestStep; it.refOutput.threw == null && it.subOutput.threw == null }, "An error was thrown while testing nested primitive array generation")
+        assertTrue(
+            tg.loadSubmission(examples.testgeneration.generators.defaults.MultiDimensionalPrimitiveArrays::class.java).runTestsUnsecured(0x0403)
+                .testSteps.all { it as ExecutedTestStep; it.refOutput.threw == null && it.subOutput.threw == null },
+            "An error was thrown while testing nested primitive array generation"
+        )
     }
 
     @Test
@@ -48,77 +51,97 @@ internal class TestGeneratorTest {
     @Test
     fun testDefaultConstructor() {
         val out = TestGenerator(examples.testgeneration.generators.defaults.reference.DefaultCtor::class.java)
-                .loadSubmission(examples.testgeneration.generators.defaults.DefaultCtor::class.java).runTestsUnsecured(0x0403)
+            .loadSubmission(examples.testgeneration.generators.defaults.DefaultCtor::class.java).runTestsUnsecured(0x0403)
         out.assertAllSucceeded()
     }
 
     @Test
     fun testOverrideDefaultConstructor() {
         val out = TestGenerator(examples.testgeneration.generators.reference.OverrideDefaultCtor::class.java)
-                .loadSubmission(examples.testgeneration.generators.OverrideDefaultCtor::class.java).runTestsUnsecured(0x0403)
+            .loadSubmission(examples.testgeneration.generators.OverrideDefaultCtor::class.java).runTestsUnsecured(0x0403)
         out.assertAllSucceeded()
     }
 
     @Test
     fun testMissingGeneratorError() {
-        val errMsg = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
-            examples.testgeneration.generators.errors.reference.MissingGenerator::class.java,
-            examples.testgeneration.generators.errors.MissingGenerator::class.java
-        ) }.message!!
+        val errMsg = assertThrows<AnswerableMisuseException> {
+            PassedClassDesignRunner(
+                examples.testgeneration.generators.errors.reference.MissingGenerator::class.java,
+                examples.testgeneration.generators.errors.MissingGenerator::class.java
+            )
+        }.message!!
 
         assertEquals("\nA generator for type `java.lang.StringBuilder' was requested, but no generator for that type was found.", errMsg)
     }
 
     @Test
     fun testMissingReceiverGeneratorError() {
-        val err = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
+        val err = assertThrows<AnswerableMisuseException> {
+            PassedClassDesignRunner(
                 examples.testgeneration.generators.errors.reference.MissingReceiverGenerator::class.java,
                 examples.testgeneration.generators.errors.MissingReceiverGenerator::class.java
-        ) }
+            )
+        }
 
-        assertEquals("\nThe reference solution must provide either an @Generator or an @Next method if @Solution is not static and no zero-argument constructor is accessible.",
-                err.message)
+        assertEquals(
+            "\nThe reference solution must provide either an @Generator or an @Next method if @Solution is not static and no zero-argument constructor is accessible.",
+            err.message
+        )
     }
 
     @Test
     fun testMissingArrayComponentError() {
-        val errMsg = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
-            examples.testgeneration.generators.errors.reference.MissingArrayComponent::class.java,
-            examples.testgeneration.generators.errors.MissingArrayComponent::class.java
-        ) }.message!!
+        val errMsg = assertThrows<AnswerableMisuseException> {
+            PassedClassDesignRunner(
+                examples.testgeneration.generators.errors.reference.MissingArrayComponent::class.java,
+                examples.testgeneration.generators.errors.MissingArrayComponent::class.java
+            )
+        }.message!!
 
         assertEquals("\nA generator for an array with component type `java.lang.StringBuilder' was requested, but no generator for that type was found.", errMsg)
     }
 
     @Test
     fun testVerifyFailsAgainstSelf() {
-        val errMsg = assertThrows<AnswerableVerificationException> { TestGenerator(
-            examples.verify.FailsAgainstSelf::class.java
-        ) }.message!!
+        val errMsg = assertThrows<AnswerableVerificationException> {
+            TestGenerator(
+                examples.verify.FailsAgainstSelf::class.java
+            )
+        }.message!!
 
         assertEquals("\nTesting reference against itself failed on inputs: []", errMsg)
     }
 
     @Test
     fun testStaticTakesInstanceError() {
-        val errMsg = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
+        val errMsg = assertThrows<AnswerableMisuseException> {
+            PassedClassDesignRunner(
                 examples.testgeneration.generators.reference.StaticTakesInstance::class.java,
-                examples.testgeneration.generators.StaticTakesInstance::class.java) }.message
+                examples.testgeneration.generators.StaticTakesInstance::class.java
+            )
+        }.message
 
         assertEquals(
             "\nA generator for type `examples.testgeneration.generators.reference.StaticTakesInstance' " +
-                "was requested, but no generator for that type was found.", errMsg)
+                "was requested, but no generator for that type was found.",
+            errMsg
+        )
     }
 
     @Test
     fun testDefaultCtorNeededAsArgumentError() {
-        val errMsg = assertThrows<AnswerableMisuseException> { PassedClassDesignRunner(
+        val errMsg = assertThrows<AnswerableMisuseException> {
+            PassedClassDesignRunner(
                 examples.testgeneration.generators.reference.DefaultCtorClassAsParam::class.java,
-                examples.testgeneration.generators.DefaultCtorClassAsParam::class.java) }.message
+                examples.testgeneration.generators.DefaultCtorClassAsParam::class.java
+            )
+        }.message
 
         assertEquals(
             "\nA generator for type `examples.testgeneration.generators.reference.DefaultCtorClassAsParam' " +
-                "was requested, but no generator for that type was found.", errMsg)
+                "was requested, but no generator for that type was found.",
+            errMsg
+        )
     }
 
     @Test
@@ -192,8 +215,8 @@ internal class TestGeneratorTest {
     @Test
     fun testIntArrayParameter() {
         val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayParameter::class.java)
-                .loadSubmission(examples.testgeneration.arrays.IntArrayParameter::class.java)
-                .runTestsUnsecured(Random.nextLong())
+            .loadSubmission(examples.testgeneration.arrays.IntArrayParameter::class.java)
+            .runTestsUnsecured(Random.nextLong())
 
         out.assertAllSucceeded()
     }
@@ -201,8 +224,8 @@ internal class TestGeneratorTest {
     @Test
     fun testIntArrayArrayParameter() {
         val out = TestGenerator(examples.testgeneration.arrays.reference.IntArrayArrayParameter::class.java)
-                .loadSubmission(examples.testgeneration.arrays.IntArrayArrayParameter::class.java)
-                .runTestsUnsecured(Random.nextLong())
+            .loadSubmission(examples.testgeneration.arrays.IntArrayArrayParameter::class.java)
+            .runTestsUnsecured(Random.nextLong())
 
         out.assertAllSucceeded()
     }
@@ -228,7 +251,7 @@ internal class TestGeneratorTest {
         val runOut = submission.runTestsUnsecured(seed, testRunnerArgs = TestRunnerArgs(numTests = 32))
         assertEquals(32, runOut.numTests)
         val newRunOut = gen.loadSubmission(examples.adder.correct.Adder::class.java)
-                .runTestsUnsecured(seed, testRunnerArgs = TestRunnerArgs(numTests = 16))
+            .runTestsUnsecured(seed, testRunnerArgs = TestRunnerArgs(numTests = 16))
         assertEquals(16, newRunOut.numTests)
     }
 
@@ -236,8 +259,8 @@ internal class TestGeneratorTest {
     fun testRunnerArgsMerging() {
         val seed = Random.nextLong()
         val out = TestGenerator(examples.adder.correct.reference.Adder::class.java, testRunnerArgs = TestRunnerArgs(numTests = 128))
-                .loadSubmission(examples.adder.correct.Adder::class.java, testRunnerArgs = TestRunnerArgs(maxOnlySimpleCaseTests = 1))
-                .runTestsUnsecured(seed, testRunnerArgs = TestRunnerArgs(maxOnlyEdgeCaseTests = 2))
+            .loadSubmission(examples.adder.correct.Adder::class.java, testRunnerArgs = TestRunnerArgs(maxOnlySimpleCaseTests = 1))
+            .runTestsUnsecured(seed, testRunnerArgs = TestRunnerArgs(maxOnlyEdgeCaseTests = 2))
         assertEquals(128, out.numTests)
         assertEquals(1, out.numSimpleCaseTests)
         assertEquals(2, out.numEdgeCaseTests)
@@ -246,7 +269,7 @@ internal class TestGeneratorTest {
     @Test
     fun testAnnotationRunnerArgs() {
         val out = TestGenerator(Adder::class.java, testRunnerArgs = TestRunnerArgs(numTests = 64))
-                .loadSubmission(examples.adder.correct.Adder::class.java).runTestsUnsecured(0x0403)
+            .loadSubmission(examples.adder.correct.Adder::class.java).runTestsUnsecured(0x0403)
         assertEquals(64, out.numTests)
         assertEquals(1, out.numSimpleCaseTests)
     }
@@ -254,7 +277,7 @@ internal class TestGeneratorTest {
     @Test
     fun testArgsAnnotationOnStandaloneVerify() {
         val out = TestGenerator(ArgsOnStandaloneVerify::class.java)
-                .loadSubmission(examples.testgeneration.validation.ArgsOnStandaloneVerify::class.java).runTestsUnsecured(0x0403)
+            .loadSubmission(examples.testgeneration.validation.ArgsOnStandaloneVerify::class.java).runTestsUnsecured(0x0403)
         assertEquals(96, out.numTests)
     }
 
@@ -270,37 +293,43 @@ internal class TestGeneratorTest {
     @Test
     fun testLastTen() {
         val out = TestGenerator(examples.lastten.correct.reference.LastTen::class.java)
-                .loadSubmission(examples.lastten.correct.LastTen::class.java)
-                .runTestsUnsecured(Random.nextLong())
+            .loadSubmission(examples.lastten.correct.LastTen::class.java)
+            .runTestsUnsecured(Random.nextLong())
         out.testSteps.filterIsInstance<ExecutedTestStep>().filter { !it.succeeded }.forEach { println(it.assertErr) }
         assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
     @Test
     fun testPersistentStaticLastTen() {
-        assertClassDesignPasses(examples.lastten.correct.reference.LastTen::class.java,
-                examples.lastten.persistentstatic.LastTen::class.java)
+        assertClassDesignPasses(
+            examples.lastten.correct.reference.LastTen::class.java,
+            examples.lastten.persistentstatic.LastTen::class.java
+        )
         val out = TestGenerator(examples.lastten.correct.reference.LastTen::class.java)
-                .loadSubmission(examples.lastten.persistentstatic.LastTen::class.java)
-                .runTestsUnsecured(Random.nextLong())
+            .loadSubmission(examples.lastten.persistentstatic.LastTen::class.java)
+            .runTestsUnsecured(Random.nextLong())
         assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
 
     @Test
     fun testReinitializedStaticLastTen() {
-        assertClassDesignPasses(examples.lastten.correct.reference.LastTen::class.java,
-                examples.lastten.reinitstatic.LastTen::class.java)
+        assertClassDesignPasses(
+            examples.lastten.correct.reference.LastTen::class.java,
+            examples.lastten.reinitstatic.LastTen::class.java
+        )
         val out = TestGenerator(examples.lastten.correct.reference.LastTen::class.java)
-                .loadSubmission(examples.lastten.reinitstatic.LastTen::class.java)
-                .runTestsUnsecured(Random.nextLong())
+            .loadSubmission(examples.lastten.reinitstatic.LastTen::class.java)
+            .runTestsUnsecured(Random.nextLong())
         assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
 
     @Test // TODO: Implement the GENERATION_FAILED behavior then enable this test
     @Disabled("will fail until the GENERATION_FAILED behavior is assessed")
     fun testGenerationFailed() {
-        val result = PassedClassDesignRunner(examples.proxy.reference.Widget::class.java,
-            examples.proxy.ExplodingCtorWidget::class.java).runTestsUnsecured(0x0403)
+        val result = PassedClassDesignRunner(
+            examples.proxy.reference.Widget::class.java,
+            examples.proxy.ExplodingCtorWidget::class.java
+        ).runTestsUnsecured(0x0403)
         assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
 }

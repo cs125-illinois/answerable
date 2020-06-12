@@ -27,7 +27,7 @@ interface DefaultSerializable {
  * Convert a [List] of [DefaultSerializable] objects to a [String] representing a JSON list.
  */
 fun <E : DefaultSerializable> List<E>.toJson(): String =
-        this.joinToString(prefix = "[", postfix = "]", transform = DefaultSerializable::toJson)
+    this.joinToString(prefix = "[", postfix = "]", transform = DefaultSerializable::toJson)
 
 internal fun OssifiedTestOutput.defaultToJson(): String {
     val specific = when (this.typeOfBehavior) {

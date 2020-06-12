@@ -10,7 +10,9 @@ class TestCorrectness {
 
     @Test
     fun testPrintOutputCorrect() {
-        val result = testFromStrings(reference = """
+        val result = testFromStrings(
+            reference =
+                """
             import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Example {
                 @Solution(prints = true)
@@ -18,14 +20,18 @@ class TestCorrectness {
                     System.out.println("Hi!");
                 }
             }
-        """.trimIndent(), submission = """
+                """.trimIndent(),
+            submission =
+                """
             public class Example {
                 public static void sayHi() {
                     System.out.print("Hi");
                     System.out.println("!");
                 }
             }
-        """.trimIndent(), className = "Example")
+                """.trimIndent(),
+            className = "Example"
+        )
         result.testSteps.filterIsInstance<ExecutedTestStep>().forEach {
             if (!it.succeeded) {
                 fail(it.toJson())
@@ -35,7 +41,9 @@ class TestCorrectness {
 
     @Test
     fun testPrintOutputWrong() {
-        val result = testFromStrings(reference = """
+        val result = testFromStrings(
+            reference =
+                """
             import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Example {
                 @Solution(prints = true)
@@ -43,20 +51,26 @@ class TestCorrectness {
                     System.out.println("Hi!");
                 }
             }
-        """.trimIndent(), submission = """
+                """.trimIndent(),
+            submission =
+                """
             public class Example {
                 public static void sayHi() {
                     System.out.println("Bye :(");
                 }
             }
-        """.trimIndent(), className = "Example")
+                """.trimIndent(),
+            className = "Example"
+        )
         assertTrue(result.classDesignAnalysisResult.allMatch)
         assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
     @Test
     fun testAdderCorrect() {
-        val result = testFromStrings(reference = """
+        val result = testFromStrings(
+            reference =
+                """
             import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Adder {
                 @Solution
@@ -64,13 +78,17 @@ class TestCorrectness {
                     return a + b;
                 }
             }
-        """.trimIndent(), submission = """
+                """.trimIndent(),
+            submission =
+                """
             public class Adder {
                 public static int add(int one, int two) {
                     return two + one;
                 }
             }
-        """.trimIndent(), className = "Adder")
+                """.trimIndent(),
+            className = "Adder"
+        )
         result.testSteps.filterIsInstance<ExecutedTestStep>().forEach {
             if (!it.succeeded) {
                 fail(it.toJson())
@@ -80,7 +98,9 @@ class TestCorrectness {
 
     @Test
     fun testAdderWrong() {
-        val result = testFromStrings(reference = """
+        val result = testFromStrings(
+            reference =
+                """
             import edu.illinois.cs.cs125.answerable.annotations.Solution;
             public class Adder {
                 @Solution
@@ -88,13 +108,17 @@ class TestCorrectness {
                     return a + b;
                 }
             }
-        """.trimIndent(), submission = """
+                """.trimIndent(),
+            submission =
+                """
             public class Adder {
                 public static int add(int a, int b) {
                     return a + Math.abs(b);
                 }
             }
-        """.trimIndent(), className = "Adder")
+                """.trimIndent(),
+            className = "Adder"
+        )
         assertTrue(result.classDesignAnalysisResult.allMatch)
         assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }

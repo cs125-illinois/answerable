@@ -1,12 +1,12 @@
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.api.defaultIntGenerator
-import java.util.Random
-import kotlin.math.absoluteValue
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.util.Random
+import kotlin.math.absoluteValue
 
 class GeneratorsTest {
 

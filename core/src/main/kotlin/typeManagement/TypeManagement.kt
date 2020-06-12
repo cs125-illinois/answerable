@@ -14,14 +14,6 @@ import edu.illinois.cs.cs125.answerable.api.EnumerableBytecodeLoader
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.simpleName
 import edu.illinois.cs.cs125.answerable.publicFields
-import java.lang.IllegalStateException
-import java.lang.reflect.Constructor
-import java.lang.reflect.Field
-import java.lang.reflect.Member
-import java.lang.reflect.Modifier
-import java.lang.reflect.Type as ReflectType
-import java.util.UUID
-import java.util.WeakHashMap
 import javassist.util.proxy.Proxy
 import javassist.util.proxy.ProxyFactory
 import org.apache.bcel.Const
@@ -56,6 +48,14 @@ import org.apache.bcel.generic.ObjectType
 import org.apache.bcel.generic.Type
 import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
+import java.lang.IllegalStateException
+import java.lang.reflect.Constructor
+import java.lang.reflect.Field
+import java.lang.reflect.Member
+import java.lang.reflect.Modifier
+import java.util.UUID
+import java.util.WeakHashMap
+import java.lang.reflect.Type as ReflectType
 
 private val objenesis = ObjenesisStd()
 
@@ -267,8 +267,10 @@ private fun mkProxy(
         behaviorClass.publicFields.forEach { it.set(behaviorInstance, self.javaClass.getField(it.name).get(self)) }
         // proxy arguments the opposite direction for compatibility with the real object
         val arguments = method.parameterTypes.indices.map { i ->
-            val argumentProxying = proxyableClass(outermostBehaviorClass, outermostPresentationClass,
-                method.parameterTypes[i], pool)
+            val argumentProxying = proxyableClass(
+                outermostBehaviorClass, outermostPresentationClass,
+                method.parameterTypes[i], pool
+            )
             val proxiedArgumentType = argumentProxying?.presentation ?: method.parameterTypes[i]
             val argumentValue = mkValueProxy(args[i], outermostBehaviorClass, outermostPresentationClass, pool)
             TypedArgument(proxiedArgumentType, argumentValue)
@@ -303,8 +305,10 @@ internal fun mkValueProxy(
     if (value == null) return null
     val mapping = proxyableClass(outermostPresentationClass, outermostBehaviorClass, value.javaClass, pool)
         ?: return value
-    val innerProxy = mkProxy(mapping.presentation, outermostPresentationClass,
-        mapping.behavior, outermostBehaviorClass, value, pool)
+    val innerProxy = mkProxy(
+        mapping.presentation, outermostPresentationClass,
+        mapping.behavior, outermostBehaviorClass, value, pool
+    )
     mapping.behavior.publicFields
         .forEach { innerProxy.javaClass.getField(it.name).set(innerProxy, it.get(value)) }
     return innerProxy
@@ -463,9 +467,11 @@ private fun mkGeneratorMirrorClass(
      * specifically, a reference to a field, method, or interface method.
      */
     fun handleConstantCP(constant: ConstantCP) {
-        if (!(constant is ConstantFieldref ||
-                    constant is ConstantMethodref ||
-                    constant is ConstantInterfaceMethodref)
+        if (!(
+            constant is ConstantFieldref ||
+                constant is ConstantMethodref ||
+                constant is ConstantInterfaceMethodref
+            )
         ) return
         if (constant.classIndex == 0 || constantPool.getConstant(constant.classIndex) !is ConstantClass) return
 
@@ -473,8 +479,10 @@ private fun mkGeneratorMirrorClass(
 
         if (className == referenceClass.canonicalName) {
             // if the constant is the name of the reference class, it is something that might need to be mirrored
-            val memberName = (constantPool.getConstant(constant.nameAndTypeIndex)
-                    as ConstantNameAndType).getName(constantPool)
+            val memberName = (
+                constantPool.getConstant(constant.nameAndTypeIndex)
+                    as ConstantNameAndType
+                ).getName(constantPool)
             val shouldReplace: Boolean =
                 if (constant is ConstantMethodref || constant is ConstantInterfaceMethodref) {
                     // if it contains a '$' it's a synthetic accessor, which needs to be mirrored
@@ -809,7 +817,7 @@ private fun verifyMemberAccess(
                 // Make sure the specific constructor referenced is public
                 referenceClass.declaredConstructors.firstOrNull { dc ->
                     !Modifier.isPublic(dc.modifiers) &&
-                            signature == "(${dc.parameterTypes.joinToString(separator = "") {
+                        signature == "(${dc.parameterTypes.joinToString(separator = "") {
                         Type.getType(it).signature
                     }})V"
                 }?.let { candidate ->
@@ -820,10 +828,12 @@ private fun verifyMemberAccess(
                 referenceClass.declaredMethods.firstOrNull { dm ->
                     // Find the overload mentioned...
                     dm.name == name &&
-                            !Modifier.isPublic(dm.modifiers) &&
-                            Type.getSignature(dm) == signature &&
-                            (generationAnnotationTypes.none { dm.isAnnotationPresent(it) } ||
-                            !Modifier.isStatic(dm.modifiers)) // ...and see if it's unsafe
+                        !Modifier.isPublic(dm.modifiers) &&
+                        Type.getSignature(dm) == signature &&
+                        (
+                            generationAnnotationTypes.none { dm.isAnnotationPresent(it) } ||
+                                !Modifier.isStatic(dm.modifiers)
+                            ) // ...and see if it's unsafe
                 }?.let { candidate ->
                     // The candidate is extremely sketchy
                     dangerousAccessors[candidate.name]?.let {
@@ -861,7 +871,7 @@ private fun verifyMemberAccess(
                         // Recursively check the inner class
                         verifyMemberAccess(
                             pool.classForName(classConstant.getBytes(constantPool).dotName),
-                                referenceClass, checked, dangersToInnerClasses, pool
+                            referenceClass, checked, dangersToInnerClasses, pool
                         )
                     }
                 }
@@ -914,23 +924,25 @@ class AnswerableBytecodeVerificationException internal constructor(
     override val message: String
         get() {
             return "\nMirrorable method `$blameMethod' in ${describeClass(blameClass)} " +
-                    when (member) {
-                        is java.lang.reflect.Method ->
-                            "calls non-public submission method: ${member.answerableName()}"
-                        is Field ->
-                            "uses non-public submission field: ${member.name}"
-                        is Constructor<*> ->
-                            "uses non-public submission constructor: ${member.answerableName()}"
-                        else -> throw IllegalStateException(
-                            "Invalid type of AnswerableBytecodeVerificationException.member. Please report a bug."
-                        )
-                    }
+                when (member) {
+                    is java.lang.reflect.Method ->
+                        "calls non-public submission method: ${member.answerableName()}"
+                    is Field ->
+                        "uses non-public submission field: ${member.name}"
+                    is Constructor<*> ->
+                        "uses non-public submission constructor: ${member.answerableName()}"
+                    else -> throw IllegalStateException(
+                        "Invalid type of AnswerableBytecodeVerificationException.member. Please report a bug."
+                    )
+                }
         }
 
     private fun describeClass(clazz: Class<*>): String {
-        return "`${clazz.simpleName()}'" + (clazz.enclosingMethod?.let {
-            " (inside `${it.name}' method of ${describeClass(clazz.enclosingClass)})"
-        } ?: "")
+        return "`${clazz.simpleName()}'" + (
+            clazz.enclosingMethod?.let {
+                " (inside `${it.name}' method of ${describeClass(clazz.enclosingClass)})"
+            } ?: ""
+            )
     }
 
     internal constructor(

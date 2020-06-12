@@ -227,30 +227,31 @@ private fun Class<*>.getEnabledCases(edgeIfElseSimple: Boolean, enabledNames: Ar
             when (entry.value.size) {
                 0 -> throw IllegalStateException("An error occurred after a `groupBy` call. Please report a bug.")
                 1 -> entry.value[0]
-                else -> entry.value
-                    .filter {
-                        when (val annotation = it.getAnnotation(annotationClass)) {
-                            is EdgeCase? -> annotation?.name
-                            is SimpleCase? -> annotation?.name
-                            else -> null
-                        } in enabledNames
-                    }
-                    .let { enabled ->
-                        when (enabled.size) {
-                            0 -> entry.value.find {
-                                when (val annotation = it.getAnnotation(annotationClass)) {
-                                    is EdgeCase? -> annotation?.name
-                                    is SimpleCase? -> annotation?.name
-                                    else -> null
-                                }?.equals("") ?: false
-                            }
-                            1 -> enabled[0]
-                            else ->
-                                throw AnswerableMisuseException(
-                                    "Multiple enabled $caseName case providers for type `${entry.key.sourceName}'."
-                                )
+                else ->
+                    entry.value
+                        .filter {
+                            when (val annotation = it.getAnnotation(annotationClass)) {
+                                is EdgeCase? -> annotation?.name
+                                is SimpleCase? -> annotation?.name
+                                else -> null
+                            } in enabledNames
                         }
-                    }
+                        .let { enabled ->
+                            when (enabled.size) {
+                                0 -> entry.value.find {
+                                    when (val annotation = it.getAnnotation(annotationClass)) {
+                                        is EdgeCase? -> annotation?.name
+                                        is SimpleCase? -> annotation?.name
+                                        else -> null
+                                    }?.equals("") ?: false
+                                }
+                                1 -> enabled[0]
+                                else ->
+                                    throw AnswerableMisuseException(
+                                        "Multiple enabled $caseName case providers for type `${entry.key.sourceName}'."
+                                    )
+                            }
+                        }
             }
         }
         .mapNotNull { if (it.value == null) null else Pair(it.key, it.value as FieldOrMethod) }
