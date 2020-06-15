@@ -2,9 +2,6 @@ import java.io.File
 import java.io.StringWriter
 import java.util.Properties
 
-group = "com.github.cs125-illinois"
-version = "2020.4.0"
-
 plugins {
     kotlin("jvm")
     java
@@ -12,7 +9,6 @@ plugins {
     id("org.jetbrains.dokka")
     id("org.jmailen.kotlinter")
     `maven-publish`
-    maven
 }
 dependencies {
     implementation(kotlin("reflect"))
@@ -26,9 +22,6 @@ dependencies {
     implementation("io.github.classgraph:classgraph:4.8.86")
 
     testImplementation("com.marcinmoskala:DiscreteMathToolkit:1.0.3")
-}
-tasks.test {
-    useJUnitPlatform()
 }
 tasks.dokka {
     outputFormat = "html"
@@ -49,6 +42,13 @@ task("createProperties") {
                 StringWriter().also { properties.store(it, null) }.buffer.toString()
                     .lines().drop(1).joinToString(separator = "\n").trim()
             )
+        }
+    }
+}
+publishing {
+    publications {
+        create<MavenPublication>("core") {
+            from(components["java"])
         }
     }
 }

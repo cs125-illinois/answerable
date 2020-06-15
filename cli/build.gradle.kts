@@ -2,9 +2,6 @@ import java.util.Properties
 import java.io.StringWriter
 import java.io.File
 
-group = "com.github.cs125-illinois"
-version = "2020.4.0"
-
 plugins {
     kotlin("jvm")
     application

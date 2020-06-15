@@ -12,10 +12,15 @@ plugins {
 }
 allprojects {
     repositories {
+        mavenLocal()
         mavenCentral()
         jcenter()
         maven(url = "https://jitpack.io")
     }
+}
+subprojects {
+    group = "com.github.cs125-illinois.answerable"
+    version = "2020.6.4"
     tasks.withType<KotlinCompile> {
         val javaVersion = JavaVersion.VERSION_1_8.toString()
         sourceCompatibility = javaVersion
@@ -24,9 +29,8 @@ allprojects {
             jvmTarget = javaVersion
         }
     }
-}
-subprojects {
     tasks.withType<Test> {
+        useJUnitPlatform()
         enableAssertions = true
     }
 }
@@ -45,9 +49,10 @@ tasks.dependencyUpdates {
     gradleReleaseChannel = "current"
 }
 detekt {
-    val ignoredProjects = setOf("demo")
-    input = files(*subprojects.map { it.name }.minus(ignoredProjects).map { "$it/src/main/kotlin" }.toTypedArray())
-    config = files("config/detekt/detekt.yml")
+    input = files(
+      "cli/src/main/kotlin", "core/src/main/kotlin", "jeedrunner/src/main/kotlin"
+    )
+    buildUponDefaultConfig = true
 }
 tasks.register("check") {
     dependsOn("detekt")
