@@ -1,7 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.typeManagement.AnswerableBytecodeVerificationException
-import edu.illinois.cs.cs125.answerable.typeManagement.verifyMemberAccess
+import edu.illinois.cs.cs125.answerable.classmanipulation.AnswerableBytecodeVerificationException
+import edu.illinois.cs.cs125.answerable.classmanipulation.verifyMemberAccess
 import examples.proxy.reference.GeneratedWidget
 import examples.proxy.reference.InnerClassGeneratorWidget
 import examples.proxy.reference.RequiredInnerClassWidget

@@ -1,7 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
-import edu.illinois.cs.cs125.answerable.typeManagement.getDefiningKotlinFileClass
+import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
+import edu.illinois.cs.cs125.answerable.classmanipulation.getDefiningKotlinFileClass
 import java.lang.reflect.Array as ReflectArray
 
 internal interface LanguageMode {

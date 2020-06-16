@@ -1,4 +1,4 @@
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.simpleName

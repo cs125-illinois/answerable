@@ -1,7 +1,6 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
-import edu.illinois.cs.cs125.answerable.SourceLocation
 import edu.illinois.cs.cs125.answerable.api.TestOutput
 import edu.illinois.cs.cs125.answerable.isStatic
 import java.util.Random
@@ -103,7 +102,10 @@ annotation class Verify(
                 if (message == null) {
                     null
                 } else {
-                    AnnotationError(AnnotationError.Kind.Verify, SourceLocation(method), message)
+                    AnnotationError(
+                        AnnotationError.Kind.Verify,
+                        SourceLocation(method), message
+                    )
                 }
             }
         }

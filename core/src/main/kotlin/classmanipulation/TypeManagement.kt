@@ -1,26 +1,19 @@
 @file:Suppress("TooManyFunctions", "SpreadOperator")
 
-package edu.illinois.cs.cs125.answerable.typeManagement
+package edu.illinois.cs.cs125.answerable.classmanipulation
 
 import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
-import edu.illinois.cs.cs125.answerable.BytesClassLoader
-import edu.illinois.cs.cs125.answerable.DiamondClassLoader
 import edu.illinois.cs.cs125.answerable.annotations.EdgeCase
 import edu.illinois.cs.cs125.answerable.annotations.Generator
 import edu.illinois.cs.cs125.answerable.annotations.Helper
 import edu.illinois.cs.cs125.answerable.annotations.Next
 import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
 import edu.illinois.cs.cs125.answerable.annotations.Verify
-import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
-import edu.illinois.cs.cs125.answerable.api.EnumerableBytecodeLoader
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.simpleName
 import edu.illinois.cs.cs125.answerable.publicFields
 import javassist.util.proxy.Proxy
-import javassist.util.proxy.ProxyFactory
 import org.apache.bcel.Const
-import org.apache.bcel.Repository
-import org.apache.bcel.classfile.ClassParser
 import org.apache.bcel.classfile.ConstantCP
 import org.apache.bcel.classfile.ConstantClass
 import org.apache.bcel.classfile.ConstantFieldref
@@ -30,7 +23,6 @@ import org.apache.bcel.classfile.ConstantNameAndType
 import org.apache.bcel.classfile.ConstantUtf8
 import org.apache.bcel.classfile.InnerClass
 import org.apache.bcel.classfile.InnerClasses
-import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.classfile.Method
 import org.apache.bcel.classfile.NestHost
 import org.apache.bcel.classfile.NestMembers
@@ -49,17 +41,13 @@ import org.apache.bcel.generic.MethodGen
 import org.apache.bcel.generic.ObjectType
 import org.apache.bcel.generic.Type
 import org.objenesis.ObjenesisStd
-import org.objenesis.instantiator.ObjectInstantiator
-import java.lang.IllegalStateException
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Member
 import java.lang.reflect.Modifier
 import java.util.UUID
-import java.util.WeakHashMap
-import java.lang.reflect.Type as ReflectType
 
-private val objenesis = ObjenesisStd()
+internal val objenesis = ObjenesisStd()
 
 /**
  * Creates a proxy to allow treating an object as an instance of a similarly-shaped class.
@@ -297,7 +285,7 @@ private val verifyAnnotationType: Set<Class<out Annotation>> = setOf(Verify::cla
 internal fun mkGeneratorMirrorClass(
     originalClass: Class<*>,
     targetClass: Class<*>,
-    pool: TypePool = TypePool(null),
+    pool: TypePool = TypePool(),
     namePrefix: String = "m"
 ): Class<*> {
     return mkGeneratorMirrorClass(
@@ -701,7 +689,7 @@ private fun modifierIsSynthetic(flags: Int) = (flags and 0x00001000) != 0
  * @param referenceClass the original, non-mirrored reference class
  * @param pool the type pool to get bytecode from
  */
-internal fun verifyMemberAccess(referenceClass: Class<*>, pool: TypePool = TypePool(null)) {
+internal fun verifyMemberAccess(referenceClass: Class<*>, pool: TypePool = TypePool()) {
     verifyMemberAccess(referenceClass, referenceClass, mutableSetOf(), mapOf(), pool)
 }
 
@@ -903,123 +891,5 @@ class AnswerableBytecodeVerificationException internal constructor(
         blameClass: Class<*>
     ) : this(blameMethod, blameClass, fromInner.member) {
         initCause(fromInner)
-    }
-}
-
-/**
- * Manages a collection of types: their object instantiators, their bytecode, and the classes themselves.
- * One type pool represents one source of classes, e.g. there would be one type pool for the reference and
- * another for a submission.
- *
- * Like classloaders, type pools can have a parent which they will ask for types they don't themselves have.
- */
-internal class TypePool(private val bytecodeProvider: BytecodeProvider?) {
-
-    /*
-     * For performance reasons, we want to re-use instantiators as much as possible.
-     * A map is used for future-safety so that as many proxy instantiators as are needed can be created safely,
-     * even if using only one is the most common use case.
-     *
-     * We map from 'superClass' instead of directly from 'proxyClass' as we won't have access to
-     * the same reference to 'proxyClass' on future calls.
-     */
-    private val proxyInstantiators: MutableMap<Class<*>, ObjectInstantiator<*>> = mutableMapOf()
-    class ProxyHolder(val proxy: Any) {
-        // Prevent calls to proxied equals and hashCode
-        override fun equals(other: Any?): Boolean {
-            if (other !is ProxyHolder) return false
-            return other.proxy === proxy
-        }
-        override fun hashCode(): Int = System.identityHashCode(proxy)
-    }
-    private val proxyOriginals: WeakHashMap<ProxyHolder, Any> = WeakHashMap()
-
-    private var parent: TypePool? = null
-    private var loader: BytesClassLoader = BytesClassLoader()
-    private val bytecode = mutableMapOf<Class<*>, ByteArray>()
-
-    /**
-     * Tracks the original class from which each class was mirrored.
-     * Used to get nicer error messages from TestGeneration.
-     */
-    private val mirrorOriginalTypes = mutableMapOf<Class<*>, ReflectType>()
-
-    constructor(bytecodeProvider: BytecodeProvider?, commonLoader: ClassLoader) : this(bytecodeProvider) {
-        loader = BytesClassLoader(commonLoader)
-    }
-
-    constructor(primaryParent: TypePool, vararg otherParents: TypePool) : this(null) {
-        parent = primaryParent
-        loader = DiamondClassLoader(primaryParent.loader, *otherParents.map { it.loader }.toTypedArray())
-    }
-
-    fun getBcelClassForClass(clazz: Class<*>): JavaClass {
-        @Suppress("TooGenericExceptionCaught")
-        return try {
-            parent!!.getBcelClassForClass(clazz)
-        } catch (e: Exception) {
-            // Parent couldn't find it, look for it here
-            val bytecode = bytecode[clazz] ?: localGetBytecodeForClass(clazz).also { bytecode[clazz] = it }
-            ClassParser(bytecode.inputStream(), clazz.name).parse()
-        }
-    }
-
-    private fun localGetBytecodeForClass(clazz: Class<*>): ByteArray {
-        @Suppress("TooGenericExceptionCaught")
-        return try {
-            Repository.lookupClass(clazz).also { Repository.clearCache() }.bytes
-        } catch (e: Exception) {
-            // BCEL couldn't find it
-            if (bytecodeProvider == null) {
-                throw NoClassDefFoundError("Could not find bytecode for $clazz, no BytecodeProvider specified")
-            }
-            bytecodeProvider.getBytecode(clazz)
-        }
-    }
-
-    fun loadMirrorBytes(name: String, bcelClass: JavaClass, mirroredFrom: ReflectType): Class<*> {
-        val bytes = bcelClass.bytes
-        return loader.loadBytes(name, bytes).also {
-            bytecode[it] = bytes
-            mirrorOriginalTypes[it] = getOriginalClass(mirroredFrom)
-        }
-    }
-
-    fun classForName(name: String): Class<*> {
-        // TODO: Unsure whether it's useful to initialize the class immediately
-        return Class.forName(name, false, loader)
-    }
-
-    fun getProxyInstantiator(superClass: Class<*>): ObjectInstantiator<*> {
-        return proxyInstantiators.getOrPut(superClass) {
-            val factory = ProxyFactory()
-            factory.superclass = superClass
-            factory.setFilter { it.name != "finalize" }
-            val proxyClass = factory.createClass()
-            objenesis.getInstantiatorOf(proxyClass)
-        }
-    }
-
-    fun recordProxyOriginal(behavior: Any, presentation: Any) {
-        proxyOriginals[ProxyHolder(presentation)] = behavior
-    }
-
-    fun getProxyOriginal(presentation: Any): Any? {
-        return proxyOriginals[ProxyHolder(presentation)]
-    }
-
-    fun getLoader(): EnumerableBytecodeLoader {
-        return loader
-    }
-
-    fun getOriginalClass(type: ReflectType): ReflectType {
-        if (type !is Class<*>) return type
-        return mirrorOriginalTypes[type] ?: parent?.getOriginalClass(type) ?: type
-    }
-
-    fun takeOriginalClassMappings(otherPool: TypePool, transformedLoader: ClassLoader) {
-        otherPool.mirrorOriginalTypes.forEach { (transformed, original) ->
-            mirrorOriginalTypes[transformedLoader.loadClass(transformed.name)] = original
-        }
     }
 }

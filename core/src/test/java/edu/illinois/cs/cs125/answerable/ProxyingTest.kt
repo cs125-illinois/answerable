@@ -1,9 +1,11 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
-import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
-import edu.illinois.cs.cs125.answerable.typeManagement.mkOpenMirrorClass
+import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
+import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
+import edu.illinois.cs.cs125.answerable.classmanipulation.mkGeneratorMirrorClass
+import edu.illinois.cs.cs125.answerable.classmanipulation.mkOpenMirrorClass
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
+import edu.illinois.cs.cs125.jeed.core.JeedClassLoader
 import edu.illinois.cs.cs125.jeed.core.Source
 import edu.illinois.cs.cs125.jeed.core.compile
 import examples.proxy.GeneratedWidget
@@ -166,11 +168,11 @@ internal class ProxyingTest {
     }
 
     @Test
-    fun testProxyingClassOnClasspath() {
-        Assertions.assertThrows(AssertionError::class.java) {
-            val jeedClass = Source(
-                mapOf(
-                    "Printerr.java" to """
+    fun testMirroringClassOnSystemClasspath() {
+        // Depends on examples.proxy.Printerr existing on the class path
+        val jeedClass = Source(
+            mapOf(
+                "Printerr.java" to """
                     package examples.proxy;
     
                     public class Printerr {
@@ -178,14 +180,18 @@ internal class ProxyingTest {
                             return "Jeed";
                         }
                     }
-                    """.trimIndent()
-                )
-            ).compile(CompilationArguments(parentClassLoader = InvertedClassloader("examples.proxy.Printerr")))
-                .classLoader.loadClass("examples.proxy.Printerr")
-            Assertions.assertEquals("Jeed", jeedClass.getDeclaredMethod("welcome").invoke(null))
-            val typePool = TypePool(null, jeedClass.classLoader)
-            val proxy = mkOpenMirrorClass(jeedClass, typePool)
-            Assertions.assertEquals("Jeed", proxy.getDeclaredMethod("welcome").invoke(null))
+                """.trimIndent()
+            )
+        ).compile(CompilationArguments(parentClassLoader = InvertedClassloader("examples.proxy.Printerr")))
+            .classLoader.loadClass("examples.proxy.Printerr")
+
+        val bytecodeProvider = object : BytecodeProvider {
+            override fun getBytecode(clazz: Class<*>): ByteArray {
+                return (jeedClass.classLoader as JeedClassLoader).bytecodeForClass(clazz.name)
+            }
         }
+        Assertions.assertEquals("Jeed", jeedClass.getDeclaredMethod("welcome").invoke(null))
+        val mirroredClass = mkOpenMirrorClass(jeedClass, TypePool(bytecodeProvider, jeedClass.classLoader))
+        Assertions.assertEquals("Jeed", mirroredClass.getDeclaredMethod("welcome").invoke(null))
     }
 }

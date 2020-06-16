@@ -1,7 +1,6 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
-import edu.illinois.cs.cs125.answerable.SourceLocation
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 
