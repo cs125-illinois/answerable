@@ -1,9 +1,26 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.api.serialize
+import edu.illinois.cs.cs125.answerable.api.serializer
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAResult
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.classDesignAnalysis
 import examples.binarytree.reference.YourBinaryTree
 import examples.binarytree.size.ClassicBinaryTreeSizeTest
 import examples.sorting.ClassicSortTest
 import examples.sorting.reference.ArraySorter
+import org.junit.jupiter.api.Test
+
+class AdHoc {
+    @Test
+    fun `play with serializer`() {
+        val cda = classDesignAnalysis(
+            examples.adder.correct.reference.Adder::class.java,
+            examples.adder.correct.Adder::class.java
+        )
+
+        println(serialize(cda))
+    }
+}
 
 fun main() {
     val testFunc = ::testSortingAnswerable
