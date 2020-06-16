@@ -13,11 +13,9 @@ import edu.illinois.cs.cs125.answerable.annotations.getTimeout
 import edu.illinois.cs.cs125.answerable.annotations.getVerify
 import edu.illinois.cs.cs125.answerable.annotations.validateAnnotations
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
-import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.OssifiedTestOutput
 import edu.illinois.cs.cs125.answerable.api.OssifiedValue
 import edu.illinois.cs.cs125.answerable.api.TestOutput
-import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.api.ossify
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAConfig
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAResult
@@ -1225,7 +1223,7 @@ abstract class TestStep(
     val wasDiscarded: Boolean,
     /** The test type */
     val testType: TestType
-) : DefaultSerializable
+)
 
 /**
  * Represents a test case that was executed.
@@ -1255,9 +1253,7 @@ class ExecutedTestStep(
     val subDangerousLiveOutput: TestOutput<Any?>,
     /** The assertion error thrown, if any, by the verifier. */
     val assertErr: Throwable?
-) : TestStep(iteration, false, testType) {
-    override fun toJson() = defaultToJson()
-}
+) : TestStep(iteration, false, testType)
 
 /**
  * Represents a discarded test case.
@@ -1270,8 +1266,6 @@ class DiscardedTestStep(
     /** The other arguments that were passed to the precondition. */
     val args: Array<Any?>
 ) : TestStep(iteration, true, testType) {
-    override fun toJson() = defaultToJson()
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -1327,16 +1321,14 @@ data class TestingResults(
     val classDesignAnalysisResult: CDAResult,
     /** The list of [TestStep]s that were performed during this test run. */
     val testSteps: List<TestStep>
-) : DefaultSerializable {
-    override fun toJson() = defaultToJson()
-
+) {
     fun assertAllSucceeded() {
         check(classDesignAnalysisResult.allMatch) { "Class design analysis failed" }
 
         testSteps.filterIsInstance<ExecutedTestStep>().also {
             check(it.isNotEmpty()) { "No tests were executed" }
         }.forEach {
-            check(it.assertErr == null && it.succeeded) { "Test failed: ${it.toJson()}" }
+            check(it.assertErr == null && it.succeeded) { "Test failed: $it" }
         }
     }
 

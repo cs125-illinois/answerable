@@ -80,10 +80,7 @@ data class OssifiedTestOutput(
     val threw: OssifiedValue?,
     val stdOut: String?,
     val stdErr: String?
-) : DefaultSerializable {
-
-    override fun toJson() = defaultToJson()
-
+) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
