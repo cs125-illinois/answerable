@@ -2,6 +2,7 @@ package edu.illinois.cs.cs125.answerable.jeedrunner
 
 import edu.illinois.cs.cs125.answerable.TestEnvironment
 import edu.illinois.cs.cs125.answerable.TestGenerator
+import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
@@ -25,13 +26,15 @@ fun testFromStrings(
     common: String? = null,
     className: String,
     solutionName: String = DEFAULT_EMPTY_NAME,
-    parentClassLoader: ClassLoader? = null
+    testRunnerArgs: TestRunnerArgs = TestRunnerArgs()
 ): TestingResults {
 
     val referenceSource = Source(mapOf("Reference.java" to reference))
     val submissionSource = Source(mapOf("Submission.java" to submission))
 
     val commonSource: Source? = common?.run { Source(mapOf("Common.java" to common)) }
+
+    val parentClassLoader = TestingClassLoader(className)
 
     val commonCompiledSource = commonSource?.compile(CompilationArguments(parentClassLoader = parentClassLoader))
     val parentClassLoaderIsNow = commonCompiledSource?.classLoader ?: parentClassLoader
@@ -48,8 +51,6 @@ fun testFromStrings(
             )
         ).classLoader
 
-    // println(referenceClassLoader.loadClass(className).getDeclaredMethod("welcome").invoke(null))
-    // println(submissionClassLoader.loadClass(className).getDeclaredMethod("welcome").invoke(null))
     return TestGenerator(
         referenceClassLoader.loadClass(className),
         bytecodeProvider = answerableBytecodeProvider(referenceClassLoader),
@@ -57,5 +58,25 @@ fun testFromStrings(
     ).loadSubmission(
         submissionClassLoader.loadClass(className),
         bytecodeProvider = answerableBytecodeProvider(submissionClassLoader)
-    ).runTests(nextLong(), TestEnvironment(jeedOutputCapturer, jeedSandbox()))
+    ).runTests(nextLong(), TestEnvironment(jeedOutputCapturer, jeedSandbox()), testRunnerArgs)
 }
+
+class TestingClassLoader(private val klassName: String) : ClassLoader() {
+    // Invert the usual delegation strategy for classes in this package to avoid using the system ClassLoader
+    override fun loadClass(name: String): Class<*> {
+        return if (name == klassName) {
+            throw ClassNotFoundException()
+        } else {
+            super.loadClass(name)
+        }
+    }
+
+    override fun loadClass(name: String, resolve: Boolean): Class<*> {
+        return if (name == klassName) {
+            throw ClassNotFoundException()
+        } else {
+            super.loadClass(name, resolve)
+        }
+    }
+}
+

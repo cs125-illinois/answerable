@@ -2,9 +2,9 @@ package examples;
 
 import edu.illinois.cs.cs125.answerable.annotations.Solution;
 
-public class Adderr {
+public class Printerr {
   @Solution
-  public static int add(int a, int b) {
-    return a + b;
+  public static void welcome() {
+    System.out.println("Classpath");
   }
 }

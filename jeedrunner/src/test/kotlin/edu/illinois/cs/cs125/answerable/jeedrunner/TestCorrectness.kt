@@ -1,6 +1,7 @@
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
 import edu.illinois.cs.cs125.answerable.ExecutedTestStep
+import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -33,7 +34,7 @@ class TestCorrectness {
             className = "Example"
         )
         result.testSteps.filterIsInstance<ExecutedTestStep>().forEach {
-            if (!it.succeeded) {
+            if (!it.testSucceeded) {
                 fail(it.toJson())
             }
         }
@@ -63,7 +64,7 @@ class TestCorrectness {
             className = "Example"
         )
         assertTrue(result.classDesignAnalysisResult.allMatch)
-        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.testSucceeded })
     }
 
     @Test
@@ -90,7 +91,7 @@ class TestCorrectness {
             className = "Adder"
         )
         result.testSteps.filterIsInstance<ExecutedTestStep>().forEach {
-            if (!it.succeeded) {
+            if (!it.testSucceeded) {
                 fail(it.toJson())
             }
         }
@@ -120,36 +121,39 @@ class TestCorrectness {
             className = "Adder"
         )
         assertTrue(result.classDesignAnalysisResult.allMatch)
-        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.testSucceeded })
     }
 
     @Test
-    fun testAdderrPackageCollision() {
-        // Requires examples/Adderr.java to exist
+    fun testPrinterrPackageCollision() {
+        // Requires examples/Printerr.java to exist
         val result = testFromStrings(
             reference =
                 """
             package examples;
             import edu.illinois.cs.cs125.answerable.annotations.Solution;
-            public class Adderr {
-                @Solution
-                public static int add(int a, int b) {
-                    return a + b;
+            public class Printerr {
+                @Solution(prints=true)
+                public static void welcome() {
+                  System.out.println("Jeed");
                 }
             }
                 """.trimIndent(),
             submission =
                 """
             package examples;
-            public class Adderr {
-                public static int add(int a, int b) {
-                    return a + Math.abs(b);
+            public class Printerr {
+                public static void welcome() {
+                  System.out.println("Incorrect");
                 }
             }
                 """.trimIndent(),
-            className = "examples.Adderr"
+            className = "examples.Printerr",
+            testRunnerArgs = TestRunnerArgs(1)
         )
+        //result.referenceClass.getDeclaredMethod("welcome").invoke(null)
+        //result.testedClass.getDeclaredMethod("welcome").invoke(null)
         assertTrue(result.classDesignAnalysisResult.allMatch)
-        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+        result.assertSomethingFailed()
     }
 }

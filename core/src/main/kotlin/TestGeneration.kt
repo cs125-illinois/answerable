@@ -241,7 +241,7 @@ class TestGenerator(
 
         synchronized(dryRunOutput.testSteps) {
             dryRunOutput.testSteps.filterIsInstance(ExecutedTestStep::class.java).forEach {
-                if (!it.succeeded) {
+                if (!it.testSucceeded) {
                     throw AnswerableVerificationException(
                         "Testing reference against itself failed on inputs: ${it.refOutput.args.contentDeepToString()}",
                         it.assertErr
@@ -746,7 +746,7 @@ internal class TestRunWorker internal constructor(
             subReceiver = subReceiver.ossify(submissionTypePool),
             refLiveReceiver = refReceiver,
             subDangerousLiveReceiver = subReceiver,
-            succeeded = assertErr == null,
+            testSucceeded = assertErr == null,
             refOutput = refBehavior.ossify(testGenerator.typePool),
             subOutput = subBehavior.ossify(submissionTypePool),
             refLiveOutput = refBehavior,
@@ -1243,7 +1243,7 @@ class ExecutedTestStep(
     /** The receiver object passed to the submission. */
     val subDangerousLiveReceiver: Any?,
     /** Whether or not the test case succeeded. */
-    val succeeded: Boolean,
+    val testSucceeded: Boolean,
     /** The behavior of the reference solution. */
     val refOutput: OssifiedTestOutput,
     /** The behavior of the submission. */
@@ -1256,7 +1256,11 @@ class ExecutedTestStep(
     /** The assertion error thrown, if any, by the verifier. */
     val assertErr: Throwable?
 ) : TestStep(iteration, false, testType) {
+
     override fun toJson() = defaultToJson()
+
+    val succeeded: Boolean
+        get() = assertErr == null && testSucceeded
 }
 
 /**
@@ -1330,13 +1334,21 @@ data class TestingResults(
 ) : DefaultSerializable {
     override fun toJson() = defaultToJson()
 
+    @delegate:Transient
+    val executedTestSteps: List<ExecutedTestStep> by lazy { testSteps.filterIsInstance<ExecutedTestStep>() }
+
+    @delegate:Transient
+    val succeeded: Boolean by lazy {
+        classDesignAnalysisResult.allMatch && executedTestSteps.isNotEmpty() && executedTestSteps.all { it.assertErr == null && it.testSucceeded }
+    }
+
     fun assertAllSucceeded() {
         check(classDesignAnalysisResult.allMatch) { "Class design analysis failed" }
 
         testSteps.filterIsInstance<ExecutedTestStep>().also {
             check(it.isNotEmpty()) { "No tests were executed" }
         }.forEach {
-            check(it.assertErr == null && it.succeeded) { "Test failed: ${it.toJson()}" }
+            check(it.assertErr == null && it.testSucceeded) { "Test failed: ${it.toJson()}" }
         }
     }
 

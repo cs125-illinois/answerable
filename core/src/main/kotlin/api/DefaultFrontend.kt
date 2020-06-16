@@ -63,7 +63,7 @@ internal fun ExecutedTestStep.defaultToJson(): String =
         |  discarded: false,
         |  refReceiver: ${refReceiver?.value.jsonStringOrNull()},
         |  subReceiver: ${subReceiver?.value.jsonStringOrNull()},
-        |  succeeded: $succeeded,
+        |  succeeded: $testSucceeded,
         |  refOutput: ${refOutput.toJson()},
         |  subOutput: ${subOutput.toJson()},
         |  assertErr: ${assertErr.jsonStringOrNull()}
