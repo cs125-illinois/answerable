@@ -10,9 +10,12 @@ import javassist.util.proxy.ProxyFactory
 import org.apache.bcel.Repository
 import org.apache.bcel.classfile.ClassParser
 import org.apache.bcel.classfile.JavaClass
+import org.objenesis.ObjenesisStd
 import org.objenesis.instantiator.ObjectInstantiator
 import java.lang.reflect.Type
 import java.util.WeakHashMap
+
+private val objenesis = ObjenesisStd()
 
 /**
  * Manages a collection of types: their object instantiators, their bytecode, and the classes themselves.

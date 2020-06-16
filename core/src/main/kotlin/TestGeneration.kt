@@ -30,7 +30,6 @@ import edu.illinois.cs.cs125.answerable.classmanipulation.mkOpenMirrorClass
 import edu.illinois.cs.cs125.answerable.classmanipulation.mkProxy
 import edu.illinois.cs.cs125.answerable.classmanipulation.mkValueProxy
 import edu.illinois.cs.cs125.answerable.classmanipulation.verifyMemberAccess
-import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.opentest4j.AssertionFailedError
 import java.lang.IllegalStateException

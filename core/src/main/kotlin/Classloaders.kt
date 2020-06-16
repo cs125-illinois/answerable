@@ -2,7 +2,7 @@ package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.api.EnumerableBytecodeLoader
 
-internal class InvertedClassloader(private val klass: String) : ClassLoader() {
+class InvertedClassloader(private val klass: String) : ClassLoader() {
     override fun loadClass(name: String): Class<*> {
         return if (name == klass) {
             // Force resolution to continue downward, regardless of the contents of parent Classloaders

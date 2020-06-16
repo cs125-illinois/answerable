@@ -4,7 +4,6 @@ import edu.illinois.cs.cs125.answerable.ExecutedTestStep
 import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
 
@@ -126,7 +125,6 @@ class TestCorrectness {
     }
 
     @Test
-    @Disabled // This is really a problem with proxying, which now has its own failing test in core
     fun testPrinterrPackageCollision() {
         // Requires examples/Printerr.java to exist
         val result = testFromStrings(
@@ -153,7 +151,6 @@ class TestCorrectness {
             className = "examples.Printerr",
             testRunnerArgs = TestRunnerArgs(1)
         )
-        assertTrue(result.classDesignAnalysisResult.allMatch)
         result.assertSomethingFailed()
     }
 }

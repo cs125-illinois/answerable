@@ -13,6 +13,7 @@ import java.lang.reflect.Method
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
+@Suppress("LongParameterList")
 annotation class DefaultTestRunArguments(
     val numTests: Int = -1,
     val maxDiscards: Int = -1,
