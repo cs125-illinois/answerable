@@ -1339,6 +1339,16 @@ data class TestingResults(
             check(it.assertErr == null && it.succeeded) { "Test failed: ${it.toJson()}" }
         }
     }
+
+    fun assertSomethingFailed() {
+        val failed = try {
+            assertAllSucceeded()
+            false
+        } catch (e: IllegalStateException) {
+            true
+        }
+        check(failed) { "Nothing failed" }
+    }
 }
 
 enum class TestType {

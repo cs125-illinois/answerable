@@ -122,4 +122,34 @@ class TestCorrectness {
         assertTrue(result.classDesignAnalysisResult.allMatch)
         assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
+
+    @Test
+    fun testAdderrPackageCollision() {
+        // Requires examples/Adderr.java to exist
+        val result = testFromStrings(
+            reference =
+                """
+            package examples;
+            import edu.illinois.cs.cs125.answerable.annotations.Solution;
+            public class Adderr {
+                @Solution
+                public static int add(int a, int b) {
+                    return a + b;
+                }
+            }
+                """.trimIndent(),
+            submission =
+                """
+            package examples;
+            public class Adderr {
+                public static int add(int a, int b) {
+                    return a + Math.abs(b);
+                }
+            }
+                """.trimIndent(),
+            className = "examples.Adderr"
+        )
+        assertTrue(result.classDesignAnalysisResult.allMatch)
+        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+    }
 }

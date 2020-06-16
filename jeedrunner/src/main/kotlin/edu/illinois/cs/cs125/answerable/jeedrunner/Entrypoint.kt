@@ -18,12 +18,14 @@ import kotlin.random.Random.Default.nextLong
  * @param solutionName which question to use from [reference]
  * @return the results of the testing
  */
+@Suppress("LongParameterList")
 fun testFromStrings(
     reference: String,
     submission: String,
     common: String? = null,
     className: String,
-    solutionName: String = DEFAULT_EMPTY_NAME
+    solutionName: String = DEFAULT_EMPTY_NAME,
+    parentClassLoader: ClassLoader? = null
 ): TestingResults {
 
     val referenceSource = Source(mapOf("Reference.java" to reference))
@@ -31,24 +33,29 @@ fun testFromStrings(
 
     val commonSource: Source? = common?.run { Source(mapOf("Common.java" to common)) }
 
-    val comCL = commonSource?.compile()
-    val refCL = referenceSource
+    val commonCompiledSource = commonSource?.compile(CompilationArguments(parentClassLoader = parentClassLoader))
+    val parentClassLoaderIsNow = commonCompiledSource?.classLoader ?: parentClassLoader
+    val referenceClassLoader = referenceSource
         .compile(
             CompilationArguments(
-                parentClassLoader = comCL?.classLoader, parentFileManager = comCL?.fileManager
+                parentClassLoader = parentClassLoaderIsNow, parentFileManager = commonCompiledSource?.fileManager
             )
         ).classLoader
-    val subCL = submissionSource
+    val submissionClassLoader = submissionSource
         .compile(
             CompilationArguments(
-                parentClassLoader = comCL?.classLoader, parentFileManager = comCL?.fileManager
+                parentClassLoader = parentClassLoaderIsNow, parentFileManager = commonCompiledSource?.fileManager
             )
         ).classLoader
 
+    // println(referenceClassLoader.loadClass(className).getDeclaredMethod("welcome").invoke(null))
+    // println(submissionClassLoader.loadClass(className).getDeclaredMethod("welcome").invoke(null))
     return TestGenerator(
-        refCL.loadClass(className),
-        bytecodeProvider = answerableBytecodeProvider(refCL),
+        referenceClassLoader.loadClass(className),
+        bytecodeProvider = answerableBytecodeProvider(referenceClassLoader),
         solutionName = solutionName
-    ).loadSubmission(subCL.loadClass(className), bytecodeProvider = answerableBytecodeProvider(subCL))
-        .runTests(nextLong(), TestEnvironment(jeedOutputCapturer, jeedSandbox()))
+    ).loadSubmission(
+        submissionClassLoader.loadClass(className),
+        bytecodeProvider = answerableBytecodeProvider(submissionClassLoader)
+    ).runTests(nextLong(), TestEnvironment(jeedOutputCapturer, jeedSandbox()))
 }
