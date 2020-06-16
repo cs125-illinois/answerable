@@ -32,6 +32,11 @@ subprojects {
     tasks.withType<Test> {
         useJUnitPlatform()
         enableAssertions = true
+        if (JavaVersion.current() >= JavaVersion.VERSION_11) {
+            jvmArgs("-ea", "-Xmx1G", "-Xss256k", "--enable-preview")
+        } else {
+            jvmArgs("-ea", "-Xmx1G", "-Xss256k")
+        }
     }
 }
 tasks.dependencyUpdates {
@@ -39,8 +44,8 @@ tasks.dependencyUpdates {
         componentSelection {
             all {
                 if (listOf("alpha", "beta", "rc", "cr", "m", "preview", "b", "ea", "eap", "release").any { qualifier ->
-                    candidate.version.matches(Regex("(?i).*[.-]$qualifier[.\\d-+]*"))
-                }) {
+                        candidate.version.matches(Regex("(?i).*[.-]$qualifier[.\\d-+]*"))
+                    }) {
                     reject("Release candidate")
                 }
             }
@@ -50,7 +55,7 @@ tasks.dependencyUpdates {
 }
 detekt {
     input = files(
-      "cli/src/main/kotlin", "core/src/main/kotlin", "jeedrunner/src/main/kotlin"
+        "cli/src/main/kotlin", "core/src/main/kotlin", "jeedrunner/src/main/kotlin"
     )
     buildUponDefaultConfig = true
 }

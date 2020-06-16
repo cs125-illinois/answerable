@@ -1339,7 +1339,9 @@ data class TestingResults(
 
     @delegate:Transient
     val succeeded: Boolean by lazy {
-        classDesignAnalysisResult.allMatch && executedTestSteps.isNotEmpty() && executedTestSteps.all { it.assertErr == null && it.testSucceeded }
+        classDesignAnalysisResult.allMatch &&
+            executedTestSteps.isNotEmpty() &&
+            executedTestSteps.all { it.assertErr == null && it.testSucceeded }
     }
 
     fun assertAllSucceeded() {
