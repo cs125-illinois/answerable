@@ -20,7 +20,7 @@ internal class ProxyingTest {
         results.testSteps.forEach {
             if (it is ExecutedTestStep) {
                 Assertions.assertNull(it.assertErr)
-                Assertions.assertTrue(it.testSucceeded)
+                Assertions.assertTrue(it.succeeded)
             }
         }
     }

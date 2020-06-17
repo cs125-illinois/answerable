@@ -78,7 +78,7 @@ class TestSandbox {
             className = "Example"
         )
         assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.subDangerousLiveOutput.threw is SecurityException })
-        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.testSucceeded })
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
     @Test
@@ -108,7 +108,7 @@ class TestSandbox {
             className = "Example"
         )
         assertEquals(0, output.size())
-        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.testSucceeded })
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
     @Test
@@ -174,6 +174,6 @@ class TestSandbox {
             className = "Example"
         )
         assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.refLiveOutput.threw is SecurityException })
-        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.testSucceeded })
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 }
