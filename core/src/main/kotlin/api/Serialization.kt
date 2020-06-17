@@ -93,7 +93,7 @@ internal class OssifiedExecutableAdapter {
     fun fromJson(@Suppress("UNUSED_PARAMETER") unused: String): OssifiedExecutable =
         throw UnsupportedOperationException("Can't deserialize OssifiedExecutables")
 
-    @Suppress("unused")
+    @Suppress("unused", "LongParameterList")
     class SerializableOssifiedExecutable(
         val isDefault: Boolean,
         val modifiers: List<String>,
@@ -125,7 +125,7 @@ internal class ExecutedTestStepAdapter {
     fun fromJson(@Suppress("UNUSED_PARAMETER") unused: String): ExecutedTestStep =
         throw UnsupportedOperationException("Can't deserialize ExecutedTestSteps")
 
-    @Suppress("unused")
+    @Suppress("unused", "LongParameterList")
     class SerializableExecutedTestStep(
         val testNumber: Int,
         val wasDiscarded: Boolean,

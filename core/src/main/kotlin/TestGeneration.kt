@@ -13,11 +13,9 @@ import edu.illinois.cs.cs125.answerable.annotations.getTimeout
 import edu.illinois.cs.cs125.answerable.annotations.getVerify
 import edu.illinois.cs.cs125.answerable.annotations.validateAnnotations
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
-import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.OssifiedTestOutput
 import edu.illinois.cs.cs125.answerable.api.OssifiedValue
 import edu.illinois.cs.cs125.answerable.api.TestOutput
-import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.api.ossify
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAConfig
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAResult
@@ -1348,7 +1346,7 @@ data class TestingResults(
     val succeeded: Boolean by lazy {
         classDesignAnalysisResult.allMatch &&
             executedTestSteps.isNotEmpty() &&
-            executedTestSteps.all { it.assertErr == null && it.testSucceeded }
+            executedTestSteps.all { it.assertErr == null && it.succeeded }
     }
 
     fun assertAllSucceeded() {
