@@ -67,7 +67,7 @@ fun TestingResults.toJson(): String =
 
 internal class OssifiedFieldAdapter {
     @FromJson
-    fun fromJson(@SuppressWarnings("unused") unused: String): OssifiedField =
+    fun fromJson(@Suppress("UNUSED_PARAMETER") unused: String): OssifiedField =
         throw UnsupportedOperationException("Can't deserialize OssifiedFields")
 
     class SerializableOssifiedField(
@@ -90,7 +90,7 @@ internal class OssifiedFieldAdapter {
 
 internal class OssifiedExecutableAdapter {
     @FromJson
-    fun fromJson(@SuppressWarnings("unused") unused: String): OssifiedExecutable =
+    fun fromJson(@Suppress("UNUSED_PARAMETER") unused: String): OssifiedExecutable =
         throw UnsupportedOperationException("Can't deserialize OssifiedExecutables")
 
     @Suppress("unused")
@@ -122,7 +122,7 @@ internal class OssifiedExecutableAdapter {
 
 internal class ExecutedTestStepAdapter {
     @FromJson
-    fun fromJson(unused: String): ExecutedTestStep =
+    fun fromJson(@Suppress("UNUSED_PARAMETER") unused: String): ExecutedTestStep =
         throw UnsupportedOperationException("Can't deserialize ExecutedTestSteps")
 
     @Suppress("unused")
@@ -137,7 +137,7 @@ internal class ExecutedTestStepAdapter {
         val subOutput: OssifiedTestOutput,
         val assertErr: String?
     ) {
-        internal constructor(testStep: ExecutedTestStep): this(
+        internal constructor(testStep: ExecutedTestStep) : this(
             testStep.testNumber,
             testStep.wasDiscarded,
             testStep.testType,
@@ -157,12 +157,12 @@ internal class ExecutedTestStepAdapter {
 
 internal class DiscardedTestStepAdapter {
     @FromJson
-    fun fromJson(unused: String): DiscardedTestStep =
+    fun fromJson(@Suppress("UNUSED_PARAMETER") unused: String): DiscardedTestStep =
         throw UnsupportedOperationException("Can't deserialize DiscardTestSteps")
 
     @Suppress("unused")
     class SerializableDTS(val receiver: OssifiedValue?, val args: Array<OssifiedValue?>) {
-        constructor(dts: DiscardedTestStep): this(dts.ossifiedReceiver, dts.ossifiedArgs)
+        constructor(dts: DiscardedTestStep) : this(dts.ossifiedReceiver, dts.ossifiedArgs)
     }
 
     @ToJson
@@ -171,7 +171,7 @@ internal class DiscardedTestStepAdapter {
 
 internal class TestingResultsAdapter {
     @FromJson
-    fun fromJson(unused: String): TestingResults =
+    fun fromJson(@Suppress("UNUSED_PARAMETER") unused: String): TestingResults =
         throw UnsupportedOperationException("Can't deserialize TestingResults")
 
     @Suppress("unused", "LongParameterList")
@@ -192,7 +192,7 @@ internal class TestingResultsAdapter {
         val testSteps: List<TestStep>
     ) {
         // Oh how I wish Kotlin had RecordPuns
-        constructor(testingResults: TestingResults): this(
+        constructor(testingResults: TestingResults) : this(
             testingResults.seed,
             testingResults.solutionName,
             testingResults.startTime,

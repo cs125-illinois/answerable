@@ -1223,7 +1223,7 @@ enum class Behavior { RETURNED, THREW, VERIFY_ONLY, GENERATION_FAILED }
 /**
  * Represents a single iteration of the main testing loop.
  */
-abstract class TestStep(
+sealed class TestStep(
     /** The number of the test represented by this [TestStep]. */
     val testNumber: Int,
     /** Whether or not this test case was discarded. */
