@@ -1,24 +1,9 @@
 package edu.illinois.cs.cs125.answerable
 
-import com.squareup.moshi.Types
-import edu.illinois.cs.cs125.answerable.api.serializer
-import edu.illinois.cs.cs125.answerable.api.unsafeSerialize
 import examples.binarytree.reference.YourBinaryTree
 import examples.binarytree.size.ClassicBinaryTreeSizeTest
 import examples.sorting.ClassicSortTest
 import examples.sorting.reference.ArraySorter
-import org.junit.jupiter.api.Test
-
-class AdHoc {
-    @Test
-    fun `play with serializer`() {
-        val r = runAnswerableTest(
-            "examples.adder.correct.Adder",
-            "examples.adder.correct.reference.Adder"
-        )
-        println(unsafeSerialize(r))
-    }
-}
 
 fun main() {
     val testFunc = ::testSortingAnswerable
