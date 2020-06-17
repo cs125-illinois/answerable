@@ -41,7 +41,7 @@ class TestService {
             "WidgetGetter",
             WIDGET_JAVA_SUBMISSION_CODE.replace("return ", "return 2 * ")
         ).runTests()
-        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.testSucceeded })
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
 
     @Test
@@ -81,7 +81,7 @@ class TestService {
             WIDGET_JAVA_REFERENCE_CODE, "Widget"
         )
         val result = answerable.submit("WidgetGetter", examples.wrong.Widget::class.java).runTests()
-        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.testSucceeded })
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
 
     @Test
@@ -218,7 +218,7 @@ class TestService {
         )
         val cheatyResult = answerable.submitAndTest("Sort", SORT_JAVA_SUBMISSION_CODE_CHEATY)
         assertNotEquals(0, cheatyResult.testSteps.filterIsInstance<ExecutedTestStep>())
-        assertFalse { cheatyResult.testSteps.filterIsInstance<ExecutedTestStep>().all { it.testSucceeded } }
+        assertFalse { cheatyResult.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded } }
         val result = answerable.submitAndTest("Sort", SORT_JAVA_SUBMISSION_CODE_LEGITIMATE)
         result.assertAllSucceeded()
     }
