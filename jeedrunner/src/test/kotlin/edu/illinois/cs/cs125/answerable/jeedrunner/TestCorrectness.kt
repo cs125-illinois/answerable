@@ -34,8 +34,8 @@ class TestCorrectness {
             className = "Example"
         )
         result.testSteps.filterIsInstance<ExecutedTestStep>().forEach {
-            if (!it.testSucceeded) {
-                fail(it.toJson())
+            if (!it.succeeded) {
+                fail(it.toString())
             }
         }
     }
@@ -64,7 +64,7 @@ class TestCorrectness {
             className = "Example"
         )
         assertTrue(result.classDesignAnalysisResult.allMatch)
-        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.testSucceeded })
+        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
     @Test
@@ -91,8 +91,8 @@ class TestCorrectness {
             className = "Adder"
         )
         result.testSteps.filterIsInstance<ExecutedTestStep>().forEach {
-            if (!it.testSucceeded) {
-                fail(it.toJson())
+            if (!it.succeeded) {
+                fail(it.toString())
             }
         }
     }
@@ -121,7 +121,7 @@ class TestCorrectness {
             className = "Adder"
         )
         assertTrue(result.classDesignAnalysisResult.allMatch)
-        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.testSucceeded })
+        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
     @Test

@@ -13,11 +13,9 @@ import edu.illinois.cs.cs125.answerable.annotations.getTimeout
 import edu.illinois.cs.cs125.answerable.annotations.getVerify
 import edu.illinois.cs.cs125.answerable.annotations.validateAnnotations
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
-import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.OssifiedTestOutput
 import edu.illinois.cs.cs125.answerable.api.OssifiedValue
 import edu.illinois.cs.cs125.answerable.api.TestOutput
-import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.api.ossify
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAConfig
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAResult
@@ -240,7 +238,7 @@ class TestGenerator(
 
         synchronized(dryRunOutput.testSteps) {
             dryRunOutput.testSteps.filterIsInstance(ExecutedTestStep::class.java).forEach {
-                if (!it.testSucceeded) {
+                if (!it.succeeded) {
                     throw AnswerableVerificationException(
                         "Testing reference against itself failed on inputs: ${it.refOutput.args.contentDeepToString()}",
                         it.assertErr
@@ -745,7 +743,7 @@ internal class TestRunWorker internal constructor(
             subReceiver = subReceiver.ossify(submissionTypePool),
             refLiveReceiver = refReceiver,
             subDangerousLiveReceiver = subReceiver,
-            testSucceeded = assertErr == null,
+            succeeded = assertErr == null,
             refOutput = refBehavior.ossify(testGenerator.typePool),
             subOutput = subBehavior.ossify(submissionTypePool),
             refLiveOutput = refBehavior,
@@ -962,7 +960,14 @@ internal class TestRunWorker internal constructor(
                     TestType.Simple -> testingBlockCounts.simpleTests++
                     else -> Unit
                 }
-                result = DiscardedTestStep(i, block, useRefReceiver, refMethodArgs)
+                result = DiscardedTestStep(
+                    iteration = i,
+                    testType = block,
+                    ossifiedReceiver = useRefReceiver.ossify(testGenerator.typePool),
+                    receiver = useRefReceiver,
+                    ossifiedArgs = refMethodArgs.map { it.ossify(testGenerator.typePool) }.toTypedArray(),
+                    args = refMethodArgs
+                )
                 testingBlockCounts.discardedTests++
             }
             synchronized(testStepList) {
@@ -1217,14 +1222,14 @@ enum class Behavior { RETURNED, THREW, VERIFY_ONLY, GENERATION_FAILED }
 /**
  * Represents a single iteration of the main testing loop.
  */
-abstract class TestStep(
+sealed class TestStep(
     /** The number of the test represented by this [TestStep]. */
     val testNumber: Int,
     /** Whether or not this test case was discarded. */
     val wasDiscarded: Boolean,
     /** The test type */
     val testType: TestType
-) : DefaultSerializable
+)
 
 /**
  * Represents a test case that was executed.
@@ -1242,7 +1247,7 @@ class ExecutedTestStep(
     /** The receiver object passed to the submission. */
     val subDangerousLiveReceiver: Any?,
     /** Whether or not the test case succeeded. */
-    val testSucceeded: Boolean,
+    val succeeded: Boolean,
     /** The behavior of the reference solution. */
     val refOutput: OssifiedTestOutput,
     /** The behavior of the submission. */
@@ -1254,27 +1259,30 @@ class ExecutedTestStep(
     val subDangerousLiveOutput: TestOutput<Any?>,
     /** The assertion error thrown, if any, by the verifier. */
     val assertErr: Throwable?
-) : TestStep(iteration, false, testType) {
-
-    override fun toJson() = defaultToJson()
-
-    val succeeded: Boolean
-        get() = assertErr == null && testSucceeded
-}
+) : TestStep(iteration, false, testType)
 
 /**
  * Represents a discarded test case.
+ *
+ * Test cases can only be discarded by failed preconditions, and preconditions
+ * are always tested using the reference class. Thus, live objects contained
+ * within are always safe.
  */
+// "ossified" fields are needed by the Moshi serializer, but they can only
+// ossified while a type pool is still available. Thus, the test step carries
+// them, even though it isn't necessary to _expose_ them.
 class DiscardedTestStep(
     iteration: Int,
     testType: TestType,
-    /** The receiver object that was passed to the precondition. */
+    /** The (ossified) receiver object that was passed to the precondition. */
+    internal val ossifiedReceiver: OssifiedValue?,
+    /** The (live) receiver object that was passed to the precondition. */
     val receiver: Any?,
-    /** The other arguments that were passed to the precondition. */
+    /** The other (ossified) arguments that were passed to the precondition. */
+    internal val ossifiedArgs: Array<OssifiedValue?>,
+    /** The other (live) arguments that were passed to the precondition. */
     val args: Array<Any?>
 ) : TestStep(iteration, true, testType) {
-    override fun toJson() = defaultToJson()
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -1330,9 +1338,7 @@ data class TestingResults(
     val classDesignAnalysisResult: CDAResult,
     /** The list of [TestStep]s that were performed during this test run. */
     val testSteps: List<TestStep>
-) : DefaultSerializable {
-    override fun toJson() = defaultToJson()
-
+) {
     @delegate:Transient
     val executedTestSteps: List<ExecutedTestStep> by lazy { testSteps.filterIsInstance<ExecutedTestStep>() }
 
@@ -1340,7 +1346,7 @@ data class TestingResults(
     val succeeded: Boolean by lazy {
         classDesignAnalysisResult.allMatch &&
             executedTestSteps.isNotEmpty() &&
-            executedTestSteps.all { it.assertErr == null && it.testSucceeded }
+            executedTestSteps.all { it.assertErr == null && it.succeeded }
     }
 
     fun assertAllSucceeded() {
@@ -1349,7 +1355,7 @@ data class TestingResults(
         testSteps.filterIsInstance<ExecutedTestStep>().also {
             check(it.isNotEmpty()) { "No tests were executed" }
         }.forEach {
-            check(it.assertErr == null && it.testSucceeded) { "Test failed: ${it.toJson()}" }
+            check(it.assertErr == null && it.succeeded) { "Test failed: $it" }
         }
     }
 

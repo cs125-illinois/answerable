@@ -98,9 +98,9 @@ class TestAnnotations {
     @Test
     fun `should validate @Next correctly`() {
         val klass = "TestValidateNext".test()
-        assert(klass.declaredMethods.size == 4)
+        assert(klass.declaredMethods.size == 8)
         Next.validate(klass).also { errors ->
-            assert(errors.size == 2)
+            assert(errors.size == 7)
             assert(errors.all { it.kind == AnnotationError.Kind.Next })
             assert(errors.all { it.location.methodName?.contains("broken") ?: false })
         }
