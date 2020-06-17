@@ -6,6 +6,7 @@ import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
+import edu.illinois.cs.cs125.jeed.core.IsolatingClassLoader
 import edu.illinois.cs.cs125.jeed.core.Source
 import edu.illinois.cs.cs125.jeed.core.compile
 import kotlin.random.Random.Default.nextLong
@@ -31,10 +32,9 @@ fun testFromStrings(
 
     val referenceSource = Source(mapOf("Reference.java" to reference))
     val submissionSource = Source(mapOf("Submission.java" to submission))
-
     val commonSource: Source? = common?.run { Source(mapOf("Common.java" to common)) }
 
-    val parentClassLoader = TestingClassLoader(className)
+    val parentClassLoader = IsolatingClassLoader(setOf(className))
 
     val commonCompiledSource = commonSource?.compile(CompilationArguments(parentClassLoader = parentClassLoader))
     val parentClassLoaderIsNow = commonCompiledSource?.classLoader ?: parentClassLoader
@@ -59,23 +59,4 @@ fun testFromStrings(
         submissionClassLoader.loadClass(className),
         bytecodeProvider = answerableBytecodeProvider(submissionClassLoader)
     ).runTests(nextLong(), TestEnvironment(jeedOutputCapturer, jeedSandbox()), testRunnerArgs)
-}
-
-class TestingClassLoader(private val klassName: String) : ClassLoader() {
-    // Invert the usual delegation strategy for classes in this package to avoid using the system ClassLoader
-    override fun loadClass(name: String): Class<*> {
-        return if (name == klassName) {
-            throw ClassNotFoundException()
-        } else {
-            super.loadClass(name)
-        }
-    }
-
-    override fun loadClass(name: String, resolve: Boolean): Class<*> {
-        return if (name == klassName) {
-            throw ClassNotFoundException()
-        } else {
-            super.loadClass(name, resolve)
-        }
-    }
 }

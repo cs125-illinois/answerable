@@ -8,7 +8,7 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.7")
     api(project(":core"))
-    api("com.github.cs125-illinois.jeed:core:2020.6.2")
+    api("com.github.cs125-illinois.jeed:core:${findProperty("jeed_version")}")
     testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
 }
 application {
