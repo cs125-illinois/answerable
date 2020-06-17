@@ -961,7 +961,14 @@ internal class TestRunWorker internal constructor(
                     TestType.Simple -> testingBlockCounts.simpleTests++
                     else -> Unit
                 }
-                result = DiscardedTestStep(i, block, useRefReceiver, refMethodArgs)
+                result = DiscardedTestStep(
+                    iteration = i,
+                    testType = block,
+                    ossifiedReceiver = useRefReceiver.ossify(testGenerator.typePool),
+                    receiver = useRefReceiver,
+                    ossifiedArgs = refMethodArgs.map { it.ossify(testGenerator.typePool) }.toTypedArray(),
+                    args = refMethodArgs
+                )
                 testingBlockCounts.discardedTests++
             }
             synchronized(testStepList) {
@@ -1257,13 +1264,24 @@ class ExecutedTestStep(
 
 /**
  * Represents a discarded test case.
+ *
+ * Test cases can only be discarded by failed preconditions, and preconditions
+ * are always tested using the reference class. Thus, live objects contained
+ * within are always safe.
  */
+// "ossified" fields are needed by the Moshi serializer, but they can only
+// ossified while a type pool is still available. Thus, the test step carries
+// them, even though it isn't necessary to _expose_ them.
 class DiscardedTestStep(
     iteration: Int,
     testType: TestType,
-    /** The receiver object that was passed to the precondition. */
+    /** The (ossified) receiver object that was passed to the precondition. */
+    internal val ossifiedReceiver: OssifiedValue?,
+    /** The (live) receiver object that was passed to the precondition. */
     val receiver: Any?,
-    /** The other arguments that were passed to the precondition. */
+    /** The other (ossified) arguments that were passed to the precondition. */
+    internal val ossifiedArgs: Array<OssifiedValue?>,
+    /** The other (live) arguments that were passed to the precondition. */
     val args: Array<Any?>
 ) : TestStep(iteration, true, testType) {
     override fun equals(other: Any?): Boolean {

@@ -34,7 +34,7 @@ class TestCorrectness {
         )
         result.testSteps.filterIsInstance<ExecutedTestStep>().forEach {
             if (!it.succeeded) {
-                fail(it.toJson())
+                fail(it.toString())
             }
         }
     }
@@ -91,7 +91,7 @@ class TestCorrectness {
         )
         result.testSteps.filterIsInstance<ExecutedTestStep>().forEach {
             if (!it.succeeded) {
-                fail(it.toJson())
+                fail(it.toString())
             }
         }
     }

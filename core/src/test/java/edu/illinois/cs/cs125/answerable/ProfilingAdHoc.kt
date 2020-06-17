@@ -1,9 +1,8 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.api.serialize
+import com.squareup.moshi.Types
 import edu.illinois.cs.cs125.answerable.api.serializer
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAResult
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.classDesignAnalysis
+import edu.illinois.cs.cs125.answerable.api.unsafeSerialize
 import examples.binarytree.reference.YourBinaryTree
 import examples.binarytree.size.ClassicBinaryTreeSizeTest
 import examples.sorting.ClassicSortTest
@@ -13,12 +12,11 @@ import org.junit.jupiter.api.Test
 class AdHoc {
     @Test
     fun `play with serializer`() {
-        val cda = classDesignAnalysis(
-            examples.adder.correct.reference.Adder::class.java,
-            examples.adder.correct.Adder::class.java
+        val r = runAnswerableTest(
+            "examples.adder.correct.Adder",
+            "examples.adder.correct.reference.Adder"
         )
-
-        println(serialize(cda))
+        println(unsafeSerialize(r))
     }
 }
 
