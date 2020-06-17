@@ -1,5 +1,5 @@
 @file: Suppress("TooManyFunctions", "MatchingDeclarationName")
-@file: JvmName("DefaultFrontend")
+@file: JvmName("Serialization")
 package edu.illinois.cs.cs125.answerable.api
 
 import com.squareup.moshi.FromJson
