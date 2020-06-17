@@ -1,8 +1,8 @@
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.api.ossify
-import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
-import edu.illinois.cs.cs125.answerable.typeManagement.mkOpenMirrorClass
+import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
+import edu.illinois.cs.cs125.answerable.classmanipulation.mkOpenMirrorClass
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -31,7 +31,7 @@ class OssificationTest {
 
     @BeforeEach
     fun setup() {
-        typePool = TypePool(bytecodeProvider = null)
+        typePool = TypePool()
     }
 
     @Test

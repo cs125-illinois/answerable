@@ -170,7 +170,7 @@ public class TestServiceJavaApi {
     Assertions.assertTrue(
         results.getTestSteps().stream()
             .filter(ts -> ts instanceof ExecutedTestStep)
-            .anyMatch(ts -> !((ExecutedTestStep) ts).getSucceeded()));
+            .anyMatch(ts -> !((ExecutedTestStep) ts).getTestSucceeded()));
     results =
         answerable
             .buildSubmission("Sort", TestService.SORT_JAVA_SUBMISSION_CODE_LEGITIMATE)

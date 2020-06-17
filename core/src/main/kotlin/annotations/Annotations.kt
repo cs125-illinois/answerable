@@ -5,7 +5,6 @@ package edu.illinois.cs.cs125.answerable.annotations
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.JavaMode
 import edu.illinois.cs.cs125.answerable.KotlinMode
-import edu.illinois.cs.cs125.answerable.SourceLocation
 import io.github.classgraph.ClassGraph
 import java.lang.reflect.Executable
 import java.lang.reflect.Field

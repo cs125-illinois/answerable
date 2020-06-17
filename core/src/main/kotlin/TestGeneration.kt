@@ -13,22 +13,23 @@ import edu.illinois.cs.cs125.answerable.annotations.getTimeout
 import edu.illinois.cs.cs125.answerable.annotations.getVerify
 import edu.illinois.cs.cs125.answerable.annotations.validateAnnotations
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
+import edu.illinois.cs.cs125.answerable.api.DefaultSerializable
 import edu.illinois.cs.cs125.answerable.api.OssifiedTestOutput
 import edu.illinois.cs.cs125.answerable.api.OssifiedValue
 import edu.illinois.cs.cs125.answerable.api.TestOutput
+import edu.illinois.cs.cs125.answerable.api.defaultToJson
 import edu.illinois.cs.cs125.answerable.api.ossify
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAConfig
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAResult
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.answerableName
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.classDesignAnalysis
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.noCDAResult
-import edu.illinois.cs.cs125.answerable.typeManagement.TypePool
-import edu.illinois.cs.cs125.answerable.typeManagement.mkGeneratorMirrorClass
-import edu.illinois.cs.cs125.answerable.typeManagement.mkOpenMirrorClass
-import edu.illinois.cs.cs125.answerable.typeManagement.mkProxy
-import edu.illinois.cs.cs125.answerable.typeManagement.mkValueProxy
-import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
-import edu.illinois.cs.cs125.answerable.typeManagement.verifyMemberAccess
+import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
+import edu.illinois.cs.cs125.answerable.classmanipulation.mkGeneratorMirrorClass
+import edu.illinois.cs.cs125.answerable.classmanipulation.mkOpenMirrorClass
+import edu.illinois.cs.cs125.answerable.classmanipulation.mkProxy
+import edu.illinois.cs.cs125.answerable.classmanipulation.mkValueProxy
+import edu.illinois.cs.cs125.answerable.classmanipulation.verifyMemberAccess
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.opentest4j.AssertionFailedError
 import java.lang.IllegalStateException
@@ -1340,6 +1341,16 @@ data class TestingResults(
     /** The list of [TestStep]s that were performed during this test run. */
     val testSteps: List<TestStep>
 ) {
+    @delegate:Transient
+    val executedTestSteps: List<ExecutedTestStep> by lazy { testSteps.filterIsInstance<ExecutedTestStep>() }
+
+    @delegate:Transient
+    val succeeded: Boolean by lazy {
+        classDesignAnalysisResult.allMatch &&
+            executedTestSteps.isNotEmpty() &&
+            executedTestSteps.all { it.assertErr == null && it.testSucceeded }
+    }
+
     fun assertAllSucceeded() {
         check(classDesignAnalysisResult.allMatch) { "Class design analysis failed" }
 

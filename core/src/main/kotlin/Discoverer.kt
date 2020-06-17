@@ -8,9 +8,6 @@ import edu.illinois.cs.cs125.answerable.annotations.Next
 import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.UseGenerator
-import edu.illinois.cs.cs125.answerable.annotations.Verify
-import edu.illinois.cs.cs125.answerable.typeManagement.correspondsTo
-import edu.illinois.cs.cs125.answerable.typeManagement.sourceName
 import java.lang.IllegalStateException
 import java.lang.reflect.Field
 import java.lang.reflect.GenericArrayType
@@ -18,21 +15,6 @@ import java.lang.reflect.Member
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
-
-fun String.load(): Class<*> = Class.forName(this)
-
-internal fun Class<*>.getReferenceSolutionMethod(name: String = ""): Method? {
-    return this.declaredMethods.filter {
-        it.getAnnotation(Solution::class.java)?.name?.equals(name) ?: false
-    }.let { methods ->
-        if (methods.isEmpty()) {
-            return null
-        } else if (methods.size > 1) {
-            throw AnswerableMisuseException("Can't find singular solution method with tag `$name'.")
-        }
-        methods.first().also { it.isAccessible = true }
-    }
-}
 
 internal fun Method.isPrinter(): Boolean = this.getAnnotation(Solution::class.java)?.prints ?: false
 
@@ -145,17 +127,6 @@ internal fun Class<*>.getAtNext(enabledNames: Array<String>): Method? =
             }
         }
         ?: this.getDefaultAtNext()
-
-internal fun Class<*>.getCustomVerifier(name: String): Method? =
-    this.declaredMethods
-        .filter { it.getAnnotation(Verify::class.java)?.name?.equals(name) ?: false }
-        .let { verifiers ->
-            when (verifiers.size) {
-                0 -> null
-                1 -> verifiers[0].also { it.isAccessible = true }
-                else -> throw AnswerableMisuseException("Found multiple @Verify annotations with name `$name'.")
-            }
-        }
 
 // We use this class so that we can manipulate Fields and Methods at the same time,
 // as it is an erroneous conflict to provide both a field and a method for the same type's edge or corner cases.

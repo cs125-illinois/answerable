@@ -14,7 +14,7 @@ import edu.illinois.cs.cs125.answerable.annotations.Verify
 import edu.illinois.cs.cs125.answerable.publicFields
 import edu.illinois.cs.cs125.answerable.publicInnerClasses
 import edu.illinois.cs.cs125.answerable.publicMethods
-import edu.illinois.cs.cs125.answerable.typeManagement.simpleSourceName
+import edu.illinois.cs.cs125.answerable.simpleSourceName
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -232,6 +232,7 @@ fun Class<*>.innerClassesMatch(
     return Pair(nameMatcher, recursiveAnalysis.toMap())
 }
 
+@Suppress("LongParameterList")
 class CDAConfig(
     val checkName: Boolean = true,
     val checkKind: Boolean = true,

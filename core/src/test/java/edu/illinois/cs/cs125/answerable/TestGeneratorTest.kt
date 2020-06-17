@@ -16,7 +16,7 @@ internal class TestGeneratorTest {
     fun testMutableArguments() {
         val tg = PassedClassDesignRunner(examples.testgeneration.mutablearguments.reference.Array::class.java, examples.testgeneration.mutablearguments.Array::class.java)
         val output = tg.runTestsUnsecured(0x0403)
-        assertTrue(output.testSteps.all { (it as ExecutedTestStep).succeeded })
+        assertTrue(output.testSteps.all { (it as ExecutedTestStep).testSucceeded })
     }
 
     @Test
@@ -154,7 +154,7 @@ internal class TestGeneratorTest {
         val out = tr.runTestsUnsecured(Random.nextLong())
 
         assertFalse(out.timedOut, "Testing timed out: ")
-        assertTrue(out.testSteps.all { it as ExecutedTestStep; it.succeeded && it.refOutput.threw == null })
+        assertTrue(out.testSteps.all { it as ExecutedTestStep; it.testSucceeded && it.refOutput.threw == null })
     }
 
     @Test
@@ -174,7 +174,7 @@ internal class TestGeneratorTest {
 
         out.assertAllSucceeded()
 
-        assertTrue(out.testSteps.any { it as ExecutedTestStep; it.succeeded && it.refOutput.output?.value == "true" })
+        assertTrue(out.testSteps.any { it as ExecutedTestStep; it.testSucceeded && it.refOutput.output?.value == "true" })
     }
 
     @Test
@@ -295,8 +295,8 @@ internal class TestGeneratorTest {
         val out = TestGenerator(examples.lastten.correct.reference.LastTen::class.java)
             .loadSubmission(examples.lastten.correct.LastTen::class.java)
             .runTestsUnsecured(Random.nextLong())
-        out.testSteps.filterIsInstance<ExecutedTestStep>().filter { !it.succeeded }.forEach { println(it.assertErr) }
-        assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+        out.testSteps.filterIsInstance<ExecutedTestStep>().filter { !it.testSucceeded }.forEach { println(it.assertErr) }
+        assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().all { it.testSucceeded })
     }
 
     @Test
@@ -308,7 +308,7 @@ internal class TestGeneratorTest {
         val out = TestGenerator(examples.lastten.correct.reference.LastTen::class.java)
             .loadSubmission(examples.lastten.persistentstatic.LastTen::class.java)
             .runTestsUnsecured(Random.nextLong())
-        assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
+        assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.testSucceeded })
     }
 
     @Test
@@ -320,7 +320,7 @@ internal class TestGeneratorTest {
         val out = TestGenerator(examples.lastten.correct.reference.LastTen::class.java)
             .loadSubmission(examples.lastten.reinitstatic.LastTen::class.java)
             .runTestsUnsecured(Random.nextLong())
-        assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
+        assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.testSucceeded })
     }
 
     @Test // TODO: Implement the GENERATION_FAILED behavior then enable this test
@@ -330,6 +330,6 @@ internal class TestGeneratorTest {
             examples.proxy.reference.Widget::class.java,
             examples.proxy.ExplodingCtorWidget::class.java
         ).runTestsUnsecured(0x0403)
-        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
+        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.testSucceeded })
     }
 }

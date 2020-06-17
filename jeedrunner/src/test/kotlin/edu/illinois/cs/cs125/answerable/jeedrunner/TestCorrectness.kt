@@ -1,6 +1,7 @@
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
 import edu.illinois.cs.cs125.answerable.ExecutedTestStep
+import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -124,32 +125,32 @@ class TestCorrectness {
     }
 
     @Test
-    fun testAdderrPackageCollision() {
-        // Requires examples/Adderr.java to exist
+    fun testPrinterrPackageCollision() {
+        // Requires examples/Printerr.java to exist
         val result = testFromStrings(
             reference =
                 """
             package examples;
             import edu.illinois.cs.cs125.answerable.annotations.Solution;
-            public class Adderr {
-                @Solution
-                public static int add(int a, int b) {
-                    return a + b;
+            public class Printerr {
+                @Solution(prints=true)
+                public static void welcome() {
+                  System.out.println("Jeed");
                 }
             }
                 """.trimIndent(),
             submission =
                 """
             package examples;
-            public class Adderr {
-                public static int add(int a, int b) {
-                    return a + Math.abs(b);
+            public class Printerr {
+                public static void welcome() {
+                  System.out.println("Incorrect");
                 }
             }
                 """.trimIndent(),
-            className = "examples.Adderr"
+            className = "examples.Printerr",
+            testRunnerArgs = TestRunnerArgs(1)
         )
-        assertTrue(result.classDesignAnalysisResult.allMatch)
-        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
+        result.assertSomethingFailed()
     }
 }

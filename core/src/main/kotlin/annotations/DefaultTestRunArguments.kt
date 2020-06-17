@@ -1,6 +1,5 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
-import edu.illinois.cs.cs125.answerable.SourceLocation
 import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import java.lang.reflect.Method
 
@@ -14,6 +13,7 @@ import java.lang.reflect.Method
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
+@Suppress("LongParameterList")
 annotation class DefaultTestRunArguments(
     val numTests: Int = -1,
     val maxDiscards: Int = -1,

@@ -4,7 +4,6 @@ package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.JavaMode
-import edu.illinois.cs.cs125.answerable.SourceLocation
 import edu.illinois.cs.cs125.answerable.isStatic
 
 /**
@@ -71,7 +70,10 @@ annotation class Precondition(
                 if (message == null) {
                     null
                 } else {
-                    AnnotationError(AnnotationError.Kind.Precondition, SourceLocation(method), message)
+                    AnnotationError(
+                        AnnotationError.Kind.Precondition,
+                        SourceLocation(method), message
+                    )
                 }
             }
         }
