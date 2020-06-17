@@ -174,7 +174,7 @@ internal class TestingResultsAdapter {
     fun fromJson(unused: String): TestingResults =
         throw UnsupportedOperationException("Can't deserialize TestingResults")
 
-    @Suppress("unused")
+    @Suppress("unused", "LongParameterList")
     class SerializableTestingResults(
         val seed: Long,
         val solutionName: String,
