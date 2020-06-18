@@ -323,6 +323,24 @@ internal class TestGeneratorTest {
         assertTrue(out.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
     }
 
+    @Test
+    fun `assertErr == null iff succeeded`() {
+        assertClassDesignPasses(
+            examples.testgeneration.reference.HalfRight::class.java,
+            examples.testgeneration.HalfRight::class.java
+        )
+        val results = TestGenerator(examples.testgeneration.reference.HalfRight::class.java)
+            .loadSubmission(examples.testgeneration.HalfRight::class.java)
+            .runTestsUnsecured(Random.nextLong())
+        assertTrue(results.executedTestSteps.any { it.succeeded })
+        assertTrue(results.executedTestSteps.any { !it.succeeded })
+        assertTrue(
+            results.executedTestSteps.all {
+                (it.succeeded && it.assertErr == null) || (!it.succeeded && it.assertErr != null)
+            }
+        )
+    }
+
     @Test // TODO: Implement the GENERATION_FAILED behavior then enable this test
     @Disabled("will fail until the GENERATION_FAILED behavior is assessed")
     fun testGenerationFailed() {
