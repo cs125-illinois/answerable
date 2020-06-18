@@ -2,10 +2,11 @@ package edu.illinois.cs.cs125.answerable.jeedrunner
 
 import edu.illinois.cs.cs125.answerable.ExecutedTestStep
 import edu.illinois.cs.cs125.answerable.InvertedClassloader
+import edu.illinois.cs.cs125.answerable.TestEnvironment
 import edu.illinois.cs.cs125.answerable.TestGenerator
 import edu.illinois.cs.cs125.answerable.TestRunnerArgs
+import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
-import edu.illinois.cs.cs125.answerable.runTestsUnsecured
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
 import edu.illinois.cs.cs125.jeed.core.JeedClassLoader
 import edu.illinois.cs.cs125.jeed.core.Source
@@ -161,36 +162,5 @@ class TestCorrectness {
             testRunnerArgs = TestRunnerArgs(1)
         )
         result.assertSomethingFailed()
-    }
-
-
-    @Test
-    fun testMirroringClassOnSystemClasspath() {
-        // Depends on examples.Printerr existing on the class path
-        val jeedClass = Source(
-            mapOf(
-                "Printerr.java" to """
-                    package examples;
-    
-                    public class Printerr {
-                        public static void welcome() {
-                            System.out.println("Jeed");
-                        }
-                    }
-                """.trimIndent()
-            )
-        ).compile(CompilationArguments(parentClassLoader = InvertedClassloader("examples.Printerr")))
-            .classLoader.loadClass("examples.Printerr")
-
-        val bytecodeProvider = object : BytecodeProvider {
-            override fun getBytecode(clazz: Class<*>): ByteArray {
-                return (jeedClass.classLoader as JeedClassLoader).bytecodeForClass(clazz.name)
-            }
-        }
-
-        TestGenerator(examples.Printerr::class.java, bytecodeProvider = bytecodeProvider)
-            .loadSubmission(jeedClass)
-            .runTestsUnsecured(Random.nextLong())
-            .assertSomethingFailed()
     }
 }
