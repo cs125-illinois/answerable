@@ -9,8 +9,8 @@ class KotlinTest {
 
     @Test
     fun testLanguageModeDetection() {
-        Assertions.assertSame(JavaMode, getLanguageMode(Adder::class.java))
-        Assertions.assertSame(KotlinMode, getLanguageMode(KtPrecondition::class.java))
+        Assertions.assertSame(JavaMode, Adder::class.java.languageMode())
+        Assertions.assertSame(KotlinMode, KtPrecondition::class.java.languageMode())
     }
 
     @Test

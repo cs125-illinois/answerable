@@ -5,6 +5,7 @@ package edu.illinois.cs.cs125.answerable.annotations
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.JavaMode
 import edu.illinois.cs.cs125.answerable.KotlinMode
+import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import io.github.classgraph.ClassGraph
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -17,7 +18,7 @@ data class AnnotationError(val kind: Kind, val location: SourceLocation, val mes
     }
 }
 
-internal fun Class<*>.validateAnnotations() {
+internal fun Class<*>.validateAnnotations(typePool: TypePool = TypePool()) {
     val annotationErrors = mutableListOf<AnnotationError>()
 
     annotationErrors.addAll(Solution.validate(this))
@@ -33,7 +34,9 @@ internal fun Class<*>.validateAnnotations() {
     if (annotationErrors.isEmpty()) {
         return
     } else {
-        throw AnswerableMisuseException(annotationErrors.joinToString(separator = ","))
+        throw AnswerableMisuseException(
+            annotationErrors.joinToString(separator = ",") { "${it.location}: ${it.message}"}
+        )
     }
 }
 
@@ -166,10 +169,3 @@ internal fun List<Method>.duplicateSolutionNames() = this
     .eachCount()
     .filter { (_, count) -> count > 1 }
     .values
-
-internal fun Class<*>.languageMode() =
-    if (isAnnotationPresent(Metadata::class.java)) {
-        KotlinMode
-    } else {
-        JavaMode
-    }

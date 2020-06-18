@@ -78,7 +78,7 @@ class TestGenerator(
     // "Usable" members are from the opened (un-final-ified) mirror of the original reference class.
     // The original members are used for certain checks so a nice class name can be displayed.
 
-    private val languageMode = getLanguageMode(referenceClass)
+    private val languageMode = referenceClass.languageMode()
     internal val typePool = TypePool(
         bytecodeProvider,
         if (referenceClass.classLoader == javaClass.classLoader) {
