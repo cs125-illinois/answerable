@@ -1,5 +1,7 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
+import edu.illinois.cs.cs125.answerable.KotlinMode
+import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import org.junit.jupiter.api.Test
 
 private fun String.test(): Class<*> {
@@ -50,6 +52,23 @@ class TestAnnotations {
         findAnnotation(Precondition::class.java, "examples").also { klasses ->
             assert(klasses.isNotEmpty())
             assert(klasses.all { klass -> Precondition.validate(klass).isEmpty() })
+        }
+    }
+
+    @Test
+    fun `should validate @Precondition correctly in Kotlin`() {
+        "TestValidatePreconditionKt".test().also { klass ->
+            assert(KotlinMode.findControlClass(klass, TypePool())!!
+                .declaredMethods.hasAnyAnnotation(Precondition::class.java).size == 2)
+            Precondition.validate(klass).also { errors ->
+                assert(errors.size == 1)
+                assert(errors.all { it.kind == AnnotationError.Kind.Precondition })
+                assert(
+                    errors.all {
+                        it.location.methodName?.contains("broken") ?: false
+                    }
+                )
+            }
         }
     }
 
