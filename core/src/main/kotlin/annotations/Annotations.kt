@@ -3,8 +3,6 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
-import edu.illinois.cs.cs125.answerable.JavaMode
-import edu.illinois.cs.cs125.answerable.KotlinMode
 import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import io.github.classgraph.ClassGraph
 import java.lang.reflect.Executable
@@ -112,6 +110,18 @@ internal fun Field.ifHasAnnotation(
         null
     }
 }
+
+// TODO:
+// How I envision this looking from the perspective of an annotation is that it can call either
+// `validateReferenceAnnotation` or `validateControlAnnotation`. But then they need access to a TypePool.
+// Note that everything is a control annotation except @Solution, and that @DefaultTestRunArguments and @Timeout
+// can be either or even both.
+//
+// I feel like the right way to do this is to make the validation methods take a context instead of just a reference
+// class, and the context, created in `Class<*>.validateAnnotations` above, holds onto the reference class
+// and the control class. This is also easier to extend in the future.
+//
+// Under this, `validateReferenceAnnotation` and `validateControlAnnotation` become methods of the context.
 
 internal fun Class<*>.validateAnnotations(
     methodValidator: ((method: Method) -> AnnotationError?)? = null,
