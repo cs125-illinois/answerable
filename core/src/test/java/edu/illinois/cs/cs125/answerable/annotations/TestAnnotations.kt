@@ -104,6 +104,7 @@ class TestAnnotations {
             assert(errors.all { it.kind == AnnotationError.Kind.Next })
             assert(errors.all { it.location.methodName?.contains("broken") ?: false })
         }
+
         findAnnotation(Next::class.java, "examples").also { klasses ->
             klasses.forEach {
                 val errors = Next.validate(it)
@@ -113,6 +114,16 @@ class TestAnnotations {
             }
             assert(klasses.isNotEmpty())
             assert(klasses.all { klass -> Next.validate(klass).isEmpty() })
+        }
+    }
+
+    @Test
+    fun `should validate @Next correctly in Kotlin`() {
+        val klassKt = "TestValidateNextKt".test()
+        Next.validate(klassKt).also { errors ->
+            assert(errors.size == 2)
+            assert(errors.all { it.kind == AnnotationError.Kind.Next })
+            assert(errors.all { it.location.methodName?.contains("broken") ?: false })
         }
     }
 
