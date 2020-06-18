@@ -24,6 +24,7 @@ dependencies {
     implementation("io.github.classgraph:classgraph:4.8.86")
 
     testImplementation("com.marcinmoskala:DiscreteMathToolkit:1.0.3")
+    testImplementation("com.github.cs125-illinois.jeed:core:${findProperty("jeed_version")}")
 }
 tasks.dokka {
     outputFormat = "html"
