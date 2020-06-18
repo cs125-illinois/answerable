@@ -1346,7 +1346,7 @@ data class TestingResults(
     val succeeded: Boolean by lazy {
         classDesignAnalysisResult.allMatch &&
             executedTestSteps.isNotEmpty() &&
-            executedTestSteps.all { it.assertErr == null && it.succeeded }
+            executedTestSteps.all { it.succeeded }
     }
 
     fun assertAllSucceeded() {
@@ -1355,7 +1355,7 @@ data class TestingResults(
         testSteps.filterIsInstance<ExecutedTestStep>().also {
             check(it.isNotEmpty()) { "No tests were executed" }
         }.forEach {
-            check(it.assertErr == null && it.succeeded) { "Test failed: $it" }
+            check(it.succeeded) { "Test failed: $it" }
         }
     }
 
