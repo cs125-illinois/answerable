@@ -40,7 +40,7 @@ annotation class Generator(
     companion object {
         private val parameterTypes = arrayOf(Int::class.java, java.util.Random::class.java)
 
-        fun validate(klass: Class<*>) = klass.validateAnnotations(::validateMethod)
+        fun validate(klass: Class<*>) = klass.validateMembers(::validateMethod)
 
         fun validateMethod(m: Method) = m.ifHasAnnotation(Generator::class.java) { method ->
             val message = if (!method.isStatic()) {

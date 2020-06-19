@@ -5,6 +5,7 @@ package edu.illinois.cs.cs125.answerable.annotations
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.JavaMode
 import edu.illinois.cs.cs125.answerable.isStatic
+import edu.illinois.cs.cs125.answerable.languageMode
 
 /**
  * Marks a function as a precondition check on a set of arguments, allowing you to discard test cases which don't meet

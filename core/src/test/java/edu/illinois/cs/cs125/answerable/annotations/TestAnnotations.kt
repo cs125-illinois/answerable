@@ -1,5 +1,7 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
+import edu.illinois.cs.cs125.answerable.KotlinMode
+import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import org.junit.jupiter.api.Test
 
 private fun String.test(): Class<*> {
@@ -54,6 +56,25 @@ class TestAnnotations {
     }
 
     @Test
+    fun `should validate @Precondition correctly in Kotlin`() {
+        "TestValidatePreconditionKt".test().also { klass ->
+            assert(
+                KotlinMode.findControlClass(klass, TypePool())!!
+                    .declaredMethods.hasAnyAnnotation(Precondition::class.java).size == 2
+            )
+            Precondition.validate(klass).also { errors ->
+                assert(errors.size == 1)
+                assert(errors.all { it.kind == AnnotationError.Kind.Precondition })
+                assert(
+                    errors.all {
+                        it.location.methodName?.contains("broken") ?: false
+                    }
+                )
+            }
+        }
+    }
+
+    @Test
     fun `should validate @Verify correctly`() {
         "TestValidateVerify".test().also { klass ->
             assert(klass.declaredMethods.hasAnyAnnotation(Verify::class.java).size == 3)
@@ -104,6 +125,7 @@ class TestAnnotations {
             assert(errors.all { it.kind == AnnotationError.Kind.Next })
             assert(errors.all { it.location.methodName?.contains("broken") ?: false })
         }
+
         findAnnotation(Next::class.java, "examples").also { klasses ->
             klasses.forEach {
                 val errors = Next.validate(it)
@@ -113,6 +135,16 @@ class TestAnnotations {
             }
             assert(klasses.isNotEmpty())
             assert(klasses.all { klass -> Next.validate(klass).isEmpty() })
+        }
+    }
+
+    @Test
+    fun `should validate @Next correctly in Kotlin`() {
+        val klassKt = "TestValidateNextKt".test()
+        Next.validate(klassKt).also { errors ->
+            assert(errors.size == 2)
+            assert(errors.all { it.kind == AnnotationError.Kind.Next })
+            assert(errors.all { it.location.methodName?.contains("broken") ?: false })
         }
     }
 

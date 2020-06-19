@@ -45,6 +45,10 @@ internal object KotlinMode : LanguageMode {
         getDefiningKotlinFileClass(clazz, typePool)
 }
 
-internal fun getLanguageMode(clazz: Class<*>): LanguageMode {
-    return if (clazz.isAnnotationPresent(Metadata::class.java)) KotlinMode else JavaMode
-}
+// This is used in the Precondition verifier, but it really shouldn't be.
+internal fun Class<*>.languageMode() =
+    if (isAnnotationPresent(Metadata::class.java)) {
+        KotlinMode
+    } else {
+        JavaMode
+    }

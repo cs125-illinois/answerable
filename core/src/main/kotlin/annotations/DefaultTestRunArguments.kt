@@ -25,7 +25,7 @@ annotation class DefaultTestRunArguments(
     val maxComplexity: Int = -1
 ) {
     companion object {
-        fun validate(klass: Class<*>) = klass.validateAnnotations(::validateMethod)
+        fun validate(klass: Class<*>) = klass.validateMembers(::validateMethod)
 
         fun validateMethod(m: Method) = m.ifHasAnnotation(DefaultTestRunArguments::class.java) { method ->
             val message = if (method.isAnnotationPresent(Verify::class.java)) {

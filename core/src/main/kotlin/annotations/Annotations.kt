@@ -3,8 +3,7 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
-import edu.illinois.cs.cs125.answerable.JavaMode
-import edu.illinois.cs.cs125.answerable.KotlinMode
+import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import io.github.classgraph.ClassGraph
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -17,7 +16,7 @@ data class AnnotationError(val kind: Kind, val location: SourceLocation, val mes
     }
 }
 
-internal fun Class<*>.validateAnnotations() {
+internal fun Class<*>.validateAnnotations(typePool: TypePool = TypePool()) {
     val annotationErrors = mutableListOf<AnnotationError>()
 
     annotationErrors.addAll(Solution.validate(this))
@@ -33,9 +32,13 @@ internal fun Class<*>.validateAnnotations() {
     if (annotationErrors.isEmpty()) {
         return
     } else {
-        throw AnswerableMisuseException(annotationErrors.joinToString(separator = ","))
+        throw AnswerableMisuseException(
+            annotationErrors.joinToString(separator = ",") { "${it.location}: ${it.message}" }
+        )
     }
 }
+
+data class ValidateContext(val referenceClass: Class<*>, val controlClass: Class<*>)
 
 internal fun Method.validateCase(): String? {
     return if (!Modifier.isStatic(modifiers)) {
@@ -110,7 +113,59 @@ internal fun Field.ifHasAnnotation(
     }
 }
 
-internal fun Class<*>.validateAnnotations(
+// TODO:
+// How I envision this looking from the perspective of an annotation is that it can call either
+// `validateReferenceAnnotation` or `validateControlAnnotation`. But then they need access to a TypePool.
+// Note that everything is a control annotation except @Solution, and that @DefaultTestRunArguments and @Timeout
+// can be either or even both.
+//
+// I feel like the right way to do this is to make the validation methods take a context instead of just a reference
+// class, and the context, created in `Class<*>.validateAnnotations` above, holds onto the reference class
+// and the control class. This is also easier to extend in the future.
+//
+// Under this, `validateReferenceAnnotation` and `validateControlAnnotation` become methods of the context.
+
+internal fun ValidateContext.validateReferenceAnnotation(
+    annotationClass: Class<out Annotation>,
+    methodValidator: ((method: Method) -> AnnotationError?)? = null,
+    fieldValidator: ((field: Field) -> AnnotationError?)? = null
+): List<AnnotationError> = this.referenceClass.validateAnnotation(annotationClass, methodValidator, fieldValidator)
+
+/**
+ * If the validator needs access to the reference class, it may caputure the ValidateContext in the validators.
+ */
+internal fun ValidateContext.validateControlAnnotation(
+    annotationClass: Class<out Annotation>,
+    methodValidator: ((method: Method) -> AnnotationError?)? = null,
+    fieldValidator: ((field: Field) -> AnnotationError?)? = null
+): List<AnnotationError> = this.controlClass.validateAnnotation(annotationClass, methodValidator, fieldValidator)
+
+internal fun ValidateContext.validateAnnotation(
+    annotationClass: Class<out Annotation>,
+    methodValidator: ((method: Method) -> AnnotationError?)? = null,
+    fieldValidator: ((field: Field) -> AnnotationError?)? = null
+): List<AnnotationError> =
+    this.validateReferenceAnnotation(annotationClass, methodValidator, fieldValidator) +
+        this.validateControlAnnotation(annotationClass, methodValidator, fieldValidator)
+
+internal fun Class<*>.validateAnnotation(
+    annotationClass: Class<out Annotation>,
+    methodValidator: ((method: Method) -> AnnotationError?)? = null,
+    fieldValidator: ((field: Field) -> AnnotationError?)? = null
+) = this.validateMembers(
+    methodValidator = methodValidator?.let { mv ->
+        { method: Method ->
+            method.ifHasAnnotation(annotationClass, mv)
+        }
+    },
+    fieldValidator = fieldValidator?.let { fv ->
+        { field: Field ->
+            field.ifHasAnnotation(annotationClass, fv)
+        }
+    }
+)
+
+internal fun Class<*>.validateMembers(
     methodValidator: ((method: Method) -> AnnotationError?)? = null,
     fieldValidator: ((field: Field) -> AnnotationError?)? = null
 ): List<AnnotationError> {
@@ -128,6 +183,8 @@ const val DEFAULT_EMPTY_NAME = "(empty)"
 
 private val namedAnnotations = listOf(Solution::class.java, Precondition::class.java, Verify::class.java)
 
+// TODO: `require` throws IllegalArgumentExceptions... do we want AnswerableMisuseExceptions? I think so.
+// note that the last `require` is actually a panic condition and should be an IllegalStateException.
 internal fun Executable.solutionName(): String {
     val namingAnnotation = namedAnnotations.filter { isAnnotationPresent(it) }.let {
         require(it.isNotEmpty()) { "Can't find naming annotation for $name" }
@@ -166,10 +223,3 @@ internal fun List<Method>.duplicateSolutionNames() = this
     .eachCount()
     .filter { (_, count) -> count > 1 }
     .values
-
-internal fun Class<*>.languageMode() =
-    if (isAnnotationPresent(Metadata::class.java)) {
-        KotlinMode
-    } else {
-        JavaMode
-    }

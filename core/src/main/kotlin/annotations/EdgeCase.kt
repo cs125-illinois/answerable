@@ -29,7 +29,7 @@ annotation class EdgeCase(
     val name: String = ""
 ) {
     companion object {
-        fun validate(klass: Class<*>) = klass.validateAnnotations(::validateMethod, ::validateField)
+        fun validate(klass: Class<*>) = klass.validateMembers(::validateMethod, ::validateField)
 
         fun validateMethod(m: Method) = m.ifHasAnnotation(EdgeCase::class.java) { method ->
             val message = if (method.isAnnotationPresent(SimpleCase::class.java)) {
