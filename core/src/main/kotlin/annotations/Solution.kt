@@ -43,7 +43,7 @@ annotation class Solution(
                         )
                     )
                 } else {
-                    klass.validateAnnotations(::validateMethod)
+                    klass.validateMembers(::validateMethod)
                 }
             }
         }

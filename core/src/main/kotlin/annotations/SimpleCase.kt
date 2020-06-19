@@ -25,7 +25,7 @@ annotation class SimpleCase(
     val name: String = ""
 ) {
     companion object {
-        fun validate(klass: Class<*>) = klass.validateAnnotations(::validateMethod, ::validateField)
+        fun validate(klass: Class<*>) = klass.validateMembers(::validateMethod, ::validateField)
 
         fun validateMethod(m: Method) = m.ifHasAnnotation(SimpleCase::class.java) { method ->
             val message = if (method.isAnnotationPresent(EdgeCase::class.java)) {

@@ -58,8 +58,10 @@ class TestAnnotations {
     @Test
     fun `should validate @Precondition correctly in Kotlin`() {
         "TestValidatePreconditionKt".test().also { klass ->
-            assert(KotlinMode.findControlClass(klass, TypePool())!!
-                .declaredMethods.hasAnyAnnotation(Precondition::class.java).size == 2)
+            assert(
+                KotlinMode.findControlClass(klass, TypePool())!!
+                    .declaredMethods.hasAnyAnnotation(Precondition::class.java).size == 2
+            )
             Precondition.validate(klass).also { errors ->
                 assert(errors.size == 1)
                 assert(errors.all { it.kind == AnnotationError.Kind.Precondition })
