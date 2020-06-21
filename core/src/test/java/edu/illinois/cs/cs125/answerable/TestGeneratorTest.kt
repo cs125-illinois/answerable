@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.testing.CustomGen
 import examples.testgeneration.validation.reference.Adder
 import examples.testgeneration.validation.reference.ArgsOnStandaloneVerify
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -349,5 +350,10 @@ internal class TestGeneratorTest {
             examples.proxy.ExplodingCtorWidget::class.java
         ).runTestsUnsecured(0x0403)
         assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { !it.succeeded })
+    }
+
+    @Test
+    fun testDefaultGeneratorOnType() {
+        TestGenerator(examples.testgeneration.generators.reference.DefaultGeneratorOnType::class.java)
     }
 }

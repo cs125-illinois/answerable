@@ -3,6 +3,7 @@ package edu.illinois.cs.cs125.answerable.annotations
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
 import edu.illinois.cs.cs125.answerable.isStatic
+import edu.illinois.cs.cs125.answerable.sourceName
 import java.lang.reflect.Method
 
 /**
@@ -73,3 +74,35 @@ annotation class Generator(
 annotation class UseGenerator(
     val name: String
 )
+
+internal fun Class<*>.getAllGenerators(): List<Method> =
+    this.declaredMethods
+        .filter { method -> method.isAnnotationPresent(Generator::class.java) }
+        .map { it.isAccessible = true; it }
+
+internal fun Class<*>.getEnabledGenerators(enabledNames: Array<String>): List<Method> =
+    this.declaredMethods
+        .filter { it.isAnnotationPresent(Generator::class.java) }
+        .groupBy { it.genericReturnType }
+        .flatMap { entry ->
+            when (entry.value.size) {
+                1 -> entry.value
+                else -> {
+                    entry.value
+                        .filter { it.getAnnotation(Generator::class.java).name in enabledNames }
+                        .let { enabledGenerators ->
+                            when (enabledGenerators.size) {
+                                1 -> enabledGenerators
+                                else -> {
+                                    val name = entry.key.sourceName
+                                    throw AnswerableMisuseException(
+                                        "Failed to resolve @Generator conflict:\n" +
+                                            "Multiple enabled generators found for type `$name'."
+                                    )
+                                }
+                            }
+                        }
+                }
+            }
+        }
+        .map { it.isAccessible = true; it }

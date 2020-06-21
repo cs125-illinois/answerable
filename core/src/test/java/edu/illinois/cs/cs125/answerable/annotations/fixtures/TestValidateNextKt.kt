@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_PARAMETER")
+
 package edu.illinois.cs.cs125.answerable.annotations.fixtures
 
 import edu.illinois.cs.cs125.answerable.annotations.Next

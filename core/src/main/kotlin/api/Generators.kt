@@ -3,16 +3,16 @@
 
 package edu.illinois.cs.cs125.answerable.api
 
-import edu.illinois.cs.cs125.answerable.DefaultStringGen
-import edu.illinois.cs.cs125.answerable.defaultAsciiGen
-import edu.illinois.cs.cs125.answerable.defaultByteGen
-import edu.illinois.cs.cs125.answerable.defaultCharGen
-import edu.illinois.cs.cs125.answerable.defaultDoubleGen
-import edu.illinois.cs.cs125.answerable.defaultFloatGen
-import edu.illinois.cs.cs125.answerable.defaultIntGen
-import edu.illinois.cs.cs125.answerable.defaultLongGen
-import edu.illinois.cs.cs125.answerable.defaultShortGen
-import edu.illinois.cs.cs125.answerable.invoke
+import edu.illinois.cs.cs125.answerable.testing.DefaultStringGen
+import edu.illinois.cs.cs125.answerable.testing.defaultAsciiGen
+import edu.illinois.cs.cs125.answerable.testing.defaultByteGen
+import edu.illinois.cs.cs125.answerable.testing.defaultCharGen
+import edu.illinois.cs.cs125.answerable.testing.defaultDoubleGen
+import edu.illinois.cs.cs125.answerable.testing.defaultFloatGen
+import edu.illinois.cs.cs125.answerable.testing.defaultIntGen
+import edu.illinois.cs.cs125.answerable.testing.defaultLongGen
+import edu.illinois.cs.cs125.answerable.testing.defaultShortGen
+import edu.illinois.cs.cs125.answerable.testing.invoke
 import java.util.Random
 
 /**

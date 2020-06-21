@@ -1,4 +1,4 @@
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.testing
 
 import edu.illinois.cs.cs125.answerable.api.defaultIntGenerator
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -32,7 +32,12 @@ class GeneratorsTest {
     @Test
     fun testLongGenRange() {
         val numbers = (0 until Int.SIZE_BITS).flatMap { bit ->
-            (0 until 10).map { defaultLongGen(1 shl bit, random) }
+            (0 until 10).map {
+                defaultLongGen(
+                    1 shl bit,
+                    random
+                )
+            }
         }
         assertTrue(numbers.any { it < 0 })
         assertTrue(numbers.any { it > 0 })
@@ -44,14 +49,20 @@ class GeneratorsTest {
     @Test
     fun testFloatGenFinite() {
         repeat(200) {
-            val result = defaultFloatGen(it * it * it, random)
+            val result =
+                defaultFloatGen(it * it * it, random)
             assertTrue(result.isFinite()) { "Generated non-finite $result on iteration $it" }
         }
     }
 
     @Test
     fun testFloatGenRange() {
-        val numbers = (0 until 400).map { defaultFloatGen(it, random) }
+        val numbers = (0 until 400).map {
+            defaultFloatGen(
+                it,
+                random
+            )
+        }
         assertTrue(numbers.any { it.absoluteValue < 200 })
         assertTrue(numbers.any { it > 200 })
         assertTrue(numbers.any { it < -200 })
@@ -60,14 +71,20 @@ class GeneratorsTest {
     @Test
     fun testDoubleGenFinite() {
         repeat(200) {
-            val result = defaultDoubleGen(it * it * it, random)
+            val result =
+                defaultDoubleGen(it * it * it, random)
             assertTrue(result.isFinite()) { "Generated non-finite $result on iteration $it" }
         }
     }
 
     @Test
     fun testDoubleGenRange() {
-        val numbers = (0 until 400).map { defaultDoubleGen(it, random) }
+        val numbers = (0 until 400).map {
+            defaultDoubleGen(
+                it,
+                random
+            )
+        }
         assertTrue(numbers.any { it.absoluteValue < 200 })
         assertTrue(numbers.any { it > 200 })
         assertTrue(numbers.any { it < -200 })
@@ -83,7 +100,12 @@ class GeneratorsTest {
 
     @Test
     fun testUnicodeGenRange() {
-        val chars = (0 until 200).map { defaultCharGen(it, random) }
+        val chars = (0 until 200).map {
+            defaultCharGen(
+                it,
+                random
+            )
+        }
         assertTrue(chars.any { it.toInt() > 127 })
         assertTrue(chars.any { it.toInt() < 127 })
         assertFalse(chars.any { it.toInt() < 32 })
@@ -91,7 +113,12 @@ class GeneratorsTest {
 
     @Test
     fun testBooleanGenRange() {
-        val answers = (0 until 50).map { defaultBooleanGen(it, random) }
+        val answers = (0 until 50).map {
+            defaultBooleanGen(
+                it,
+                random
+            )
+        }
         assertTrue(answers.any { it })
         assertTrue(answers.any { !it })
     }
@@ -99,7 +126,12 @@ class GeneratorsTest {
     @Test
     fun testIntGenIntensifies() {
         val averages = (0 until 20).map {
-            (0 until 100).map { _ -> defaultIntGen(it * it * it, random).absoluteValue }.average()
+            (0 until 100).map { _ ->
+                defaultIntGen(
+                    it * it * it,
+                    random
+                ).absoluteValue
+            }.average()
         }
         averages.foldIndexed(-1.0) { iter, last, value ->
             assertTrue(value > last) { "Did not intensify on iteration $iter: $value <= $last" }
@@ -123,7 +155,12 @@ class GeneratorsTest {
     @Test
     fun testLongGenIntensifies() {
         val averages = (0 until 50).map {
-            (0 until 200).map { _ -> defaultLongGen(it * it * it, random).absoluteValue }.average()
+            (0 until 200).map { _ ->
+                defaultLongGen(
+                    it * it * it,
+                    random
+                ).absoluteValue
+            }.average()
         }
         averages.foldIndexed(-1.0) { iter, last, value ->
             assertTrue(value > last) { "Did not intensify on iteration $iter: $value <= $last" }
@@ -134,7 +171,12 @@ class GeneratorsTest {
     @Test
     fun testFloatGenIntensifies() {
         val averages = (0 until 50).map {
-            (0 until 1000).map { _ -> defaultFloatGen(it * it * it, random).absoluteValue }.average()
+            (0 until 1000).map { _ ->
+                defaultFloatGen(
+                    it * it * it,
+                    random
+                ).absoluteValue
+            }.average()
         }
         averages.foldIndexed(-1.0) { iter, last, value ->
             assertTrue(value > last) { "Did not intensify on iteration $iter: $value <= $last" }
@@ -145,7 +187,12 @@ class GeneratorsTest {
     @Test
     fun testDoubleGenIntensifies() {
         val averages = (0 until 80).map {
-            (0 until 1000).map { _ -> defaultDoubleGen(it * it * it * it, random).absoluteValue }.average()
+            (0 until 1000).map { _ ->
+                defaultDoubleGen(
+                    it * it * it * it,
+                    random
+                ).absoluteValue
+            }.average()
         }
         averages.foldIndexed(-1.0) { iter, last, value ->
             assertTrue(value > last) { "Did not intensify on iteration $iter: $value <= $last" }
@@ -156,7 +203,12 @@ class GeneratorsTest {
     @Test
     fun testCharGenIntensifies() {
         val unicodeCounts = (0 until 10).map {
-            (0 until 1000).filter { _ -> defaultCharGen(it * 3, random).toInt() > 127 }.count()
+            (0 until 1000).filter { _ ->
+                defaultCharGen(
+                    it * 3,
+                    random
+                ).toInt() > 127
+            }.count()
         }
         unicodeCounts.foldIndexed(-1) { iter, last, value ->
             assertTrue(value > last) { "Did not intensify on iteration $iter: $value <= $last" }

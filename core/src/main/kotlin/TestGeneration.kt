@@ -7,6 +7,8 @@ import edu.illinois.cs.cs125.answerable.annotations.DefaultTestRunArguments
 import edu.illinois.cs.cs125.answerable.annotations.Generator
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.Verify
+import edu.illinois.cs.cs125.answerable.annotations.getAllGenerators
+import edu.illinois.cs.cs125.answerable.annotations.getEnabledGenerators
 import edu.illinois.cs.cs125.answerable.annotations.getPrecondition
 import edu.illinois.cs.cs125.answerable.annotations.getSolution
 import edu.illinois.cs.cs125.answerable.annotations.getTimeout
@@ -28,6 +30,9 @@ import edu.illinois.cs.cs125.answerable.classmanipulation.mkOpenMirrorClass
 import edu.illinois.cs.cs125.answerable.classmanipulation.mkProxy
 import edu.illinois.cs.cs125.answerable.classmanipulation.mkValueProxy
 import edu.illinois.cs.cs125.answerable.classmanipulation.verifyMemberAccess
+import edu.illinois.cs.cs125.answerable.testing.CustomGen
+import edu.illinois.cs.cs125.answerable.testing.GenWrapper
+import edu.illinois.cs.cs125.answerable.testing.GeneratorMapBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.opentest4j.AssertionFailedError
 import java.lang.IllegalStateException
@@ -35,9 +40,7 @@ import java.lang.reflect.Constructor
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
-import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
-import java.lang.reflect.WildcardType
 import java.util.Random
 import kotlin.math.min
 import java.lang.reflect.Array as ReflectArray
@@ -181,9 +184,15 @@ class TestGenerator(
         val enabledGens: List<Pair<Pair<Type, String?>, CustomGen>> =
             usableControlClass.getEnabledGenerators(enabledNames).map {
                 return@map if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
-                    Pair(Pair(it.genericReturnType, null), CustomGen(submittedClassGenerator))
+                    Pair(
+                        Pair(it.genericReturnType, null),
+                        CustomGen(submittedClassGenerator)
+                    )
                 } else {
-                    Pair(Pair(it.genericReturnType, null), CustomGen(it))
+                    Pair(
+                        Pair(it.genericReturnType, null),
+                        CustomGen(it)
+                    )
                 }
             }
 
@@ -200,9 +209,15 @@ class TestGenerator(
             // Skip unnamed generators
             val name = it.getAnnotation(Generator::class.java)?.name ?: return@mapNotNull null
             return@mapNotNull if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
-                Pair(Pair(it.genericReturnType, name), CustomGen(submittedClassGenerator))
+                Pair(
+                    Pair(it.genericReturnType, name),
+                    CustomGen(submittedClassGenerator)
+                )
             } else {
-                Pair(Pair(it.genericReturnType, name), CustomGen(it))
+                Pair(
+                    Pair(it.genericReturnType, name),
+                    CustomGen(it)
+                )
             }
         }
 
@@ -1015,186 +1030,6 @@ class FailedClassDesignTestRunner(
 
     override fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestingResults =
         runTests(seed, environment)
-}
-
-operator fun <T> MutableMap<Pair<Type, String?>, T>.get(type: Type): T? = this[Pair(type, null)]
-operator fun <T> MutableMap<Pair<Type, String?>, T>.set(type: Type, newVal: T) {
-    this[Pair(type, null)] = newVal
-}
-
-// NOTE: [Generator Keys]
-// goalTypes holds types that we need generators for. @UseGenerator annotations allow specifying a specific generator.
-// The string in the Pair is non-null iff a specific generator is requested.
-private class GeneratorMapBuilder(
-    goalTypes: Collection<Pair<Type, String?>>,
-    private val random: Random,
-    private val pool: TypePool,
-    private val receiverType: Class<*>?,
-    languageMode: LanguageMode
-) {
-    private var knownGenerators: MutableMap<Pair<Type, String?>, Lazy<Gen<*>>> = mutableMapOf()
-    private val defaultGenerators: Map<Pair<Class<*>, String?>, Gen<*>> =
-        languageMode.defaultGenerators.mapKeys { (k, _) -> Pair(k, null) }
-
-    init {
-        defaultGenerators.forEach { (k, v) -> accept(k, v) }
-        knownGenerators[String::class.java] = lazy { DefaultStringGen(knownGenerators[Char::class.java]!!.value) }
-    }
-
-    private val requiredGenerators: Set<Pair<Type, String?>> = goalTypes.toSet().also { it.forEach(this::request) }
-
-    private fun lazyGenError(type: Type) = AnswerableMisuseException(
-        "A generator for type `${pool.getOriginalClass(type).sourceName}' was requested, " +
-            "but no generator for that type was found."
-    )
-
-    private fun lazyArrayError(type: Type) = AnswerableMisuseException(
-        "A generator for an array with component type `${pool.getOriginalClass(type).sourceName}' was requested, " +
-            "but no generator for that type was found."
-    )
-
-    fun accept(pair: Pair<Pair<Type, String?>, Gen<*>?>) = accept(pair.first, pair.second)
-
-    fun accept(type: Pair<Type, String?>, gen: Gen<*>?) {
-        if (gen != null) {
-            // kotlin fails to smart cast here even though it says the cast isn't needed
-            @Suppress("USELESS_CAST")
-            knownGenerators[type] = lazy { gen as Gen<*> }
-        }
-    }
-
-    private fun request(pair: Pair<Type, String?>) {
-        if (pair.second == null) {
-            request(pair.first)
-        }
-    }
-
-    private fun request(type: Type) {
-        when (type) {
-            is Class<*> -> if (type.isArray) {
-                request(type.componentType)
-                knownGenerators[type] =
-                    lazy {
-                        DefaultArrayGen(
-                            knownGenerators[type.componentType]?.value ?: throw lazyArrayError(type.componentType),
-                            type.componentType
-                        )
-                    }
-            }
-        }
-    }
-
-    @Suppress("ComplexMethod")
-    private fun generatorCompatible(requested: Type, known: Type): Boolean {
-        // TODO: There are probably more cases we'd like to handle, but we should be careful to not be too liberal
-        //  in matching
-        if (requested == known) {
-            return true
-        }
-        return when (requested) {
-            is ParameterizedType -> when (known) {
-                is ParameterizedType ->
-                    requested.rawType == known.rawType &&
-                        requested.actualTypeArguments.indices
-                            .all {
-                                generatorCompatible(
-                                    requested.actualTypeArguments[it],
-                                    known.actualTypeArguments[it]
-                                )
-                            }
-                else -> false
-            }
-            is WildcardType -> when (known) {
-                is Class<*> ->
-                    requested.lowerBounds.elementAtOrNull(0) == known ||
-                        requested.upperBounds.elementAtOrNull(0) == known
-                is ParameterizedType -> {
-                    val hasLower = requested.lowerBounds.size == 1
-                    val matchesLower = hasLower && generatorCompatible(requested.lowerBounds[0], known)
-                    val hasUpper = requested.upperBounds.size == 1
-                    val matchesUpper = hasUpper && generatorCompatible(requested.upperBounds[0], known)
-                    (!hasLower || matchesLower) && (!hasUpper || matchesUpper) && (hasLower || hasUpper)
-                }
-                else -> false
-            }
-            else -> false
-        }
-    }
-
-    fun build(): Map<Pair<Type, String?>, GenWrapper<*>> {
-        fun selectGenerator(goal: Pair<Type, String?>): Gen<*>? {
-            // Selects a variant-compatible generator if an exact match isn't found
-            // e.g. Kotlin Function1<? super Whatever, SomethingElse> (required) is compatible
-            //        with Function1<        Whatever, SomethingElse> (known)
-            knownGenerators[goal]?.value?.let { return it }
-            return knownGenerators.filter { (known, _) ->
-                known.second == goal.second && generatorCompatible(goal.first, known.first)
-            }.toList().firstOrNull()?.second?.value
-        }
-
-        val discovered = mutableMapOf(
-            *requiredGenerators
-                .map { it to (GenWrapper(selectGenerator(it) ?: throw lazyGenError(it.first), random)) }
-                .toTypedArray()
-        )
-        if (receiverType != null) {
-            // Add a receiver generator if possible - don't fail here if not found because there might be a default
-            // constructor
-            val receiverTarget = Pair(receiverType, null)
-            if (!discovered.containsKey(receiverTarget)) knownGenerators[receiverType]?.value?.let {
-                discovered[receiverTarget] = GenWrapper(it, random)
-            }
-        }
-        return discovered
-    }
-}
-
-internal class GenWrapper<T>(val gen: Gen<T>, private val random: Random) {
-    operator fun invoke(complexity: Int) = gen.generate(complexity, random)
-
-    fun generate(complexity: Int): T = gen.generate(complexity, random)
-}
-
-// So named as to avoid conflict with the @Generator annotation, as that class name is part of the public API
-// and this one is not.
-internal interface Gen<out T> {
-    fun generate(complexity: Int, random: Random): T
-}
-
-@Suppress("NOTHING_TO_INLINE")
-internal inline operator fun <T> Gen<T>.invoke(complexity: Int, random: Random): T = generate(complexity, random)
-
-internal class CustomGen(private val gen: Method) : Gen<Any?> {
-    override fun generate(complexity: Int, random: Random): Any? = gen(null, complexity, random)
-}
-
-internal class DefaultStringGen(private val cGen: Gen<*>) : Gen<String> {
-    override fun generate(complexity: Int, random: Random): String {
-        val len = random.nextInt(complexity + 1)
-
-        return String((1..len).map { cGen(complexity, random) as Char }.toTypedArray().toCharArray())
-    }
-}
-
-internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: Class<*>) : Gen<Any> {
-    override fun generate(complexity: Int, random: Random): Any {
-        return ReflectArray.newInstance(tClass, random.nextInt(complexity + 1)).also {
-            val wrapper = ArrayWrapper(it)
-            (0 until wrapper.size).forEach { idx -> wrapper[idx] = tGen(random.nextInt(complexity + 1), random) }
-        }
-    }
-}
-
-internal class DefaultListGen<T>(private val tGen: Gen<T>) : Gen<List<T>> {
-    override fun generate(complexity: Int, random: Random): List<T> {
-        fun genList(complexity: Int, length: Int): List<T> =
-            if (length <= 0) {
-                listOf()
-            } else {
-                listOf(tGen(random.nextInt(complexity + 1), random)) + genList(complexity, length - 1)
-            }
-        return genList(complexity, random.nextInt(complexity + 1))
-    }
 }
 
 internal class ArrayWrapper(val array: Any) {

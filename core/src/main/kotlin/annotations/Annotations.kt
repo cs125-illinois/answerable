@@ -16,7 +16,7 @@ data class AnnotationError(val kind: Kind, val location: SourceLocation, val mes
     }
 }
 
-internal fun Class<*>.validateAnnotations(typePool: TypePool = TypePool()) {
+internal fun Class<*>.validateAnnotations(@Suppress("UNUSED_PARAMETER") typePool: TypePool = TypePool()) {
     val annotationErrors = mutableListOf<AnnotationError>()
 
     annotationErrors.addAll(Solution.validate(this))
