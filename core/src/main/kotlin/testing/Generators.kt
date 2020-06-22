@@ -3,6 +3,7 @@ package edu.illinois.cs.cs125.answerable.testing
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.ArrayWrapper
 import edu.illinois.cs.cs125.answerable.LanguageMode
+import edu.illinois.cs.cs125.answerable.annotations.Pair
 import edu.illinois.cs.cs125.answerable.annotations.getAllGenerators
 import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import edu.illinois.cs.cs125.answerable.sourceName
@@ -18,26 +19,26 @@ import kotlin.math.min
 // goalTypes holds types that we need generators for. @UseGenerator annotations allow specifying a specific generator.
 // The string in the Pair is non-null iff a specific generator is requested.
 internal class GeneratorMapBuilder(
-    goalTypes: Collection<Pair<Type, String?>>,
+    goalTypes: kotlin.Array<GeneratorType>,
     private val random: Random,
     private val pool: TypePool,
     private val receiverType: Class<*>?,
     languageMode: LanguageMode
 ) {
-    private var knownGenerators: MutableMap<Pair<Type, String?>, Lazy<Gen<*>>> = mutableMapOf()
-    private val defaultGenerators: Map<Pair<Class<*>, String?>, Gen<*>> =
-        languageMode.defaultGenerators.mapKeys { (k, _) -> Pair(k, null) }
+    private var knownGenerators: MutableMap<GeneratorType, Lazy<Gen<*>>> = mutableMapOf()
+    private val defaultGenerators: Map<GeneratorType, Gen<*>> =
+        languageMode.defaultGenerators.mapKeys { (klass, _) -> GeneratorType(klass) }
 
     init {
         defaultGenerators.forEach { (k, v) -> accept(k, v) }
-        knownGenerators[String::class.java] = lazy {
+        knownGenerators[String::class.java.asGeneratorType()] = lazy {
             DefaultStringGen(
-                knownGenerators[Char::class.java]!!.value
+                knownGenerators[Char::class.java.asGeneratorType()]!!.value
             )
         }
     }
 
-    private val requiredGenerators: Set<Pair<Type, String?>> = goalTypes.toSet().also { it.forEach(this::request) }
+    private val requiredGenerators: Set<GeneratorType> = goalTypes.toSet().also { it.forEach(this::request) }
 
     private fun lazyGenError(type: Type) =
         AnswerableMisuseException(
@@ -51,19 +52,19 @@ internal class GeneratorMapBuilder(
                 "but no generator for that type was found."
         )
 
-    fun accept(pair: Pair<Pair<Type, String?>, Gen<*>?>) = accept(pair.first, pair.second)
+    fun accept(pair: kotlin.Pair<GeneratorType, Gen<*>?>) = accept(pair.first, pair.second)
 
-    fun accept(type: Pair<Type, String?>, gen: Gen<*>?) {
+    fun accept(generatorType: GeneratorType, gen: Gen<*>?) {
         if (gen != null) {
             // kotlin fails to smart cast here even though it says the cast isn't needed
             @Suppress("USELESS_CAST")
-            knownGenerators[type] = lazy { gen as Gen<*> }
+            knownGenerators[generatorType] = lazy { gen as Gen<*> }
         }
     }
 
-    private fun request(pair: Pair<Type, String?>) {
-        if (pair.second == null) {
-            request(pair.first)
+    private fun request(generatorType: GeneratorType) {
+        if (generatorType.requested == null) {
+            request(generatorType.type)
         }
     }
 
@@ -71,10 +72,11 @@ internal class GeneratorMapBuilder(
         when (type) {
             is Class<*> -> if (type.isArray) {
                 request(type.componentType)
-                knownGenerators[type] =
+                knownGenerators[type.asGeneratorType()] =
                     lazy {
                         DefaultArrayGen(
-                            knownGenerators[type.componentType]?.value ?: throw lazyArrayError(type.componentType),
+                            knownGenerators[type.componentType.asGeneratorType()]?.value
+                                ?: throw lazyArrayError(type.componentType),
                             type.componentType
                         )
                     }
@@ -120,20 +122,20 @@ internal class GeneratorMapBuilder(
     }
 
     @Suppress("ReturnCount")
-    private fun selectGenerator(goal: Pair<Type, String?>): Gen<*>? {
+    private fun selectGenerator(goal: GeneratorType): Gen<*>? {
         // Selects a variant-compatible generator if an exact match isn't found
         // e.g. Kotlin Function1<? super Whatever, SomethingElse> (required) is compatible
         //        with Function1<        Whatever, SomethingElse> (known)
         knownGenerators[goal]?.value?.also { return it }
         knownGenerators.filter { (known, _) ->
-            known.second == goal.second && generatorCompatible(goal.first, known.first)
+            known.requested == goal.requested && generatorCompatible(goal.type, known.type)
         }.toList().firstOrNull()?.second?.also { return it.value }
         // As a final check before giving up the generator search, look on the class itself
-        return if (goal.first !is Class<*> || goal.second != null) {
+        return if (goal.type !is Class<*> || goal.requested != null) {
             null
         } else {
-            (goal.first as Class<*>).getAllGenerators().find {
-                it.returnType == goal.first
+            goal.klass.getAllGenerators().find {
+                it.returnType == goal.type
             }?.let { generatorMethod ->
                 CustomGen(generatorMethod).also { generator ->
                     accept(goal, generator)
@@ -142,28 +144,51 @@ internal class GeneratorMapBuilder(
         }
     }
 
-    fun build(): Map<Pair<Type, String?>, GenWrapper<*>> {
-        val discovered = mutableMapOf(
-            *requiredGenerators
-                .map {
-                    it to (
-                        GenWrapper(
-                            selectGenerator(it) ?: throw lazyGenError(it.first), random
-                        )
-                        )
+    fun build(): GeneratorMap = requiredGenerators
+        .map { it to (GenWrapper(selectGenerator(it) ?: throw lazyGenError(it.type), random)) }
+        .toMap().toMutableMap()
+        .also { discovered ->
+            if (receiverType != null) {
+                val receiverAsGeneratorType = receiverType.asGeneratorType()
+                if (receiverAsGeneratorType !in discovered) {
+                    knownGenerators[receiverAsGeneratorType]?.value?.also {
+                        discovered[receiverAsGeneratorType] = GenWrapper(it, random)
+                    }
                 }
-                .toTypedArray()
-        )
-        if (receiverType != null) {
-            // Add a receiver generator if possible - don't fail here if not found because there might be a default
-            // constructor
-            val receiverTarget = Pair(receiverType, null)
-            if (!discovered.containsKey(receiverTarget)) knownGenerators[receiverType]?.value?.let {
-                discovered[receiverTarget] =
-                    GenWrapper(it, random)
+            }
+        }.let {
+            GeneratorMap(it)
+        }
+}
+
+internal data class GeneratorMap(val map: Map<GeneratorType, GenWrapper<*>>) :
+    Map<GeneratorType, GenWrapper<*>> by map {
+    var parameterGenerator: GenWrapper<*>? = null
+
+    @Suppress("NestedBlockDepth")
+    fun generate(
+        params: kotlin.Array<GeneratorType>,
+        comp: Int
+    ): kotlin.Array<Any?> {
+        if (parameterGenerator != null) {
+            return parameterGenerator!!.generate(comp).let {
+                when (params.size) {
+                    2 -> (it as Pair<*, *>).let {
+                        arrayOf(it.first, it.second)
+                    }
+                    else -> error("Bad")
+                }
             }
         }
-        return discovered
+        if (params.size > 1) {
+            when (params.size) {
+                2 -> this[GeneratorType(Pair::class.java)]
+                else -> null
+            }?.also {
+                println("Here")
+            }
+        }
+        return params.map { this[it]?.generate(comp) }.toTypedArray()
     }
 }
 
@@ -216,11 +241,6 @@ internal class DefaultListGen<T>(private val tGen: Gen<T>) :
             }
         return genList(complexity, random.nextInt(complexity + 1))
     }
-}
-
-operator fun <T> MutableMap<Pair<Type, String?>, T>.get(type: Type): T? = this[Pair(type, null)]
-operator fun <T> MutableMap<Pair<Type, String?>, T>.set(type: Type, newVal: T) {
-    this[Pair(type, null)] = newVal
 }
 
 internal val defaultIntGen = object : Gen<Int> {
@@ -331,3 +351,11 @@ internal val primitiveGenerators: Map<Class<*>, Gen<*>> = mapOf(
     Char::class.java to defaultCharGen,
     Boolean::class.java to defaultBooleanGen
 )
+
+data class GeneratorType(val type: Type, val requested: String? = null) {
+    constructor(klass: Class<*>) : this(klass as Type)
+
+    val klass by lazy { type as Class<*> }
+}
+
+fun Class<*>.asGeneratorType() = GeneratorType(this as Type, null)

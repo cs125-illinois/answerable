@@ -69,3 +69,6 @@ annotation class Solution(
 
 internal fun Class<*>.getSolution(solutionName: String = DEFAULT_EMPTY_NAME) =
     this.getNamedAnnotation(Solution::class.java, solutionName)
+
+internal fun Class<*>.getAllSolutions(): List<Method> =
+    declaredMethods.filter { it.isAnnotationPresent(Solution::class.java) }

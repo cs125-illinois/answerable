@@ -4,11 +4,11 @@ package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.answerable.annotations.DefaultTestRunArguments
-import edu.illinois.cs.cs125.answerable.annotations.Generator
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.Verify
-import edu.illinois.cs.cs125.answerable.annotations.getAllGenerators
+import edu.illinois.cs.cs125.answerable.annotations.getAllNamedGenerators
 import edu.illinois.cs.cs125.answerable.annotations.getEnabledGenerators
+import edu.illinois.cs.cs125.answerable.annotations.getGroupedGenerator
 import edu.illinois.cs.cs125.answerable.annotations.getPrecondition
 import edu.illinois.cs.cs125.answerable.annotations.getSolution
 import edu.illinois.cs.cs125.answerable.annotations.getTimeout
@@ -32,10 +32,11 @@ import edu.illinois.cs.cs125.answerable.classmanipulation.mkValueProxy
 import edu.illinois.cs.cs125.answerable.classmanipulation.verifyMemberAccess
 import edu.illinois.cs.cs125.answerable.testing.CustomGen
 import edu.illinois.cs.cs125.answerable.testing.GenWrapper
+import edu.illinois.cs.cs125.answerable.testing.GeneratorMap
 import edu.illinois.cs.cs125.answerable.testing.GeneratorMapBuilder
+import edu.illinois.cs.cs125.answerable.testing.GeneratorType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.opentest4j.AssertionFailedError
-import java.lang.IllegalStateException
 import java.lang.reflect.Constructor
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
@@ -137,16 +138,15 @@ class TestGenerator(
 
     internal val isStatic = referenceMethod?.let { Modifier.isStatic(it.modifiers) } ?: false
 
-    /** Pair<return type, useGeneratorName> */
-    internal val params: Array<Pair<Type, String?>> = usableReferenceMethod?.getAnswerableParams() ?: arrayOf()
-    internal val paramsWithReceiver: Array<Pair<Type, String?>> = arrayOf(Pair(usableReferenceClass, null), *params)
+    internal val params = usableReferenceMethod?.getAnswerableParams() ?: arrayOf()
+    internal val paramsWithReceiver = arrayOf(GeneratorType(usableReferenceClass), *params)
 
     internal val random: Random = Random(0)
-    internal val generators: Map<Pair<Type, String?>, GenWrapper<*>> = buildGeneratorMap(random)
+    internal val generators: GeneratorMap = buildGeneratorMap(random)
     internal val edgeCases: Map<Type, ArrayWrapper?> =
-        getEdgeCases(usableControlClass, paramsWithReceiver.map { it.first }.toTypedArray())
+        getEdgeCases(usableControlClass, paramsWithReceiver.map { it.type }.toTypedArray())
     internal val simpleCases: Map<Type, ArrayWrapper?> =
-        getSimpleCases(usableControlClass, paramsWithReceiver.map { it.first }.toTypedArray())
+        getSimpleCases(usableControlClass, paramsWithReceiver.map { it.type }.toTypedArray())
 
     internal val timeout = referenceMethod?.getTimeout() ?: customVerifier?.getTimeout() ?: 0
 
@@ -157,7 +157,7 @@ class TestGenerator(
     internal val receiverGenStrategy: ReceiverGenStrategy = when {
         isStatic -> ReceiverGenStrategy.NONE
         atNextMethod != null -> ReceiverGenStrategy.NEXT
-        usableReferenceClass in generators.keys.map { it.first } -> ReceiverGenStrategy.GENERATOR
+        usableReferenceClass in generators.keys.map { it.type } -> ReceiverGenStrategy.GENERATOR
         defaultConstructor != null -> ReceiverGenStrategy.DEFAULTCONSTRUCTOR
         else -> throw AnswerableMisuseException(
             "The reference solution must provide either an @Generator or an @Next method " +
@@ -172,58 +172,43 @@ class TestGenerator(
     internal fun buildGeneratorMap(
         random: Random,
         submittedClassGenerator: Method? = null
-    ): Map<Pair<Type, String?>, GenWrapper<*>> {
+    ): GeneratorMap {
         val generatorMapBuilder = GeneratorMapBuilder(
-            params.toSet(),
+            params,
             random,
             typePool,
             if (isStatic) null else usableReferenceClass,
             languageMode
         )
 
-        val enabledGens: List<Pair<Pair<Type, String?>, CustomGen>> =
-            usableControlClass.getEnabledGenerators(enabledNames).map {
-                return@map if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
-                    Pair(
-                        Pair(it.genericReturnType, null),
-                        CustomGen(submittedClassGenerator)
-                    )
-                } else {
-                    Pair(
-                        Pair(it.genericReturnType, null),
-                        CustomGen(it)
-                    )
-                }
+        usableControlClass.getEnabledGenerators(enabledNames).map {
+            if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
+                Pair(GeneratorType(it.genericReturnType), CustomGen(submittedClassGenerator))
+            } else {
+                Pair(GeneratorType(it.genericReturnType), CustomGen(it))
             }
-
-        enabledGens.groupBy { it.first }.forEach { gensForType ->
-            if (gensForType.value.size > 1) throw AnswerableMisuseException(
-                "Found multiple enabled generators for type `${gensForType.key.first.sourceName}'."
-            )
-        }
-
-        enabledGens.forEach(generatorMapBuilder::accept)
+        }.also { enabledGens ->
+            enabledGens.groupBy { it.first }.forEach { gensForType ->
+                if (gensForType.value.size > 1) throw AnswerableMisuseException(
+                    "Found multiple enabled generators for type `${gensForType.key.type.sourceName}'."
+                )
+            }
+        }.forEach(generatorMapBuilder::accept)
 
         // The map builder needs to be aware of all named generators for parameter-specific generator choices
-        val otherGens: List<Pair<Pair<Type, String?>, CustomGen>> = usableControlClass.getAllGenerators().mapNotNull {
-            // Skip unnamed generators
-            val name = it.getAnnotation(Generator::class.java)?.name ?: return@mapNotNull null
-            return@mapNotNull if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
-                Pair(
-                    Pair(it.genericReturnType, name),
-                    CustomGen(submittedClassGenerator)
-                )
+        usableControlClass.getAllNamedGenerators().map { (name, method) ->
+            if (method.returnType == usableReferenceClass && submittedClassGenerator != null) {
+                Pair(GeneratorType(method.genericReturnType, name), CustomGen(submittedClassGenerator))
             } else {
-                Pair(
-                    Pair(it.genericReturnType, name),
-                    CustomGen(it)
-                )
+                Pair(GeneratorType(method.genericReturnType, name), CustomGen(method))
+            }
+        }.forEach(generatorMapBuilder::accept)
+
+        return generatorMapBuilder.build().also { generatorMap ->
+            usableControlClass.getGroupedGenerator(solutionName)?.also {
+                generatorMap.parameterGenerator = GenWrapper(CustomGen(it), random)
             }
         }
-
-        otherGens.forEach(generatorMapBuilder::accept)
-
-        return generatorMapBuilder.build()
     }
 
     private fun getEdgeCases(clazz: Class<*>, types: Array<Type>): Map<Type, ArrayWrapper?> {
@@ -493,7 +478,7 @@ internal class TestRunWorker internal constructor(
 
     private fun calculateNumCases(cases: Map<Type, ArrayWrapper?>): Int =
         paramsWithReceiver.foldIndexed(1) { idx, acc, param ->
-            cases[param.first]?.let { cases: ArrayWrapper ->
+            cases[param.type]?.let { cases: ArrayWrapper ->
                 (if (idx == 0) ((cases.array as? Array<*>)?.filterNotNull()?.size ?: 1) else cases.size).let {
                     return@foldIndexed acc * it
                 }
@@ -504,7 +489,7 @@ internal class TestRunWorker internal constructor(
         index: Int,
         total: Int,
         cases: Map<Type, ArrayWrapper?>,
-        backups: Map<Pair<Type, String?>, GenWrapper<*>>
+        backups: Map<GeneratorType, GenWrapper<*>>
     ): Array<Any?> {
         var segmentSize = total
         var segmentIndex = index
@@ -513,7 +498,7 @@ internal class TestRunWorker internal constructor(
         @Suppress("LoopWithTooManyJumpStatements")
         for (i in paramsWithReceiver.indices) {
             val param = paramsWithReceiver[i]
-            val typeCases = cases[param.first]
+            val typeCases = cases[param.type]
 
             if (i == 0) { // receiver
                 if (typeCases == null) {
@@ -554,7 +539,7 @@ internal class TestRunWorker internal constructor(
     private fun mkSimpleEdgeMixedCase(
         edges: Map<Type, ArrayWrapper?>,
         simples: Map<Type, ArrayWrapper?>,
-        backups: Map<Pair<Type, String?>, GenWrapper<*>>,
+        backups: Map<GeneratorType, GenWrapper<*>>,
         random: Random
     ): Array<Any?> {
         val case = Array<Any?>(params.size) { null }
@@ -562,7 +547,7 @@ internal class TestRunWorker internal constructor(
             val edge = random.nextInt(2) == 0
             var simple = !edge
             val param = params[i]
-            val type = param.first
+            val type = param.type
 
             if (edge) {
                 if (edges[type] != null && edges.getValue(type)!!.size != 0) {
@@ -586,7 +571,7 @@ internal class TestRunWorker internal constructor(
     private fun mkGeneratedMixedCase(
         edges: Map<Type, ArrayWrapper?>,
         simples: Map<Type, ArrayWrapper?>,
-        gens: Map<Pair<Type, String?>, GenWrapper<*>>,
+        gens: Map<GeneratorType, GenWrapper<*>>,
         complexity: Int,
         random: Random
     ): Array<Any?> {
@@ -594,7 +579,7 @@ internal class TestRunWorker internal constructor(
 
         for (i in params.indices) {
             val param = params[i]
-            val type = param.first
+            val type = param.type
 
             @Suppress("MagicNumber")
             var choice = random.nextInt(3)
@@ -613,7 +598,7 @@ internal class TestRunWorker internal constructor(
                 }
             }
             if (choice == 2) {
-                case[i] = (gens[param] ?: error("Missing generator for ${param.first.sourceName}")).generate(complexity)
+                case[i] = (gens[param] ?: error("Missing generator for ${param.type.sourceName}")).generate(complexity)
             }
         }
 
@@ -643,7 +628,7 @@ internal class TestRunWorker internal constructor(
         when (receiverGenStrategy) {
             TestGenerator.ReceiverGenStrategy.NONE -> null
             TestGenerator.ReceiverGenStrategy.DEFAULTCONSTRUCTOR -> referenceDefaultCtor?.newInstance()
-            TestGenerator.ReceiverGenStrategy.GENERATOR -> referenceGens[Pair(usableReferenceClass, null)]?.generate(
+            TestGenerator.ReceiverGenStrategy.GENERATOR -> referenceGens[GeneratorType(usableReferenceClass)]?.generate(
                 complexity
             )
             TestGenerator.ReceiverGenStrategy.NEXT -> referenceAtNext?.invoke(
@@ -658,9 +643,10 @@ internal class TestRunWorker internal constructor(
         when (receiverGenStrategy) {
             TestGenerator.ReceiverGenStrategy.NONE -> null
             TestGenerator.ReceiverGenStrategy.DEFAULTCONSTRUCTOR -> submissionDefaultCtor?.newInstance()
-            TestGenerator.ReceiverGenStrategy.GENERATOR -> submissionGens[Pair(usableReferenceClass, null)]?.generate(
-                complexity
-            )
+            TestGenerator.ReceiverGenStrategy.GENERATOR ->
+                submissionGens[GeneratorType(usableReferenceClass)]?.generate(
+                    complexity
+                )
             TestGenerator.ReceiverGenStrategy.NEXT -> submissionAtNext?.invoke(
                 null,
                 prevSubReceiver,
@@ -907,8 +893,8 @@ internal class TestRunWorker internal constructor(
                     useRefReceiver = mkRefReceiver(i, comp, nonRegressRefReceiver)
                     useSubReceiver = mkSubReceiver(i, comp, nonRegressSubReceiver)
 
-                    refMethodArgs = params.map { referenceGens[it]?.generate(comp) }.toTypedArray()
-                    subMethodArgs = params.map { submissionGens[it]?.generate(comp) }.toTypedArray()
+                    refMethodArgs = referenceGens.generate(params, comp)
+                    subMethodArgs = submissionGens.generate(params, comp)
 
                     allGeneratedIdx++
                 }

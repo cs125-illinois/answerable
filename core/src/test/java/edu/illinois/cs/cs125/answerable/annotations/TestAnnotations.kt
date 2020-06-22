@@ -5,7 +5,7 @@ import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
-private fun String.test(): Class<*> {
+internal fun String.test(): Class<*> {
     return Class.forName("${TestAnnotations::class.java.packageName}.fixtures.$this")
 }
 
@@ -149,21 +149,6 @@ class TestAnnotations {
             assert(errors.size == 2)
             assert(errors.all { it.kind == AnnotationError.Kind.Next })
             assert(errors.all { it.location.methodName?.contains("broken") ?: false })
-        }
-    }
-
-    @Test
-    fun `should validate @Generator correctly`() {
-        val klass = "TestValidateGenerator".test()
-        assert(klass.declaredMethods.size == 4)
-        Generator.validate(klass).also { errors ->
-            assert(errors.size == 2)
-            assert(errors.all { it.kind == AnnotationError.Kind.Generator })
-            assert(errors.all { it.location.methodName?.contains("broken") ?: false })
-        }
-        findAnnotation(Generator::class.java, "examples").also { klasses ->
-            assert(klasses.isNotEmpty())
-            assert(klasses.all { klass -> Generator.validate(klass).isEmpty() })
         }
     }
 
