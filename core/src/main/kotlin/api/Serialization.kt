@@ -10,6 +10,7 @@ import com.squareup.moshi.adapters.PolymorphicJsonAdapterFactory
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import edu.illinois.cs.cs125.answerable.DiscardedTestStep
 import edu.illinois.cs.cs125.answerable.ExecutedTestStep
+import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.TestStep
 import edu.illinois.cs.cs125.answerable.TestType
 import edu.illinois.cs.cs125.answerable.TestingResults
@@ -177,6 +178,7 @@ internal class TestingResultsAdapter {
     @Suppress("unused", "LongParameterList")
     class SerializableTestingResults(
         val seed: Long,
+        val testRunnerArgs: TestRunnerArgs,
         val solutionName: String,
         val startTime: Long,
         val endTime: Long,
@@ -194,6 +196,7 @@ internal class TestingResultsAdapter {
         // Oh how I wish Kotlin had RecordPuns
         constructor(testingResults: TestingResults) : this(
             testingResults.seed,
+            testingResults.testRunnerArgs,
             testingResults.solutionName,
             testingResults.startTime,
             testingResults.endTime,

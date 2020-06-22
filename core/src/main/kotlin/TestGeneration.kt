@@ -377,6 +377,7 @@ class PassedClassDesignRunner internal constructor(
 
         return TestingResults(
             seed = seed,
+            testRunnerArgs = testRunnerArgs,
             referenceClass = testGenerator.referenceClass,
             testedClass = submissionClass,
             solutionName = testGenerator.solutionName,
@@ -1001,6 +1002,7 @@ class FailedClassDesignTestRunner(
     override fun runTests(seed: Long, environment: TestEnvironment): TestingResults =
         TestingResults(
             seed = seed,
+            testRunnerArgs = defaultArgs, // maybe we can do better here when we refactor...
             referenceClass = referenceClass,
             testedClass = submissionClass,
             solutionName = solutionName,
@@ -1133,6 +1135,8 @@ class DiscardedTestStep(
 data class TestingResults(
     /** The seed that this testing run used. */
     val seed: Long,
+    /** The test runner arguments used. */
+    val testRunnerArgs: TestRunnerArgs,
     /** The reference class for this testing run. */
     val referenceClass: Class<*>,
     /** The submission class for this testing run. */
@@ -1172,6 +1176,11 @@ data class TestingResults(
         classDesignAnalysisResult.allMatch &&
             executedTestSteps.isNotEmpty() &&
             executedTestSteps.all { it.succeeded }
+    }
+
+    @delegate:Transient
+    val numFailedTests: Int by lazy {
+        executedTestSteps.count { !it.succeeded }
     }
 
     fun assertAllSucceeded() {
