@@ -25,9 +25,12 @@ annotation class DefaultTestRunArguments(
     val maxComplexity: Int = -1
 ) {
     companion object {
-        fun validate(klass: Class<*>) = klass.validateMembers(::validateMethod)
+        fun validate(context: ValidateContext) = context.validateAnnotation(
+            DefaultTestRunArguments::class.java,
+            ::validateMethod
+        )
 
-        fun validateMethod(m: Method) = m.ifHasAnnotation(DefaultTestRunArguments::class.java) { method ->
+        private fun validateMethod(method: Method): AnnotationError? {
             val message = if (method.isAnnotationPresent(Verify::class.java)) {
                 if (!method.getAnnotation(Verify::class.java).standalone) {
                     "@DefaultTestRunArguments can only be applied to a standalone @Verify method"
@@ -39,7 +42,7 @@ annotation class DefaultTestRunArguments(
             } else {
                 null
             }
-            if (message != null) {
+            return if (message != null) {
                 AnnotationError(
                     AnnotationError.Kind.DefaultTestRunArguments,
                     SourceLocation(method),

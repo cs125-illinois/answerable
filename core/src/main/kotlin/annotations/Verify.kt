@@ -3,6 +3,7 @@ package edu.illinois.cs.cs125.answerable.annotations
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.api.TestOutput
 import edu.illinois.cs.cs125.answerable.isStatic
+import java.lang.reflect.Method
 import java.util.Random
 
 /**
@@ -55,59 +56,58 @@ annotation class Verify(
             arrayOf(TestOutput::class.java, TestOutput::class.java, Random::class.java)
         )
 
-        fun validate(klass: Class<*>): List<AnnotationError> {
-            val methods = klass.declaredMethods
-
-            val solutions = methods.filter { it.isAnnotationPresent(Solution::class.java) }
-            val verifiers = methods.filter { it.isAnnotationPresent(Verify::class.java) }
-
-            verifiers.duplicateSolutionNames().also { names ->
-                if (names.isNotEmpty()) {
-                    return listOf(
-                        AnnotationError(
-                            AnnotationError.Kind.Verify,
-                            SourceLocation(klass),
-                            "Duplicate @Verify names: ${names.joinToString(separator = ", ")}"
+        private fun validateNoDuplicates(klass: Class<*>): List<AnnotationError> =
+            klass.methodsWithAnyAnnotation(Verify::class.java)
+                .duplicateSolutionNames().let { names ->
+                    if (names.isNotEmpty()) {
+                        listOf(
+                            AnnotationError(
+                                AnnotationError.Kind.Verify,
+                                SourceLocation(klass),
+                                "Duplicate @Verify names: ${names.joinToString(separator = ", ")}"
+                            )
                         )
-                    )
+                    } else {
+                        listOf()
+                    }
                 }
-            }
 
-            return verifiers.map { verifier ->
-                if (verifier.returnType != Void.TYPE) {
-                    return@map Pair(
-                        verifier,
+        fun validate(context: ValidateContext): List<AnnotationError> {
+            val solutions = context.referenceClass.methodsWithAnyAnnotation(Solution::class.java)
+
+            fun validateMethod(method: Method): AnnotationError? {
+                val solutionName = method.solutionName()
+                val solution: Method? = solutions.find { it.solutionName() == solutionName }
+
+                val message: String? = when {
+                    !method.getAnnotation(Verify::class.java).standalone && solution == null ->
+                        "Can't find @Solution matching @Verify name $solutionName"
+
+                    method.returnType != Void.TYPE ->
                         "@Verify methods should be void (throw an exception if verification fails)"
-                    )
-                }
 
-                if (!verifier.getAnnotation(Verify::class.java).standalone) {
-                    val solutionName = verifier.solutionName()
-                    solutions.find {
-                        it.solutionName() == solutionName
-                    } ?: return@map Pair(verifier, "Can't find @Solution matching @Verify name $solutionName")
-                }
+                    !method.isStatic() -> "@Verify methods must be static"
 
-                if (!verifier.isStatic()) {
-                    return@map Pair(verifier, "@Verify methods must be static")
-                } else if (!parameterTypes.any { verifier.parameterTypes contentEquals it }) {
-                    Pair(
-                        verifier,
+                    // TODO: we could go an extra mile and verify that the correct generic, if any, is used
+                    !parameterTypes.any { it contentEquals method.parameterTypes } ->
                         "@Verify methods must take parameters (TestOutput, TestOutput) and an optional java.util.Random"
-                    )
-                } else {
-                    Pair(verifier, null)
+
+                    else -> null
                 }
-            }.mapNotNull { (method, message) ->
-                if (message == null) {
-                    null
-                } else {
+
+                return if (message != null) {
                     AnnotationError(
                         AnnotationError.Kind.Verify,
-                        SourceLocation(method), message
+                        SourceLocation(method),
+                        message
                     )
+                } else {
+                    null
                 }
             }
+
+            return validateNoDuplicates(context.referenceClass) +
+                context.validateControlAnnotation(Verify::class.java, ::validateMethod)
         }
     }
 }

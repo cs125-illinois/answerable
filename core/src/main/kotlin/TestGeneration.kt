@@ -72,7 +72,6 @@ class TestGenerator(
         if ('$' in referenceClass.name) {
             throw AnswerableMisuseException("Reference class names cannot contain '$', sorry.")
         }
-        referenceClass.validateAnnotations()
     }
 
     // "Usable" members are from the opened (un-final-ified) mirror of the original reference class.
@@ -88,6 +87,11 @@ class TestGenerator(
         }
     )
     private val controlClass: Class<*> = languageMode.findControlClass(referenceClass, typePool) ?: referenceClass
+
+    init {
+        referenceClass.validateAnnotations(controlClass)
+    }
+
     internal val usableReferenceClass: Class<*> = mkOpenMirrorClass(referenceClass, typePool, "openref_")
     internal val usableControlClass: Class<*> =
         if (controlClass == referenceClass) usableReferenceClass

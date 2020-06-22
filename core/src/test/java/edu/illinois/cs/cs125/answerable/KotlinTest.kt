@@ -1,5 +1,7 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.api.unsafeSerialize
+import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import examples.adder.correct.reference.Adder
 import examples.testgeneration.KtPrecondition
 import org.junit.jupiter.api.Assertions

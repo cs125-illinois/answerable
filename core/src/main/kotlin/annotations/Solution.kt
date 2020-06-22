@@ -32,29 +32,34 @@ annotation class Solution(
     val prints: Boolean = false
 ) {
     companion object {
-        fun validate(klass: Class<*>) = klass.methodsWithAnyAnnotation(Solution::class.java).let { methods ->
-            methods.duplicateSolutionNames().let { names ->
-                if (names.isNotEmpty()) {
-                    listOf(
-                        AnnotationError(
-                            AnnotationError.Kind.Solution,
-                            SourceLocation(klass),
-                            "Duplicate @Solution names: ${names.joinToString(separator = ", ")}"
+        fun validate(context: ValidateContext) =
+            validateNoDuplicates(context.referenceClass) +
+                context.validateReferenceAnnotation(Solution::class.java, ::validateMethod)
+
+        private fun validateNoDuplicates(klass: Class<*>): List<AnnotationError> =
+            klass.methodsWithAnyAnnotation(Solution::class.java).let { methods ->
+                methods.duplicateSolutionNames().let { names ->
+                    if (names.isNotEmpty()) {
+                        listOf(
+                            AnnotationError(
+                                AnnotationError.Kind.Solution,
+                                SourceLocation(klass),
+                                "Duplicate @Solution names: ${names.joinToString(separator = ", ")}"
+                            )
                         )
-                    )
-                } else {
-                    klass.validateMembers(::validateMethod)
+                    } else {
+                        klass.validateMembers(::validateMethod)
+                    }
                 }
             }
-        }
 
-        private fun validateMethod(m: Method) = m.ifHasAnnotation(Solution::class.java) { method ->
+        private fun validateMethod(method: Method): AnnotationError? {
             val message = if (method.solutionName().isEmpty()) {
                 "@Solution name should not be empty"
             } else {
                 null
             }
-            if (message != null) {
+            return if (message != null) {
                 AnnotationError(
                     AnnotationError.Kind.Solution,
                     SourceLocation(method),

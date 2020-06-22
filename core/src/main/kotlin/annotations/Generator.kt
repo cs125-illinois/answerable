@@ -40,9 +40,12 @@ annotation class Generator(
     companion object {
         private val parameterTypes = arrayOf(Int::class.java, java.util.Random::class.java)
 
-        fun validate(klass: Class<*>) = klass.validateMembers(::validateMethod)
+        fun validate(context: ValidateContext) = context.validateControlAnnotation(
+            Generator::class.java,
+            ::validateMethod
+        )
 
-        fun validateMethod(m: Method) = m.ifHasAnnotation(Generator::class.java) { method ->
+        private fun validateMethod(method: Method): AnnotationError? {
             val message = if (!method.isStatic()) {
                 "@Generator methods must be static"
             } else if (!(method.parameterTypes contentEquals parameterTypes)) {
@@ -50,7 +53,7 @@ annotation class Generator(
             } else {
                 null
             }
-            if (message != null) {
+            return if (message != null) {
                 AnnotationError(
                     AnnotationError.Kind.Generator,
                     SourceLocation(method),

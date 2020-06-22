@@ -3,7 +3,6 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
-import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import io.github.classgraph.ClassGraph
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -14,26 +13,31 @@ data class AnnotationError(val kind: Kind, val location: SourceLocation, val mes
     enum class Kind {
         Solution, Precondition, Verify, Generator, Next, EdgeCase, SimpleCase, Timeout, DefaultTestRunArguments
     }
+
+    override fun toString(): String = "${this.location}: ${this.message}"
 }
 
-internal fun Class<*>.validateAnnotations(typePool: TypePool = TypePool()) {
+internal fun Class<*>.validateAnnotations(): Unit = TODO("Currently mid-refactor!")
+
+internal fun Class<*>.validateAnnotations(controlClass: Class<*>) {
+    val context = ValidateContext(this, controlClass)
     val annotationErrors = mutableListOf<AnnotationError>()
 
-    annotationErrors.addAll(Solution.validate(this))
-    annotationErrors.addAll(Precondition.validate(this))
-    annotationErrors.addAll(Verify.validate((this)))
-    annotationErrors.addAll(Timeout.validate(this))
-    annotationErrors.addAll(Next.validate(this))
-    annotationErrors.addAll(Generator.validate(this))
+    annotationErrors.addAll(Solution.validate(context))
+    annotationErrors.addAll(Precondition.validate(context))
+    annotationErrors.addAll(Verify.validate(context))
+    annotationErrors.addAll(Timeout.validate(context))
+    annotationErrors.addAll(Next.oldValidate(this))
+    annotationErrors.addAll(Generator.validate(context))
     annotationErrors.addAll(EdgeCase.validate(this))
     annotationErrors.addAll(SimpleCase.validate(this))
-    annotationErrors.addAll(DefaultTestRunArguments.validate(this))
+    annotationErrors.addAll(DefaultTestRunArguments.validate(context))
 
     if (annotationErrors.isEmpty()) {
         return
     } else {
         throw AnswerableMisuseException(
-            annotationErrors.joinToString(separator = ",") { "${it.location}: ${it.message}" }
+            annotationErrors.joinToString(separator = ",")
         )
     }
 }
@@ -61,6 +65,12 @@ internal fun Field.validateCase(): String? {
         null
     }
 }
+
+internal fun Method.hasAnyAnnotation(klasses: Collection<Class<out Annotation>>): Boolean =
+    this.hasAnyAnnotation(*klasses.toTypedArray())
+
+internal fun Method.hasAnyAnnotation(vararg klasses: Class<out Annotation>): Boolean =
+    klasses.any { this.isAnnotationPresent(it) }
 
 internal fun Array<Method>.hasAnyAnnotation(klasses: Collection<Class<out Annotation>>): List<Method> =
     this.hasAnyAnnotation(*klasses.toTypedArray())
@@ -144,9 +154,15 @@ internal fun ValidateContext.validateAnnotation(
     annotationClass: Class<out Annotation>,
     methodValidator: ((method: Method) -> AnnotationError?)? = null,
     fieldValidator: ((field: Field) -> AnnotationError?)? = null
-): List<AnnotationError> =
-    this.validateReferenceAnnotation(annotationClass, methodValidator, fieldValidator) +
-        this.validateControlAnnotation(annotationClass, methodValidator, fieldValidator)
+): List<AnnotationError> {
+    val errors: MutableList<AnnotationError> = mutableListOf()
+    errors.addAll(this.validateReferenceAnnotation(annotationClass, methodValidator, fieldValidator))
+    // 6/19/20: if they are the same, we would validateReferenceAnnotation twice.
+    if (this.referenceClass != this.controlClass) {
+        errors.addAll(this.validateControlAnnotation(annotationClass, methodValidator, fieldValidator))
+    }
+    return errors
+}
 
 internal fun Class<*>.validateAnnotation(
     annotationClass: Class<out Annotation>,
@@ -222,4 +238,4 @@ internal fun List<Method>.duplicateSolutionNames() = this
     .groupingBy { it }
     .eachCount()
     .filter { (_, count) -> count > 1 }
-    .values
+    .keys

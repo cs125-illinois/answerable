@@ -40,7 +40,7 @@ annotation class Next(
     companion object {
         private val parameterTypes = arrayOf(Int::class.java, java.util.Random::class.java)
 
-        fun validate(klass: Class<*>) = klass.validateMembers(::validateMethod)
+        fun oldValidate(klass: Class<*>) = klass.validateMembers(::validateMethod)
 
         fun validateMethod(method: Method): AnnotationError? {
             val message = if (!method.isAnnotationPresent(Next::class.java)) {
