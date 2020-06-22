@@ -25,15 +25,16 @@ annotation class SimpleCase(
     val name: String = ""
 ) {
     companion object {
-        fun validate(klass: Class<*>) = klass.validateMembers(::validateMethod, ::validateField)
+        fun validate(context: ValidateContext): List<AnnotationError> =
+            context.validateAnnotation(SimpleCase::class.java, ::validateMethod, ::validateField)
 
-        fun validateMethod(m: Method) = m.ifHasAnnotation(SimpleCase::class.java) { method ->
+        private fun validateMethod(method: Method): AnnotationError? {
             val message = if (method.isAnnotationPresent(EdgeCase::class.java)) {
                 "Can't use both @SimpleCase and @EdgeCase on the same method"
             } else {
                 method.validateCase()?.let { error -> "@SimpleCase $error" }
             }
-            if (message == null) {
+            return if (message == null) {
                 null
             } else {
                 AnnotationError(
@@ -44,13 +45,13 @@ annotation class SimpleCase(
             }
         }
 
-        fun validateField(f: Field) = f.ifHasAnnotation(SimpleCase::class.java) { field ->
+        private fun validateField(field: Field): AnnotationError? {
             val message = if (field.isAnnotationPresent(EdgeCase::class.java)) {
                 "Can't use both @SimpleCase and @EdgeCase on the same field"
             } else {
                 field.validateCase()?.let { error -> "@SimpleCase $error" }
             }
-            if (message == null) {
+            return if (message == null) {
                 null
             } else {
                 AnnotationError(

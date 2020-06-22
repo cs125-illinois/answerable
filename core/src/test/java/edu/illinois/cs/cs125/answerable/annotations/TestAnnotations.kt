@@ -213,7 +213,7 @@ class TestAnnotations {
     fun `should validate @EdgeCase correctly`() {
         val klass = "TestValidateEdgeCase".test()
         assert(klass.declaredMethods.size + klass.declaredFields.size == 14)
-        EdgeCase.validate(klass).also { errors ->
+        EdgeCase.validate(klass.testingValidateContext()).also { errors ->
             assert(errors.size == 10) { errors.size }
             assert(errors.all { it.kind == AnnotationError.Kind.EdgeCase })
             assert(
@@ -228,7 +228,7 @@ class TestAnnotations {
     fun `should validate @SimpleCase correctly`() {
         val klass = "TestValidateSimpleCase".test()
         assert(klass.declaredMethods.size + klass.declaredFields.size == 14)
-        SimpleCase.validate(klass).also { errors ->
+        SimpleCase.validate(klass.testingValidateContext()).also { errors ->
             assert(errors.size == 10)
             assert(errors.all { it.kind == AnnotationError.Kind.SimpleCase })
             assert(

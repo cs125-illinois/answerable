@@ -29,8 +29,8 @@ internal fun Class<*>.validateAnnotations(controlClass: Class<*>) {
     annotationErrors.addAll(Timeout.validate(context))
     annotationErrors.addAll(Next.validate(context))
     annotationErrors.addAll(Generator.validate(context))
-    annotationErrors.addAll(EdgeCase.validate(this))
-    annotationErrors.addAll(SimpleCase.validate(this))
+    annotationErrors.addAll(EdgeCase.validate(context))
+    annotationErrors.addAll(SimpleCase.validate(context))
     annotationErrors.addAll(DefaultTestRunArguments.validate(context))
 
     if (annotationErrors.isEmpty()) {
