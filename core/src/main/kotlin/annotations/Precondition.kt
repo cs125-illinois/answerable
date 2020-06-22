@@ -32,7 +32,7 @@ annotation class Precondition(
             val klass = context.referenceClass
 
             val referenceMethods = context.referenceClass.declaredMethods
-            val allMethods = referenceMethods + context.controlClass.declaredMethods
+            val allMethods = context.allDeclaredMethods
 
             val solutions = referenceMethods.filter { it.isAnnotationPresent(Solution::class.java) }
             val preconditions = allMethods.filter { it.isAnnotationPresent(Precondition::class.java) }

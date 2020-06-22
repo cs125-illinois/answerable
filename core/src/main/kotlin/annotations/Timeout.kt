@@ -20,9 +20,9 @@ annotation class Timeout(
 
         private fun validateMethod(method: Method): AnnotationError? {
             val timeout = method.getAnnotation(Timeout::class.java).timeout
-            val isNonStandaloneVerify = !(method.getAnnotation(Verify::class.java)?.standalone ?: true)
+            val isStandaloneVerify = method.getAnnotation(Verify::class.java)?.standalone ?: false
             val message = when {
-                !method.isAnnotationPresent(Solution::class.java) && isNonStandaloneVerify ->
+                !method.isAnnotationPresent(Solution::class.java) && !isStandaloneVerify ->
                     "@Timeout can only be applied to testable (@Solution or standalone @Verify) methods"
                 timeout == Long.MIN_VALUE -> "@Timeout annotation requires a timeout value"
                 timeout < 0 -> "@Timeout value cannot be negative"

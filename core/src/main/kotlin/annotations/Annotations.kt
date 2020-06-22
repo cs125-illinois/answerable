@@ -42,7 +42,13 @@ internal fun Class<*>.validateAnnotations(controlClass: Class<*>) {
     }
 }
 
-data class ValidateContext(val referenceClass: Class<*>, val controlClass: Class<*>)
+data class ValidateContext(val referenceClass: Class<*>, val controlClass: Class<*>) {
+    internal val allDeclaredMethods: Array<out Method> = if (referenceClass == controlClass) {
+        referenceClass.declaredMethods
+    } else {
+        referenceClass.declaredMethods + controlClass.declaredMethods
+    }
+}
 
 internal fun Method.validateCase(): String? {
     return if (!Modifier.isStatic(modifiers)) {

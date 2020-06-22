@@ -48,7 +48,7 @@ annotation class Solution(
                             )
                         )
                     } else {
-                        klass.validateMembers(::validateMethod)
+                        listOf()
                     }
                 }
             }
