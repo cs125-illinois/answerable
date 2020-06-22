@@ -3,11 +3,11 @@
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.annotations.EdgeCase
-import edu.illinois.cs.cs125.answerable.annotations.Generator
 import edu.illinois.cs.cs125.answerable.annotations.Next
 import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.UseGenerator
+import edu.illinois.cs.cs125.answerable.testing.GeneratorType
 import java.lang.IllegalStateException
 import java.lang.reflect.Field
 import java.lang.reflect.GenericArrayType
@@ -66,40 +66,9 @@ internal val Class<*>.publicMethods: List<Method>
 internal val Class<*>.publicInnerClasses: List<Class<*>>
     get() = declaredClasses.filter { Modifier.isPublic(it.modifiers) }
 
-internal fun Class<*>.getAllGenerators(): List<Method> =
-    this.declaredMethods
-        .filter { method -> method.isAnnotationPresent(Generator::class.java) }
-        .map { it.isAccessible = true; it }
-
-internal fun Class<*>.getEnabledGenerators(enabledNames: Array<String>): List<Method> =
-    this.declaredMethods
-        .filter { it.isAnnotationPresent(Generator::class.java) }
-        .groupBy { it.genericReturnType }
-        .flatMap { entry ->
-            when (entry.value.size) {
-                1 -> entry.value
-                else -> {
-                    entry.value
-                        .filter { it.getAnnotation(Generator::class.java).name in enabledNames }
-                        .let { enabledGenerators ->
-                            when (enabledGenerators.size) {
-                                1 -> enabledGenerators
-                                else -> {
-                                    val name = entry.key.sourceName
-                                    throw AnswerableMisuseException(
-                                        "Failed to resolve @Generator conflict:\n" +
-                                            "Multiple enabled generators found for type `$name'."
-                                    )
-                                }
-                            }
-                        }
-                }
-            }
-        }
-        .map { it.isAccessible = true; it }
-
-internal fun Method.getAnswerableParams(): Array<Pair<Type, String?>> =
-    this.parameters.map { Pair(it.parameterizedType, it.getAnnotation(UseGenerator::class.java)?.name) }.toTypedArray()
+internal fun Method.getAnswerableParams() =
+    this.parameters.map { GeneratorType(it.parameterizedType, it.getAnnotation(UseGenerator::class.java)?.name) }
+        .toTypedArray()
 
 internal fun Class<*>.getDefaultAtNext(): Method? =
     this.declaredMethods

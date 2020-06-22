@@ -51,7 +51,11 @@ class TestSandbox {
                 """.trimIndent(),
             className = "Example"
         )
-        assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.subDangerousLiveOutput.threw is SecurityException })
+        assertTrue(
+            result.testSteps.filterIsInstance<ExecutedTestStep>().any {
+                it.subDangerousLiveOutput.threw is SecurityException
+            }
+        )
     }
 
     @Test
@@ -77,7 +81,10 @@ class TestSandbox {
                 """.trimIndent(),
             className = "Example"
         )
-        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.subDangerousLiveOutput.threw is SecurityException })
+        assertFalse(
+            result.testSteps.filterIsInstance<ExecutedTestStep>()
+                .any { it.subDangerousLiveOutput.threw is SecurityException }
+        )
         assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 
@@ -173,7 +180,9 @@ class TestSandbox {
                 """.trimIndent(),
             className = "Example"
         )
-        assertFalse(result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.refLiveOutput.threw is SecurityException })
+        assertFalse(
+            result.testSteps.filterIsInstance<ExecutedTestStep>().any { it.refLiveOutput.threw is SecurityException }
+        )
         assertTrue(result.testSteps.filterIsInstance<ExecutedTestStep>().all { it.succeeded })
     }
 }

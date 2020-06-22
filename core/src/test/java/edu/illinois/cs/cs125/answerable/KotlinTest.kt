@@ -17,7 +17,9 @@ class KotlinTest {
 
     @Test
     fun testAverageClassDesign() {
-        assertClassDesignPasses(examples.ktaverage.reference.Average::class.java, examples.ktaverage.Average::class.java)
+        assertClassDesignPasses(
+            examples.ktaverage.reference.Average::class.java, examples.ktaverage.Average::class.java
+        )
     }
 
     @Test
@@ -55,12 +57,18 @@ class KotlinTest {
 
     @Test
     fun testStringFilter() {
-        assertClassesPass(examples.testgeneration.ktfilter.reference.StringFilterer::class.java, examples.testgeneration.ktfilter.StringFilterer::class.java)
+        assertClassesPass(
+            examples.testgeneration.ktfilter.reference.StringFilterer::class.java,
+            examples.testgeneration.ktfilter.StringFilterer::class.java
+        )
     }
 
     @Test
     fun testPrecondition() {
-        assertClassesPass(examples.testgeneration.reference.KtPrecondition::class.java, examples.testgeneration.KtPrecondition::class.java)
+        assertClassesPass(
+            examples.testgeneration.reference.KtPrecondition::class.java,
+            examples.testgeneration.KtPrecondition::class.java
+        )
     }
 
     @Test

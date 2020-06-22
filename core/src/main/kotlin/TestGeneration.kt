@@ -4,9 +4,11 @@ package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.answerable.annotations.DefaultTestRunArguments
-import edu.illinois.cs.cs125.answerable.annotations.Generator
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.Verify
+import edu.illinois.cs.cs125.answerable.annotations.getAllNamedGenerators
+import edu.illinois.cs.cs125.answerable.annotations.getEnabledGenerators
+import edu.illinois.cs.cs125.answerable.annotations.getGroupedGenerator
 import edu.illinois.cs.cs125.answerable.annotations.getPrecondition
 import edu.illinois.cs.cs125.answerable.annotations.getSolution
 import edu.illinois.cs.cs125.answerable.annotations.getTimeout
@@ -28,16 +30,18 @@ import edu.illinois.cs.cs125.answerable.classmanipulation.mkOpenMirrorClass
 import edu.illinois.cs.cs125.answerable.classmanipulation.mkProxy
 import edu.illinois.cs.cs125.answerable.classmanipulation.mkValueProxy
 import edu.illinois.cs.cs125.answerable.classmanipulation.verifyMemberAccess
+import edu.illinois.cs.cs125.answerable.testing.CustomGen
+import edu.illinois.cs.cs125.answerable.testing.GenWrapper
+import edu.illinois.cs.cs125.answerable.testing.GeneratorMap
+import edu.illinois.cs.cs125.answerable.testing.GeneratorMapBuilder
+import edu.illinois.cs.cs125.answerable.testing.GeneratorType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.opentest4j.AssertionFailedError
-import java.lang.IllegalStateException
 import java.lang.reflect.Constructor
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
-import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
-import java.lang.reflect.WildcardType
 import java.util.Random
 import kotlin.math.min
 import java.lang.reflect.Array as ReflectArray
@@ -138,16 +142,15 @@ class TestGenerator(
 
     internal val isStatic = referenceMethod?.let { Modifier.isStatic(it.modifiers) } ?: false
 
-    /** Pair<return type, useGeneratorName> */
-    internal val params: Array<Pair<Type, String?>> = usableReferenceMethod?.getAnswerableParams() ?: arrayOf()
-    internal val paramsWithReceiver: Array<Pair<Type, String?>> = arrayOf(Pair(usableReferenceClass, null), *params)
+    internal val params = usableReferenceMethod?.getAnswerableParams() ?: arrayOf()
+    internal val paramsWithReceiver = arrayOf(GeneratorType(usableReferenceClass), *params)
 
     internal val random: Random = Random(0)
-    internal val generators: Map<Pair<Type, String?>, GenWrapper<*>> = buildGeneratorMap(random)
+    internal val generators: GeneratorMap = buildGeneratorMap(random)
     internal val edgeCases: Map<Type, ArrayWrapper?> =
-        getEdgeCases(usableControlClass, paramsWithReceiver.map { it.first }.toTypedArray())
+        getEdgeCases(usableControlClass, paramsWithReceiver.map { it.type }.toTypedArray())
     internal val simpleCases: Map<Type, ArrayWrapper?> =
-        getSimpleCases(usableControlClass, paramsWithReceiver.map { it.first }.toTypedArray())
+        getSimpleCases(usableControlClass, paramsWithReceiver.map { it.type }.toTypedArray())
 
     internal val timeout = referenceMethod?.getTimeout() ?: customVerifier?.getTimeout() ?: 0
 
@@ -158,7 +161,7 @@ class TestGenerator(
     internal val receiverGenStrategy: ReceiverGenStrategy = when {
         isStatic -> ReceiverGenStrategy.NONE
         atNextMethod != null -> ReceiverGenStrategy.NEXT
-        usableReferenceClass in generators.keys.map { it.first } -> ReceiverGenStrategy.GENERATOR
+        usableReferenceClass in generators.keys.map { it.type } -> ReceiverGenStrategy.GENERATOR
         defaultConstructor != null -> ReceiverGenStrategy.DEFAULTCONSTRUCTOR
         else -> throw AnswerableMisuseException(
             "The reference solution must provide either an @Generator or an @Next method " +
@@ -173,46 +176,43 @@ class TestGenerator(
     internal fun buildGeneratorMap(
         random: Random,
         submittedClassGenerator: Method? = null
-    ): Map<Pair<Type, String?>, GenWrapper<*>> {
+    ): GeneratorMap {
         val generatorMapBuilder = GeneratorMapBuilder(
-            params.toSet(),
+            params,
             random,
             typePool,
             if (isStatic) null else usableReferenceClass,
             languageMode
         )
 
-        val enabledGens: List<Pair<Pair<Type, String?>, CustomGen>> =
-            usableControlClass.getEnabledGenerators(enabledNames).map {
-                return@map if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
-                    Pair(Pair(it.genericReturnType, null), CustomGen(submittedClassGenerator))
-                } else {
-                    Pair(Pair(it.genericReturnType, null), CustomGen(it))
-                }
+        usableControlClass.getEnabledGenerators(enabledNames).map {
+            if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
+                Pair(GeneratorType(it.genericReturnType), CustomGen(submittedClassGenerator))
+            } else {
+                Pair(GeneratorType(it.genericReturnType), CustomGen(it))
             }
-
-        enabledGens.groupBy { it.first }.forEach { gensForType ->
-            if (gensForType.value.size > 1) throw AnswerableMisuseException(
-                "Found multiple enabled generators for type `${gensForType.key.first.sourceName}'."
-            )
-        }
-
-        enabledGens.forEach(generatorMapBuilder::accept)
+        }.also { enabledGens ->
+            enabledGens.groupBy { it.first }.forEach { gensForType ->
+                if (gensForType.value.size > 1) throw AnswerableMisuseException(
+                    "Found multiple enabled generators for type `${gensForType.key.type.sourceName}'."
+                )
+            }
+        }.forEach(generatorMapBuilder::accept)
 
         // The map builder needs to be aware of all named generators for parameter-specific generator choices
-        val otherGens: List<Pair<Pair<Type, String?>, CustomGen>> = usableControlClass.getAllGenerators().mapNotNull {
-            // Skip unnamed generators
-            val name = it.getAnnotation(Generator::class.java)?.name ?: return@mapNotNull null
-            return@mapNotNull if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
-                Pair(Pair(it.genericReturnType, name), CustomGen(submittedClassGenerator))
+        usableControlClass.getAllNamedGenerators().map { (name, method) ->
+            if (method.returnType == usableReferenceClass && submittedClassGenerator != null) {
+                Pair(GeneratorType(method.genericReturnType, name), CustomGen(submittedClassGenerator))
             } else {
-                Pair(Pair(it.genericReturnType, name), CustomGen(it))
+                Pair(GeneratorType(method.genericReturnType, name), CustomGen(method))
+            }
+        }.forEach(generatorMapBuilder::accept)
+
+        return generatorMapBuilder.build().also { generatorMap ->
+            usableControlClass.getGroupedGenerator(solutionName)?.also {
+                generatorMap.parameterGenerator = GenWrapper(CustomGen(it), random)
             }
         }
-
-        otherGens.forEach(generatorMapBuilder::accept)
-
-        return generatorMapBuilder.build()
     }
 
     private fun getEdgeCases(clazz: Class<*>, types: Array<Type>): Map<Type, ArrayWrapper?> {
@@ -482,7 +482,7 @@ internal class TestRunWorker internal constructor(
 
     private fun calculateNumCases(cases: Map<Type, ArrayWrapper?>): Int =
         paramsWithReceiver.foldIndexed(1) { idx, acc, param ->
-            cases[param.first]?.let { cases: ArrayWrapper ->
+            cases[param.type]?.let { cases: ArrayWrapper ->
                 (if (idx == 0) ((cases.array as? Array<*>)?.filterNotNull()?.size ?: 1) else cases.size).let {
                     return@foldIndexed acc * it
                 }
@@ -493,7 +493,7 @@ internal class TestRunWorker internal constructor(
         index: Int,
         total: Int,
         cases: Map<Type, ArrayWrapper?>,
-        backups: Map<Pair<Type, String?>, GenWrapper<*>>
+        backups: Map<GeneratorType, GenWrapper<*>>
     ): Array<Any?> {
         var segmentSize = total
         var segmentIndex = index
@@ -502,7 +502,7 @@ internal class TestRunWorker internal constructor(
         @Suppress("LoopWithTooManyJumpStatements")
         for (i in paramsWithReceiver.indices) {
             val param = paramsWithReceiver[i]
-            val typeCases = cases[param.first]
+            val typeCases = cases[param.type]
 
             if (i == 0) { // receiver
                 if (typeCases == null) {
@@ -543,7 +543,7 @@ internal class TestRunWorker internal constructor(
     private fun mkSimpleEdgeMixedCase(
         edges: Map<Type, ArrayWrapper?>,
         simples: Map<Type, ArrayWrapper?>,
-        backups: Map<Pair<Type, String?>, GenWrapper<*>>,
+        backups: Map<GeneratorType, GenWrapper<*>>,
         random: Random
     ): Array<Any?> {
         val case = Array<Any?>(params.size) { null }
@@ -551,7 +551,7 @@ internal class TestRunWorker internal constructor(
             val edge = random.nextInt(2) == 0
             var simple = !edge
             val param = params[i]
-            val type = param.first
+            val type = param.type
 
             if (edge) {
                 if (edges[type] != null && edges.getValue(type)!!.size != 0) {
@@ -575,7 +575,7 @@ internal class TestRunWorker internal constructor(
     private fun mkGeneratedMixedCase(
         edges: Map<Type, ArrayWrapper?>,
         simples: Map<Type, ArrayWrapper?>,
-        gens: Map<Pair<Type, String?>, GenWrapper<*>>,
+        gens: Map<GeneratorType, GenWrapper<*>>,
         complexity: Int,
         random: Random
     ): Array<Any?> {
@@ -583,7 +583,7 @@ internal class TestRunWorker internal constructor(
 
         for (i in params.indices) {
             val param = params[i]
-            val type = param.first
+            val type = param.type
 
             @Suppress("MagicNumber")
             var choice = random.nextInt(3)
@@ -602,7 +602,7 @@ internal class TestRunWorker internal constructor(
                 }
             }
             if (choice == 2) {
-                case[i] = (gens[param] ?: error("Missing generator for ${param.first.sourceName}")).generate(complexity)
+                case[i] = (gens[param] ?: error("Missing generator for ${param.type.sourceName}")).generate(complexity)
             }
         }
 
@@ -632,7 +632,7 @@ internal class TestRunWorker internal constructor(
         when (receiverGenStrategy) {
             TestGenerator.ReceiverGenStrategy.NONE -> null
             TestGenerator.ReceiverGenStrategy.DEFAULTCONSTRUCTOR -> referenceDefaultCtor?.newInstance()
-            TestGenerator.ReceiverGenStrategy.GENERATOR -> referenceGens[Pair(usableReferenceClass, null)]?.generate(
+            TestGenerator.ReceiverGenStrategy.GENERATOR -> referenceGens[GeneratorType(usableReferenceClass)]?.generate(
                 complexity
             )
             TestGenerator.ReceiverGenStrategy.NEXT -> referenceAtNext?.invoke(
@@ -647,9 +647,10 @@ internal class TestRunWorker internal constructor(
         when (receiverGenStrategy) {
             TestGenerator.ReceiverGenStrategy.NONE -> null
             TestGenerator.ReceiverGenStrategy.DEFAULTCONSTRUCTOR -> submissionDefaultCtor?.newInstance()
-            TestGenerator.ReceiverGenStrategy.GENERATOR -> submissionGens[Pair(usableReferenceClass, null)]?.generate(
-                complexity
-            )
+            TestGenerator.ReceiverGenStrategy.GENERATOR ->
+                submissionGens[GeneratorType(usableReferenceClass)]?.generate(
+                    complexity
+                )
             TestGenerator.ReceiverGenStrategy.NEXT -> submissionAtNext?.invoke(
                 null,
                 prevSubReceiver,
@@ -896,8 +897,8 @@ internal class TestRunWorker internal constructor(
                     useRefReceiver = mkRefReceiver(i, comp, nonRegressRefReceiver)
                     useSubReceiver = mkSubReceiver(i, comp, nonRegressSubReceiver)
 
-                    refMethodArgs = params.map { referenceGens[it]?.generate(comp) }.toTypedArray()
-                    subMethodArgs = params.map { submissionGens[it]?.generate(comp) }.toTypedArray()
+                    refMethodArgs = referenceGens.generate(params, comp)
+                    subMethodArgs = submissionGens.generate(params, comp)
 
                     allGeneratedIdx++
                 }
@@ -1019,186 +1020,6 @@ class FailedClassDesignTestRunner(
 
     override fun runTests(seed: Long, environment: TestEnvironment, testRunnerArgs: TestRunnerArgs): TestingResults =
         runTests(seed, environment)
-}
-
-operator fun <T> MutableMap<Pair<Type, String?>, T>.get(type: Type): T? = this[Pair(type, null)]
-operator fun <T> MutableMap<Pair<Type, String?>, T>.set(type: Type, newVal: T) {
-    this[Pair(type, null)] = newVal
-}
-
-// NOTE: [Generator Keys]
-// goalTypes holds types that we need generators for. @UseGenerator annotations allow specifying a specific generator.
-// The string in the Pair is non-null iff a specific generator is requested.
-private class GeneratorMapBuilder(
-    goalTypes: Collection<Pair<Type, String?>>,
-    private val random: Random,
-    private val pool: TypePool,
-    private val receiverType: Class<*>?,
-    languageMode: LanguageMode
-) {
-    private var knownGenerators: MutableMap<Pair<Type, String?>, Lazy<Gen<*>>> = mutableMapOf()
-    private val defaultGenerators: Map<Pair<Class<*>, String?>, Gen<*>> =
-        languageMode.defaultGenerators.mapKeys { (k, _) -> Pair(k, null) }
-
-    init {
-        defaultGenerators.forEach { (k, v) -> accept(k, v) }
-        knownGenerators[String::class.java] = lazy { DefaultStringGen(knownGenerators[Char::class.java]!!.value) }
-    }
-
-    private val requiredGenerators: Set<Pair<Type, String?>> = goalTypes.toSet().also { it.forEach(this::request) }
-
-    private fun lazyGenError(type: Type) = AnswerableMisuseException(
-        "A generator for type `${pool.getOriginalClass(type).sourceName}' was requested, " +
-            "but no generator for that type was found."
-    )
-
-    private fun lazyArrayError(type: Type) = AnswerableMisuseException(
-        "A generator for an array with component type `${pool.getOriginalClass(type).sourceName}' was requested, " +
-            "but no generator for that type was found."
-    )
-
-    fun accept(pair: Pair<Pair<Type, String?>, Gen<*>?>) = accept(pair.first, pair.second)
-
-    fun accept(type: Pair<Type, String?>, gen: Gen<*>?) {
-        if (gen != null) {
-            // kotlin fails to smart cast here even though it says the cast isn't needed
-            @Suppress("USELESS_CAST")
-            knownGenerators[type] = lazy { gen as Gen<*> }
-        }
-    }
-
-    private fun request(pair: Pair<Type, String?>) {
-        if (pair.second == null) {
-            request(pair.first)
-        }
-    }
-
-    private fun request(type: Type) {
-        when (type) {
-            is Class<*> -> if (type.isArray) {
-                request(type.componentType)
-                knownGenerators[type] =
-                    lazy {
-                        DefaultArrayGen(
-                            knownGenerators[type.componentType]?.value ?: throw lazyArrayError(type.componentType),
-                            type.componentType
-                        )
-                    }
-            }
-        }
-    }
-
-    @Suppress("ComplexMethod")
-    private fun generatorCompatible(requested: Type, known: Type): Boolean {
-        // TODO: There are probably more cases we'd like to handle, but we should be careful to not be too liberal
-        //  in matching
-        if (requested == known) {
-            return true
-        }
-        return when (requested) {
-            is ParameterizedType -> when (known) {
-                is ParameterizedType ->
-                    requested.rawType == known.rawType &&
-                        requested.actualTypeArguments.indices
-                            .all {
-                                generatorCompatible(
-                                    requested.actualTypeArguments[it],
-                                    known.actualTypeArguments[it]
-                                )
-                            }
-                else -> false
-            }
-            is WildcardType -> when (known) {
-                is Class<*> ->
-                    requested.lowerBounds.elementAtOrNull(0) == known ||
-                        requested.upperBounds.elementAtOrNull(0) == known
-                is ParameterizedType -> {
-                    val hasLower = requested.lowerBounds.size == 1
-                    val matchesLower = hasLower && generatorCompatible(requested.lowerBounds[0], known)
-                    val hasUpper = requested.upperBounds.size == 1
-                    val matchesUpper = hasUpper && generatorCompatible(requested.upperBounds[0], known)
-                    (!hasLower || matchesLower) && (!hasUpper || matchesUpper) && (hasLower || hasUpper)
-                }
-                else -> false
-            }
-            else -> false
-        }
-    }
-
-    fun build(): Map<Pair<Type, String?>, GenWrapper<*>> {
-        fun selectGenerator(goal: Pair<Type, String?>): Gen<*>? {
-            // Selects a variant-compatible generator if an exact match isn't found
-            // e.g. Kotlin Function1<? super Whatever, SomethingElse> (required) is compatible
-            //        with Function1<        Whatever, SomethingElse> (known)
-            knownGenerators[goal]?.value?.let { return it }
-            return knownGenerators.filter { (known, _) ->
-                known.second == goal.second && generatorCompatible(goal.first, known.first)
-            }.toList().firstOrNull()?.second?.value
-        }
-
-        val discovered = mutableMapOf(
-            *requiredGenerators
-                .map { it to (GenWrapper(selectGenerator(it) ?: throw lazyGenError(it.first), random)) }
-                .toTypedArray()
-        )
-        if (receiverType != null) {
-            // Add a receiver generator if possible - don't fail here if not found because there might be a default
-            // constructor
-            val receiverTarget = Pair(receiverType, null)
-            if (!discovered.containsKey(receiverTarget)) knownGenerators[receiverType]?.value?.let {
-                discovered[receiverTarget] = GenWrapper(it, random)
-            }
-        }
-        return discovered
-    }
-}
-
-internal class GenWrapper<T>(val gen: Gen<T>, private val random: Random) {
-    operator fun invoke(complexity: Int) = gen.generate(complexity, random)
-
-    fun generate(complexity: Int): T = gen.generate(complexity, random)
-}
-
-// So named as to avoid conflict with the @Generator annotation, as that class name is part of the public API
-// and this one is not.
-internal interface Gen<out T> {
-    fun generate(complexity: Int, random: Random): T
-}
-
-@Suppress("NOTHING_TO_INLINE")
-internal inline operator fun <T> Gen<T>.invoke(complexity: Int, random: Random): T = generate(complexity, random)
-
-internal class CustomGen(private val gen: Method) : Gen<Any?> {
-    override fun generate(complexity: Int, random: Random): Any? = gen(null, complexity, random)
-}
-
-internal class DefaultStringGen(private val cGen: Gen<*>) : Gen<String> {
-    override fun generate(complexity: Int, random: Random): String {
-        val len = random.nextInt(complexity + 1)
-
-        return String((1..len).map { cGen(complexity, random) as Char }.toTypedArray().toCharArray())
-    }
-}
-
-internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: Class<*>) : Gen<Any> {
-    override fun generate(complexity: Int, random: Random): Any {
-        return ReflectArray.newInstance(tClass, random.nextInt(complexity + 1)).also {
-            val wrapper = ArrayWrapper(it)
-            (0 until wrapper.size).forEach { idx -> wrapper[idx] = tGen(random.nextInt(complexity + 1), random) }
-        }
-    }
-}
-
-internal class DefaultListGen<T>(private val tGen: Gen<T>) : Gen<List<T>> {
-    override fun generate(complexity: Int, random: Random): List<T> {
-        fun genList(complexity: Int, length: Int): List<T> =
-            if (length <= 0) {
-                listOf()
-            } else {
-                listOf(tGen(random.nextInt(complexity + 1), random)) + genList(complexity, length - 1)
-            }
-        return genList(complexity, random.nextInt(complexity + 1))
-    }
 }
 
 internal class ArrayWrapper(val array: Any) {
