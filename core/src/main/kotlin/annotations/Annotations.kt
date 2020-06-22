@@ -27,7 +27,7 @@ internal fun Class<*>.validateAnnotations(controlClass: Class<*>) {
     annotationErrors.addAll(Precondition.validate(context))
     annotationErrors.addAll(Verify.validate(context))
     annotationErrors.addAll(Timeout.validate(context))
-    annotationErrors.addAll(Next.oldValidate(this))
+    annotationErrors.addAll(Next.validate(context))
     annotationErrors.addAll(Generator.validate(context))
     annotationErrors.addAll(EdgeCase.validate(this))
     annotationErrors.addAll(SimpleCase.validate(this))

@@ -38,30 +38,35 @@ annotation class Next(
     val name: String = ""
 ) {
     companion object {
-        private val parameterTypes = arrayOf(Int::class.java, java.util.Random::class.java)
-
-        fun oldValidate(klass: Class<*>) = klass.validateMembers(::validateMethod)
-
-        fun validateMethod(method: Method): AnnotationError? {
-            val message = if (!method.isAnnotationPresent(Next::class.java)) {
-                null
-            } else if (!method.isStatic()) {
-                "@Next methods must be static"
-            } else if (!(method.parameterTypes.takeLast(2).toTypedArray() contentEquals parameterTypes)) {
-                "@Next methods must take parameters (int, Random)"
-                // TODO: this case is not right, regressed during refactor
-            } else {
-                null
-            }
-            return if (message != null) {
-                AnnotationError(
-                    AnnotationError.Kind.Next,
-                    SourceLocation(method),
-                    message
+        fun validate(context: ValidateContext): List<AnnotationError> {
+            fun validateMethod(method: Method): AnnotationError? {
+                val parameterTypes = arrayOf(
+                    context.referenceClass,
+                    Int::class.java,
+                    java.util.Random::class.java
                 )
-            } else {
-                null
+
+                val message = if (!method.isStatic()) {
+                    "@Next methods must be static"
+                } else if (!(method.parameterTypes contentEquals parameterTypes)) {
+                    "@Next methods must take parameters (ReferenceClass, int, Random)"
+                } else if (method.returnType != context.referenceClass) {
+                    "@Next methods must return an instance of the reference class"
+                } else {
+                    null
+                }
+                return if (message != null) {
+                    AnnotationError(
+                        AnnotationError.Kind.Next,
+                        SourceLocation(method),
+                        message
+                    )
+                } else {
+                    null
+                }
             }
+
+            return context.validateControlAnnotation(Next::class.java, ::validateMethod)
         }
     }
 }

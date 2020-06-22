@@ -136,11 +136,10 @@ class TestAnnotations {
     }
 
     @Test
-    @Disabled
     fun `should validate @Next correctly`() {
         val klass = "TestValidateNext".test()
         assert(klass.declaredMethods.size == 8)
-        Next.oldValidate(klass).also { errors ->
+        Next.validate(klass.testingValidateContext()).also { errors ->
             assert(errors.size == 7)
             assert(errors.all { it.kind == AnnotationError.Kind.Next })
             assert(errors.all { it.location.methodName?.contains("broken") ?: false })
@@ -148,21 +147,20 @@ class TestAnnotations {
 
         findAnnotation(Next::class.java, "examples").also { klasses ->
             klasses.forEach {
-                val errors = Next.oldValidate(it)
+                val errors = Next.validate(it.testingValidateContext())
                 if (errors.isNotEmpty()) {
                     println(errors)
                 }
             }
             assert(klasses.isNotEmpty())
-            assert(klasses.all { klass -> Next.oldValidate(klass).isEmpty() })
+            assert(klasses.all { klass -> Next.validate(klass.testingValidateContext()).isEmpty() })
         }
     }
 
     @Test
-    @Disabled
     fun `should validate @Next correctly in Kotlin`() {
         val klassKt = "TestValidateNextKt".test()
-        Next.oldValidate(klassKt).also { errors ->
+        Next.validate(klassKt.testingValidateContext()).also { errors ->
             assert(errors.size == 2)
             assert(errors.all { it.kind == AnnotationError.Kind.Next })
             assert(errors.all { it.location.methodName?.contains("broken") ?: false })
@@ -171,16 +169,32 @@ class TestAnnotations {
 
     @Test
     fun `should validate @Generator correctly`() {
-        val klass = "TestValidateGenerator".test()
-        assert(klass.declaredMethods.size == 4)
-        Generator.validate(klass.testingValidateContext()).also { errors ->
-            assert(errors.size == 2)
-            assert(errors.all { it.kind == AnnotationError.Kind.Generator })
-            assert(errors.all { it.location.methodName?.contains("broken") ?: false })
-        }
+        listOf("generator.Correct0", "generator.Broken0").map { it.test() }
+            .forEach { klass ->
+                Generator.validate(klass.testingValidateContext()).also { errors ->
+                    if (klass.name.contains("Correct")) {
+                        assert(errors.isEmpty())
+                    } else {
+                        assert(errors.isNotEmpty())
+                        assert(errors.all { it.kind == AnnotationError.Kind.Generator })
+                    }
+                }
+            }
         findAnnotation(Generator::class.java, "examples").also { klasses ->
             assert(klasses.isNotEmpty())
-            assert(klasses.all { klass -> Generator.validate(klass.testingValidateContext()).isEmpty() })
+            assert(klasses.all { klass -> Solution.validate(klass.testingValidateContext()).isEmpty() })
+        }
+    }
+
+    @Test
+    fun `should validate grouped @Generator correctly`() {
+        "generator.Grouped".test().also { klass ->
+            klass.getAllSolutions().also {
+                assert(it.isNotEmpty())
+            }.forEach { method ->
+                val name = method.getAnnotation(Solution::class.java).name
+                assert(klass.getGroupedGenerator(name) != null)
+            }
         }
     }
 
@@ -237,7 +251,7 @@ class TestAnnotations {
     }
 }
 
-private fun Class<*>.testingValidateContext() = ValidateContext(
+internal fun Class<*>.testingValidateContext() = ValidateContext(
     this,
     this.languageMode().findControlClass(this, TypePool()) ?: this
 )
