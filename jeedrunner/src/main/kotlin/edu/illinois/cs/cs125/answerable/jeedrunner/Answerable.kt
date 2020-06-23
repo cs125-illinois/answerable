@@ -5,12 +5,12 @@ package edu.illinois.cs.cs125.answerable.jeedrunner
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
 import edu.illinois.cs.cs125.answerable.AnswerableVerificationException
 import edu.illinois.cs.cs125.answerable.TestGenerator
-import edu.illinois.cs.cs125.answerable.TestRunnerArgs
-import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
-import edu.illinois.cs.cs125.answerable.defaultArgs
+import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
+import edu.illinois.cs.cs125.answerable.testing.TestingResults
+import edu.illinois.cs.cs125.answerable.testing.defaultArgs
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
 import edu.illinois.cs.cs125.jeed.core.CompilationFailed
 import edu.illinois.cs.cs125.jeed.core.CompiledSource

@@ -4,6 +4,8 @@ import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import edu.illinois.cs.cs125.answerable.classmanipulation.mkGeneratorMirrorClass
 import edu.illinois.cs.cs125.answerable.classmanipulation.mkOpenMirrorClass
+import edu.illinois.cs.cs125.answerable.testing.ExecutedTestStep
+import edu.illinois.cs.cs125.answerable.testing.TestingResults
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
 import edu.illinois.cs.cs125.jeed.core.JeedClassLoader
 import edu.illinois.cs.cs125.jeed.core.Source
@@ -193,5 +195,25 @@ internal class ProxyingTest {
         Assertions.assertEquals("Jeed", jeedClass.getDeclaredMethod("welcome").invoke(null))
         val mirroredClass = mkOpenMirrorClass(jeedClass, TypePool(bytecodeProvider, jeedClass.classLoader))
         Assertions.assertEquals("Jeed", mirroredClass.getDeclaredMethod("welcome").invoke(null))
+    }
+}
+
+class InvertedClassloader(private val klass: String) : ClassLoader() {
+    override fun loadClass(name: String): Class<*> {
+        return if (name == klass) {
+            // Force resolution to continue downward, regardless of the contents of parent Classloaders
+            throw ClassNotFoundException()
+        } else {
+            super.loadClass(name)
+        }
+    }
+
+    override fun loadClass(name: String, resolve: Boolean): Class<*> {
+        return if (name == klass) {
+            // Force resolution to continue downward, regardless of the contents of parent Classloaders
+            throw ClassNotFoundException()
+        } else {
+            super.loadClass(name, resolve)
+        }
     }
 }

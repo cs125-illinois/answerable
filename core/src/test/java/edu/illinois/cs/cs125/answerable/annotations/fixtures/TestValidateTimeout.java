@@ -12,7 +12,7 @@ public class TestValidateTimeout {
 
   @Timeout(timeout = 1)
   @Verify(standalone = true)
-  public void correct1(TestOutput ours, TestOutput theirs) { }
+  public void correct1(TestOutput ours, TestOutput theirs) {}
 
   @Timeout
   @Solution

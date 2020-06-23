@@ -1,7 +1,10 @@
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.testing.CustomGen
+import edu.illinois.cs.cs125.answerable.testing.DiscardedTestStep
+import edu.illinois.cs.cs125.answerable.testing.ExecutedTestStep
 import edu.illinois.cs.cs125.answerable.testing.GeneratorType
+import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
 import examples.testgeneration.validation.reference.Adder
 import examples.testgeneration.validation.reference.ArgsOnStandaloneVerify
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -277,13 +280,28 @@ internal class TestGeneratorTest {
         val defaultOut = gen.loadSubmission(examples.adder.correct.Adder::class.java).runTestsUnsecured(seed)
         assertEquals(64, defaultOut.numTests)
         val submission =
-            gen.loadSubmission(examples.adder.correct.Adder::class.java, testRunnerArgs = TestRunnerArgs(numTests = 48))
+            gen.loadSubmission(
+                examples.adder.correct.Adder::class.java,
+                testRunnerArgs = TestRunnerArgs(
+                    numTests = 48
+                )
+            )
         val submissionOut = submission.runTestsUnsecured(seed)
         assertEquals(48, submissionOut.numTests)
-        val runOut = submission.runTestsUnsecured(seed, testRunnerArgs = TestRunnerArgs(numTests = 32))
+        val runOut = submission.runTestsUnsecured(
+            seed,
+            testRunnerArgs = TestRunnerArgs(
+                numTests = 32
+            )
+        )
         assertEquals(32, runOut.numTests)
         val newRunOut = gen.loadSubmission(examples.adder.correct.Adder::class.java)
-            .runTestsUnsecured(seed, testRunnerArgs = TestRunnerArgs(numTests = 16))
+            .runTestsUnsecured(
+                seed,
+                testRunnerArgs = TestRunnerArgs(
+                    numTests = 16
+                )
+            )
         assertEquals(16, newRunOut.numTests)
     }
 
@@ -296,9 +314,16 @@ internal class TestGeneratorTest {
         )
             .loadSubmission(
                 examples.adder.correct.Adder::class.java,
-                testRunnerArgs = TestRunnerArgs(maxOnlySimpleCaseTests = 1)
+                testRunnerArgs = TestRunnerArgs(
+                    maxOnlySimpleCaseTests = 1
+                )
             )
-            .runTestsUnsecured(seed, testRunnerArgs = TestRunnerArgs(maxOnlyEdgeCaseTests = 2))
+            .runTestsUnsecured(
+                seed,
+                testRunnerArgs = TestRunnerArgs(
+                    maxOnlyEdgeCaseTests = 2
+                )
+            )
         assertEquals(128, out.numTests)
         assertEquals(1, out.numSimpleCaseTests)
         assertEquals(2, out.numEdgeCaseTests)
@@ -306,7 +331,12 @@ internal class TestGeneratorTest {
 
     @Test
     fun testAnnotationRunnerArgs() {
-        val out = TestGenerator(Adder::class.java, testRunnerArgs = TestRunnerArgs(numTests = 64))
+        val out = TestGenerator(
+            Adder::class.java,
+            testRunnerArgs = TestRunnerArgs(
+                numTests = 64
+            )
+        )
             .loadSubmission(examples.adder.correct.Adder::class.java).runTestsUnsecured(0x0403)
         assertEquals(64, out.numTests)
         assertEquals(1, out.numSimpleCaseTests)
@@ -397,10 +427,15 @@ internal class TestGeneratorTest {
 
     @Test
     fun testGroupedParameterGenerators() {
-        TestGenerator(examples.testgeneration.generators.reference.GroupedParameterGenerators::class.java)
-            .loadSubmission(examples.testgeneration.generators.GroupedParameterGenerators::class.java)
-            .runTestsUnsecured(Random.nextLong()).also {
-                it.assertSomethingFailed()
-            }
+        TestGenerator(examples.testgeneration.generators.reference.GroupedParameterGenerators::class.java).also {
+            it.loadSubmission(examples.testgeneration.generators.GroupedParameterGenerators::class.java)
+                .runTestsUnsecured(Random.nextLong()).also {
+                    it.assertSomethingFailed()
+                }
+            it.loadSubmission(examples.testgeneration.generators.GroupedParameterGenerators::class.java)
+                .runTestsUnsecured(Random.nextLong()).also {
+                    it.assertSomethingFailed()
+                }
+        }
     }
 }

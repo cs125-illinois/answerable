@@ -2,10 +2,10 @@
 
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
-import edu.illinois.cs.cs125.answerable.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
-import edu.illinois.cs.cs125.answerable.defaultArgs
+import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
+import edu.illinois.cs.cs125.answerable.testing.defaultArgs
 import edu.illinois.cs.cs125.jeed.core.CompilationFailed
 import edu.illinois.cs.cs125.jeed.core.Sandbox
 
@@ -15,7 +15,8 @@ abstract class QuestionBuilder<T : QuestionBuilder<T>> internal constructor(
 ) {
 
     protected var solutionName: String = DEFAULT_EMPTY_NAME
-    protected var testRunnerArgs: TestRunnerArgs = defaultArgs
+    protected var testRunnerArgs: TestRunnerArgs =
+        defaultArgs
     protected var classLoaderConfiguration: Sandbox.ClassLoaderConfiguration = Sandbox.ClassLoaderConfiguration()
     protected var executionArguments: Sandbox.ExecutionArguments = Sandbox.ExecutionArguments()
 
@@ -108,7 +109,8 @@ abstract class SubmissionBuilder<T : SubmissionBuilder<T>> internal constructor(
     protected val questionName: String
 ) {
 
-    protected var testRunnerArgs: TestRunnerArgs = defaultArgs
+    protected var testRunnerArgs: TestRunnerArgs =
+        defaultArgs
 
     fun testRunnerArgs(setArgs: TestRunnerArgs): T {
         return this.also { testRunnerArgs = setArgs } as T

@@ -1,4 +1,6 @@
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.testing
+
+import edu.illinois.cs.cs125.answerable.ArrayWrapper
 
 private val defaultIntSimpleCases = intArrayOf(-1, 1)
 private val defaultByteSimpleCases = byteArrayOf(-1, 1)

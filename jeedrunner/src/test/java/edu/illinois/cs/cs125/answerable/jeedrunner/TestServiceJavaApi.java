@@ -1,7 +1,7 @@
 package edu.illinois.cs.cs125.answerable.jeedrunner;
 
-import edu.illinois.cs.cs125.answerable.ExecutedTestStep;
-import edu.illinois.cs.cs125.answerable.TestingResults;
+import edu.illinois.cs.cs125.answerable.testing.ExecutedTestStep;
+import edu.illinois.cs.cs125.answerable.testing.TestingResults;
 import edu.illinois.cs.cs125.jeed.core.CompilationFailed;
 import edu.illinois.cs.cs125.jeed.core.Sandbox;
 import java.util.Collections;

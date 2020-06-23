@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
 import examples.binarytree.reference.YourBinaryTree
 import examples.binarytree.size.ClassicBinaryTreeSizeTest
 import examples.sorting.ClassicSortTest
@@ -19,7 +20,8 @@ fun main() {
 
 fun testAnswerable(repeats: Int) {
     val testGenerator = TestGenerator(
-        YourBinaryTree::class.java, "size", TestRunnerArgs(numTests = 259, maxComplexity = 1024)
+        YourBinaryTree::class.java, "size",
+        TestRunnerArgs(numTests = 259, maxComplexity = 1024)
     )
     repeat(repeats) {
         testGenerator.loadSubmission(examples.binarytree.size.YourBinaryTree::class.java)

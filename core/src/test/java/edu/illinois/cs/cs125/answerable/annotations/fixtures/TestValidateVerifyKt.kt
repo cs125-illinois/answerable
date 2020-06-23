@@ -1,3 +1,5 @@
+@file:Suppress("unused", "UNUSED_PARAMETER", "FunctionOnlyReturningConstant", "EmptyFunctionBlock")
+
 package edu.illinois.cs.cs125.answerable.annotations.fixtures
 
 import edu.illinois.cs.cs125.answerable.annotations.Solution

@@ -1,7 +1,7 @@
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
-import edu.illinois.cs.cs125.answerable.ExecutedTestStep
-import edu.illinois.cs.cs125.answerable.TestRunnerArgs
+import edu.illinois.cs.cs125.answerable.testing.ExecutedTestStep
+import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test

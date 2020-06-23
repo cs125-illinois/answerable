@@ -2,9 +2,9 @@ package edu.illinois.cs.cs125.answerable.jeedrunner
 
 import edu.illinois.cs.cs125.answerable.TestEnvironment
 import edu.illinois.cs.cs125.answerable.TestGenerator
-import edu.illinois.cs.cs125.answerable.TestRunnerArgs
-import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
+import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
+import edu.illinois.cs.cs125.answerable.testing.TestingResults
 import edu.illinois.cs.cs125.jeed.core.CompilationArguments
 import edu.illinois.cs.cs125.jeed.core.IsolatingClassLoader
 import edu.illinois.cs.cs125.jeed.core.Source
