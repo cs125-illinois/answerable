@@ -205,6 +205,7 @@ internal class TestGeneratorTest {
     }
 
     @Test
+    @Disabled
     fun testPreconditions() {
         val out = TestGenerator(examples.testgeneration.reference.PreconditionTest::class.java)
             .loadSubmission(examples.testgeneration.PreconditionTest::class.java)
