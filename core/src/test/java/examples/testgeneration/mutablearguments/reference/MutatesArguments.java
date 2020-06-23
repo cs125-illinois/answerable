@@ -1,4 +1,4 @@
-package examples.testgeneration.standaloneverify.reference;
+package examples.testgeneration.mutablearguments.reference;
 
 import edu.illinois.cs.cs125.answerable.annotations.Solution;
 import edu.illinois.cs.cs125.answerable.annotations.Verify;

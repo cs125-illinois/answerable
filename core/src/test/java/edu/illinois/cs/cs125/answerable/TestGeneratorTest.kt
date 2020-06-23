@@ -5,6 +5,7 @@ import edu.illinois.cs.cs125.answerable.testing.DiscardedTestStep
 import edu.illinois.cs.cs125.answerable.testing.ExecutedTestStep
 import edu.illinois.cs.cs125.answerable.testing.GeneratorType
 import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
+import examples.testgeneration.mutablearguments.MutatesArguments
 import examples.testgeneration.validation.reference.Adder
 import examples.testgeneration.validation.reference.ArgsOnStandaloneVerify
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -186,9 +187,9 @@ internal class TestGeneratorTest {
 
     @Test
     fun `test verifier can reject args incorrectly mutated by submission`() {
-        val out = TestGenerator(examples.testgeneration.standaloneverify.reference.MutatesArguments::class.java)
-            .loadSubmission(examples.testgeneration.standaloneverify.MutatesArguments::class.java)
-            .runTestsUnsecured(0x0403)
+        val out = TestGenerator(
+            examples.testgeneration.mutablearguments.reference.MutatesArguments::class.java
+        ).loadSubmission(MutatesArguments::class.java).runTestsUnsecured(0x0403)
         assertTrue(out.executedTestSteps.any { !it.succeeded })
         /*out.executedTestSteps.filter { !it.succeeded }.take(5).forEach {
             println("ref args: ${(it.refLiveOutput.args[0] as IntArray).contentToString()}")

@@ -1,4 +1,4 @@
-package examples.testgeneration.standaloneverify;
+package examples.testgeneration.mutablearguments;
 
 public class MutatesArguments {
   public static int[] soln(int[] ints) {
