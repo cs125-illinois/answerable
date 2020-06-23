@@ -189,11 +189,11 @@ internal class TestGeneratorTest {
         val out = TestGenerator(examples.testgeneration.standaloneverify.reference.MutatesArguments::class.java)
             .loadSubmission(examples.testgeneration.standaloneverify.MutatesArguments::class.java)
             .runTestsUnsecured(0x0403)
-        out.assertSomethingFailed()
-        out.executedTestSteps.filter { !it.succeeded }.take(5).forEach {
+        assertTrue(out.executedTestSteps.any { !it.succeeded })
+        /*out.executedTestSteps.filter { !it.succeeded }.take(5).forEach {
             println("ref args: ${(it.refLiveOutput.args[0] as IntArray).contentToString()}")
             println("sub args: ${(it.subDangerousLiveOutput.args[0] as IntArray).contentToString()}")
-        }
+        }*/
     }
 
     @Test
