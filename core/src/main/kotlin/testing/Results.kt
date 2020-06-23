@@ -190,7 +190,6 @@ data class TestingBlockCounts(
     var allGeneratedTests: Int = 0,
     var regressionTests: Int = 0
 ) {
-
     val numTests: Int
         get() = edgeTests + simpleTests + simpleEdgeMixedTests +
             generatedMixedTests + allGeneratedTests + regressionTests

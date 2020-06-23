@@ -26,8 +26,8 @@ data class SourceLocation(
     override fun toString(): String = StringBuilder().let { sb ->
         sb.append(packageName)
         if (className != null) sb.append(".$className")
-        if (methodName != null) sb.append(":$methodName")
-        if (fieldName != null) sb.append(":$fieldName")
+        if (methodName != null) sb.append("#$methodName")
+        if (fieldName != null) sb.append("#$fieldName")
         sb.toString()
     }
 }
