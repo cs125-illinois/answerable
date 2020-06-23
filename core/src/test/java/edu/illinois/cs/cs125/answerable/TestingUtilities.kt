@@ -1,7 +1,9 @@
 package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAConfig
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.classDesignAnalysis
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.defaultCDAConfig
 import edu.illinois.cs.cs125.answerable.testing.TestingResults
 import org.junit.jupiter.api.Assertions
 import kotlin.random.Random
@@ -22,10 +24,15 @@ fun runAnswerableTest(
         .runTestsUnsecured(randomSeed)
 }
 
-internal fun assertClassDesignPasses(solution: Class<*>, submission: Class<*>) {
+internal fun assertClassDesignPasses(
+    solution: Class<*>,
+    submission: Class<*>,
+    cdaConfig: CDAConfig = defaultCDAConfig
+) {
     val result = classDesignAnalysis(
         solution,
-        submission
+        submission,
+        cdaConfig
     )
     result.errorMessages.forEach {
         Assertions.fail(it)
