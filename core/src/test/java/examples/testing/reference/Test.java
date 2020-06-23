@@ -2,12 +2,12 @@ package examples.testing.reference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import edu.illinois.cs.cs125.answerable.*;
 import edu.illinois.cs.cs125.answerable.annotations.Generator;
 import edu.illinois.cs.cs125.answerable.annotations.Solution;
 import edu.illinois.cs.cs125.answerable.annotations.Timeout;
 import edu.illinois.cs.cs125.answerable.annotations.Verify;
 import edu.illinois.cs.cs125.answerable.api.*;
+import edu.illinois.cs.cs125.answerable.testing.Behavior;
 import java.util.List;
 import java.util.Random;
 

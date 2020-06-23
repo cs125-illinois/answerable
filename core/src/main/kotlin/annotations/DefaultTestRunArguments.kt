@@ -1,6 +1,6 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
-import edu.illinois.cs.cs125.answerable.TestRunnerArgs
+import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
 import java.lang.reflect.Method
 
 /**

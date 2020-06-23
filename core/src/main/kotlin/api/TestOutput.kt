@@ -1,9 +1,9 @@
 package edu.illinois.cs.cs125.answerable.api
 
-import edu.illinois.cs.cs125.answerable.Behavior
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.Verify
 import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
+import edu.illinois.cs.cs125.answerable.testing.Behavior
 import java.util.Arrays
 
 /**

@@ -8,15 +8,15 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.ToJson
 import com.squareup.moshi.adapters.PolymorphicJsonAdapterFactory
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import edu.illinois.cs.cs125.answerable.DiscardedTestStep
-import edu.illinois.cs.cs125.answerable.ExecutedTestStep
-import edu.illinois.cs.cs125.answerable.TestRunnerArgs
-import edu.illinois.cs.cs125.answerable.TestStep
-import edu.illinois.cs.cs125.answerable.TestType
-import edu.illinois.cs.cs125.answerable.TestingResults
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAResult
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.OssifiedExecutable
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.OssifiedField
+import edu.illinois.cs.cs125.answerable.testing.DiscardedTestStep
+import edu.illinois.cs.cs125.answerable.testing.ExecutedTestStep
+import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
+import edu.illinois.cs.cs125.answerable.testing.TestStep
+import edu.illinois.cs.cs125.answerable.testing.TestType
+import edu.illinois.cs.cs125.answerable.testing.TestingResults
 import kotlin.UnsupportedOperationException
 
 internal val serializer: Moshi = Moshi.Builder()

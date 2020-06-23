@@ -20,7 +20,7 @@ allprojects {
 }
 subprojects {
     group = "com.github.cs125-illinois.answerable"
-    version = "2020.6.4"
+    version = "2020.6.5"
     tasks.withType<KotlinCompile> {
         val javaVersion = JavaVersion.VERSION_1_8.toString()
         sourceCompatibility = javaVersion

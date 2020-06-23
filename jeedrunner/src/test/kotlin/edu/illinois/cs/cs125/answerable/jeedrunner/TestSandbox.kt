@@ -1,6 +1,6 @@
 package edu.illinois.cs.cs125.answerable.jeedrunner
 
-import edu.illinois.cs.cs125.answerable.ExecutedTestStep
+import edu.illinois.cs.cs125.answerable.testing.ExecutedTestStep
 import edu.illinois.cs.cs125.jeed.core.Sandbox
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals

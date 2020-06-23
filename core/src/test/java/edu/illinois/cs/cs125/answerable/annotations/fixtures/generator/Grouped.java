@@ -57,4 +57,14 @@ public class Grouped {
       int complexity, Random random) {
     return new Pair<>(new Integer[] {8, 8}, new Float[][] {{8.8f, 8.8f}});
   }
+
+  @Solution(name = "stringAndDoubleString")
+  public static boolean stringAndString(String[] first, String[][] second) {
+    return true;
+  }
+
+  @Generator(name = "stringAndDoubleString")
+  public static Pair<String[], String[][]> generateStringAndString(int complexity, Random random) {
+    return new Pair<>(new String[] {""}, new String[][] {{"", ""}});
+  }
 }

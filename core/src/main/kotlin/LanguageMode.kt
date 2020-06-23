@@ -3,7 +3,10 @@ package edu.illinois.cs.cs125.answerable
 import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import edu.illinois.cs.cs125.answerable.classmanipulation.getDefiningKotlinFileClass
 import edu.illinois.cs.cs125.answerable.testing.Gen
+import edu.illinois.cs.cs125.answerable.testing.arraySimpleCases
+import edu.illinois.cs.cs125.answerable.testing.defaultPrimitiveEdgeCases
 import edu.illinois.cs.cs125.answerable.testing.primitiveGenerators
+import edu.illinois.cs.cs125.answerable.testing.valueSimpleCases
 import java.lang.reflect.Array as ReflectArray
 
 internal interface LanguageMode {

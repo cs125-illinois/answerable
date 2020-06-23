@@ -1,6 +1,6 @@
 @file: JvmName("Arguments")
 
-package edu.illinois.cs.cs125.answerable
+package edu.illinois.cs.cs125.answerable.testing
 
 import edu.illinois.cs.cs125.answerable.annotations.DefaultTestRunArguments
 
@@ -44,14 +44,20 @@ data class TestRunnerArgs(
         val resolvedNumTests = numTests ?: DEFAULT_NUM_TESTS
         return TestRunnerArgs(
             numTests = resolvedNumTests,
-            maxDiscards = maxDiscards ?: DEFAULT_MAX_DISCARDS,
-            maxOnlyEdgeCaseTests = maxOnlyEdgeCaseTests ?: resolvedNumTests / DEFAULT_MAX_FRACTION_EDGE_CASES,
-            maxOnlySimpleCaseTests = maxOnlySimpleCaseTests ?: resolvedNumTests / DEFAULT_MAX_FRACTION_SIMPLE_CASES,
+            maxDiscards = maxDiscards
+                ?: DEFAULT_MAX_DISCARDS,
+            maxOnlyEdgeCaseTests = maxOnlyEdgeCaseTests
+                ?: resolvedNumTests / DEFAULT_MAX_FRACTION_EDGE_CASES,
+            maxOnlySimpleCaseTests = maxOnlySimpleCaseTests
+                ?: resolvedNumTests / DEFAULT_MAX_FRACTION_SIMPLE_CASES,
             numSimpleEdgeMixedTests = numSimpleEdgeMixedTests
                 ?: resolvedNumTests / DEFAULT_MAX_FRACTION_SIMPLE_EDGE_MIXED_CASES,
-            numAllGeneratedTests = numAllGeneratedTests ?: resolvedNumTests / DEFAULT_FRACTION_GENERATED_TESTS,
-            numRegressionTests = numRegressionTests ?: resolvedNumTests / DEFAULT_FRACTION_REGRESSION_TESTS,
-            maxComplexity = maxComplexity ?: DEFAULT_MAX_COMPLEXITY
+            numAllGeneratedTests = numAllGeneratedTests
+                ?: resolvedNumTests / DEFAULT_FRACTION_GENERATED_TESTS,
+            numRegressionTests = numRegressionTests
+                ?: resolvedNumTests / DEFAULT_FRACTION_REGRESSION_TESTS,
+            maxComplexity = maxComplexity
+                ?: DEFAULT_MAX_COMPLEXITY
         )
     }
 

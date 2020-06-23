@@ -2,8 +2,6 @@
 
 package edu.illinois.cs.cs125.answerable.classmanipulation
 
-import edu.illinois.cs.cs125.answerable.BytesClassLoader
-import edu.illinois.cs.cs125.answerable.DiamondClassLoader
 import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
 import edu.illinois.cs.cs125.answerable.api.EnumerableBytecodeLoader
 import javassist.util.proxy.ProxyFactory
@@ -48,7 +46,8 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider? = null, 
 
     private val proxyOriginals: WeakHashMap<ProxyHolder, Any> = WeakHashMap()
 
-    private var loader: BytesClassLoader = BytesClassLoader()
+    private var loader: BytesClassLoader =
+        BytesClassLoader()
     private val bytecode = mutableMapOf<Class<*>, ByteArray>()
 
     /**
@@ -62,7 +61,10 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider? = null, 
     }
 
     constructor(parent: TypePool, vararg otherParents: TypePool) : this(null, parent) {
-        loader = DiamondClassLoader(parent.loader, *otherParents.map { it.loader }.toTypedArray())
+        loader = DiamondClassLoader(
+            parent.loader,
+            *otherParents.map { it.loader }.toTypedArray()
+        )
     }
 
     fun getBcelClassForClass(clazz: Class<*>): JavaClass {
@@ -123,5 +125,56 @@ internal class TypePool(private val bytecodeProvider: BytecodeProvider? = null, 
         otherPool.mirrorOriginalTypes.forEach { (transformed, original) ->
             mirrorOriginalTypes[transformedLoader.loadClass(transformed.name)] = original
         }
+    }
+}
+
+/**
+ * Lots of modifications done in this file affect the bytecode of a class, so we need a way to hot-reload those classes
+ * and get them back into the JVM. Here we can take a bytearray (class file) and load it.
+ */
+internal open class BytesClassLoader(parentLoader: ClassLoader? = null) :
+    ClassLoader(parentLoader ?: getSystemClassLoader()),
+    EnumerableBytecodeLoader {
+    private val bytecodeLoaded = mutableMapOf<Class<*>, ByteArray>()
+    private val definedClasses = mutableMapOf<String, Class<*>>()
+    fun loadBytes(name: String, bytes: ByteArray): Class<*> {
+        return definedClasses.getOrPut(name) {
+            defineClass(name, bytes, 0, bytes.size).also { bytecodeLoaded[it] = bytes }
+        }
+    }
+
+    override fun getBytecode(clazz: Class<*>): ByteArray {
+        return bytecodeLoaded[clazz]
+            ?: throw ClassNotFoundException("This BytesClassLoader is not responsible for $clazz")
+    }
+
+    override fun getAllBytecode(): Map<String, ByteArray> {
+        return bytecodeLoaded.map { (key, value) -> key.name to value }.toMap()
+    }
+
+    override fun getLoader(): ClassLoader {
+        return this
+    }
+}
+
+/**
+ * Like [BytesClassLoader], but also can ask other classloaders for classes. Useful in sandboxes.
+ */
+internal class DiamondClassLoader(
+    primaryParent: ClassLoader,
+    private vararg val otherParents: ClassLoader
+) : BytesClassLoader(primaryParent) {
+    override fun loadClass(name: String?): Class<*> {
+        try {
+            return super.loadClass(name)
+        } catch (e: ClassNotFoundException) {
+            otherParents.forEach {
+                try {
+                    return it.loadClass(name)
+                } catch (ignored: ClassNotFoundException) {
+                }
+            }
+        }
+        throw ClassNotFoundException(name)
     }
 }

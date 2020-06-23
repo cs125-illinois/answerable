@@ -5,9 +5,9 @@ package edu.illinois.cs.cs125.answerable.jeedrunner
 import edu.illinois.cs.cs125.answerable.TestEnvironment
 import edu.illinois.cs.cs125.answerable.TestGenerator
 import edu.illinois.cs.cs125.answerable.TestRunner
-import edu.illinois.cs.cs125.answerable.TestRunnerArgs
-import edu.illinois.cs.cs125.answerable.TestingResults
-import edu.illinois.cs.cs125.answerable.defaultArgs
+import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
+import edu.illinois.cs.cs125.answerable.testing.TestingResults
+import edu.illinois.cs.cs125.answerable.testing.defaultArgs
 import edu.illinois.cs.cs125.jeed.core.CompiledSource
 import edu.illinois.cs.cs125.jeed.core.Sandbox
 import kotlin.random.Random
