@@ -393,6 +393,7 @@ class PassedClassDesignRunner internal constructor(
             testRunnerArgs = mergedArgs.resolve(),
             referenceClass = testGenerator.referenceClass,
             testedClass = submissionClass,
+            testedMethodName = testGenerator.usableReferenceMethod?.name,
             solutionName = testGenerator.solutionName,
             startTime = startTime,
             endTime = endTime,
@@ -1018,6 +1019,7 @@ class FailedClassDesignTestRunner(
             testRunnerArgs = defaultArgs, // maybe we can do better here when we refactor...
             referenceClass = referenceClass,
             testedClass = submissionClass,
+            testedMethodName = null, // here too; null is supposed to mean that we tested a Standalone @Verify.
             solutionName = solutionName,
             startTime = System.currentTimeMillis(),
             endTime = System.currentTimeMillis(),

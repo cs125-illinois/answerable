@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.answerable
 
+import edu.illinois.cs.cs125.answerable.api.toJson
 import org.junit.jupiter.api.Test
 
 class EndToEndTests {
@@ -8,6 +9,6 @@ class EndToEndTests {
         runAnswerableTest(
             "examples.lastten.correct.LastTen",
             "examples.lastten.correct.reference.LastTen"
-        ).assertAllSucceeded()
+        ).also { println(it.toJson()) }.assertAllSucceeded()
     }
 }

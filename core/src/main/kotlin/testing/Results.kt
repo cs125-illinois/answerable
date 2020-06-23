@@ -107,6 +107,8 @@ data class TestingResults(
     val referenceClass: Class<*>,
     /** The submission class for this testing run. */
     val testedClass: Class<*>,
+    /** The name of the method that was tested if it was an @Solution; null otherwise. */
+    val testedMethodName: String?,
     /** The [Solution.name] of the @[Solution] annotation that this test used. */
     val solutionName: String,
     /** The time (in ms since epoch) that this test run started. Only the main testing loop is considered. */

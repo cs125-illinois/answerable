@@ -179,6 +179,7 @@ internal class TestingResultsAdapter {
     class SerializableTestingResults(
         val seed: Long,
         val testRunnerArgs: TestRunnerArgs,
+        val testedMethodName: String?,
         val solutionName: String,
         val startTime: Long,
         val endTime: Long,
@@ -197,6 +198,7 @@ internal class TestingResultsAdapter {
         constructor(testingResults: TestingResults) : this(
             testingResults.seed,
             testingResults.testRunnerArgs,
+            testingResults.testedMethodName,
             testingResults.solutionName,
             testingResults.startTime,
             testingResults.endTime,
