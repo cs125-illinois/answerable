@@ -185,6 +185,18 @@ internal class TestGeneratorTest {
     }
 
     @Test
+    fun `test verifier can reject args incorrectly mutated by submission`() {
+        val out = TestGenerator(examples.testgeneration.standaloneverify.reference.MutatesArguments::class.java)
+            .loadSubmission(examples.testgeneration.standaloneverify.MutatesArguments::class.java)
+            .runTestsUnsecured(0x0403)
+        out.assertSomethingFailed()
+        out.executedTestSteps.filter { !it.succeeded }.take(5).forEach {
+            println("ref args: ${(it.refLiveOutput.args[0] as IntArray).contentToString()}")
+            println("sub args: ${(it.subDangerousLiveOutput.args[0] as IntArray).contentToString()}")
+        }
+    }
+
+    @Test
     fun testEdgeCases() {
         val out = TestGenerator(examples.testgeneration.reference.EdgeCases::class.java)
             .loadSubmission(examples.testgeneration.EdgeCases::class.java)
@@ -205,7 +217,6 @@ internal class TestGeneratorTest {
     }
 
     @Test
-    @Disabled
     fun testPreconditions() {
         val out = TestGenerator(examples.testgeneration.reference.PreconditionTest::class.java)
             .loadSubmission(examples.testgeneration.PreconditionTest::class.java)
