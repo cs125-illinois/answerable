@@ -1,39 +1,10 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAConfig
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDANameEnv
 import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
 import examples.binarytree.reference.YourBinaryTree
 import examples.binarytree.size.ClassicBinaryTreeSizeTest
 import examples.sorting.ClassicSortTest
 import examples.sorting.reference.ArraySorter
-import org.junit.jupiter.api.Test
-
-class AdHoc {
-    @Test
-    fun `ad hoc`() {
-        assertClassDesignPasses(
-            examples.classdesign.differentnames.reference.Question::class.java,
-            examples.classdesign.differentnames.Submission::class.java,
-            CDAConfig(nameEnv = CDANameEnv("Submission"))
-        )
-        assertClassDesignPasses(
-            examples.classdesign.differentnames.reference.Question::class.java,
-            examples.classdesign.differentnames.Incorrect::class.java,
-            CDAConfig(nameEnv = CDANameEnv("Incorrect"))
-        )
-
-        PassedClassDesignRunner(
-            examples.classdesign.differentnames.reference.Question::class.java,
-            examples.classdesign.differentnames.Submission::class.java
-        ).runTestsUnsecured(0x0403).assertAllSucceeded()
-
-        PassedClassDesignRunner(
-            examples.classdesign.differentnames.reference.Question::class.java,
-            examples.classdesign.differentnames.Incorrect::class.java
-        ).runTestsUnsecured(0x0403).assertSomethingFailed()
-    }
-}
 
 fun main() {
     val testFunc = ::testSortingAnswerable
