@@ -220,6 +220,9 @@ internal class DefaultStringGen(private val cGen: Gen<*>) :
     }
 }
 
+// Note that we can't do `Gen<kotlin.Array<T>>` here as the parent type because `Array.newInstance`
+// is a Java function, and `Array.newInstance(int.class)` produces a primitive array (a Kotlin `IntArray`)
+// which cannot be cast to `Gen<kotlin.Array<Int>>`. Same goes for all primitive types.
 internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: Class<*>) :
     Gen<Any> {
     override fun generate(complexity: Int, random: Random): Any {
