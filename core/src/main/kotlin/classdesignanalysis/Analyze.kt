@@ -21,6 +21,8 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 
+// TODO: need some kind of InnerClassAnalysisResult to replace Pair<CDAMatcher<List<String>>, Map<String, CDAResult>>
+
 /*
  * For the purposes of analysis, all Types are compared by name as the name appears in the source code.
  * This is fine for using Answerable as a "I have one class written by a student that I want to test" system.
@@ -55,6 +57,7 @@ fun classDesignAnalysis(reference: Class<*>, submission: Class<*>, config: CDACo
         interfaces = runIf(config.checkInterfaces) { reference.interfacesMatch(submission) },
         fields = runIf(config.checkFields) { reference.fieldsMatch(submission) },
         methods = runIf(config.checkMethods) { reference.methodsMatch(submission, config.solutionName) },
+        constructors = runIf(config.checkConstructors) { reference.constructorsMatch(submission) },
         innerClasses = innerClassesResult?.first,
         innerClassAnalyses = innerClassesResult?.second
     )
@@ -158,8 +161,8 @@ fun Class<*>.fieldsMatch(other: Class<*>): CDAMatcher<List<OssifiedField>> {
 
     return CDAMatcher(
         AnalysisType.FIELDS,
-        this.publicFields(::fieldFilter).map { OssifiedField(it) }.sortedBy { it.answerableName },
-        other.publicFields(::fieldFilter).map { OssifiedField(it) }.sortedBy { it.answerableName }
+        this.publicFields(::fieldFilter).map(::OssifiedField).sortedBy { it.answerableName },
+        other.publicFields(::fieldFilter).map(::OssifiedField).sortedBy { it.answerableName }
     )
 }
 
@@ -177,8 +180,8 @@ fun Class<*>.methodsMatch(
 
     return CDAMatcher(
         AnalysisType.METHODS,
-        this.publicMethods(::methodFilter).map { OssifiedExecutable(it) }.sortedBy { it.answerableName },
-        other.publicMethods(::methodFilter).map { OssifiedExecutable(it) }.sortedBy { it.answerableName }
+        this.publicMethods(::methodFilter).map(::OssifiedExecutable).sortedBy { it.answerableName },
+        other.publicMethods(::methodFilter).map(::OssifiedExecutable).sortedBy { it.answerableName }
     )
 }
 
@@ -192,6 +195,17 @@ private val referenceAnnotations = setOf(
     Helper::class.java,
     Ignore::class.java
 )
+
+/**
+ * Component analyzer. Checks that classes contain the same constructors. Constructors are compared
+ * the same way methods are compared. However,
+ */
+fun Class<*>.constructorsMatch(other: Class<*>): CDAMatcher<List<OssifiedExecutable>> =
+    CDAMatcher(
+        AnalysisType.CONSTRUCTORS,
+        this.publicConstructors().map(::OssifiedExecutable).sortedBy { it.answerableName },
+        other.publicConstructors().map(::OssifiedExecutable).sortedBy { it.answerableName }
+    )
 
 // You can't currently put the solution method /inside/ an inner class
 // for Answerable's purposes but this incidentally supports it for the purposes of CDA.
@@ -242,6 +256,7 @@ class CDAConfig(
     val checkInterfaces: Boolean = true,
     val checkFields: Boolean = true,
     val checkMethods: Boolean = true,
+    val checkConstructors: Boolean = true,
     val checkInnerClasses: Boolean = true,
     val solutionName: String = DEFAULT_EMPTY_NAME
 )
@@ -250,7 +265,7 @@ val defaultCDAConfig = CDAConfig()
 // This was temporarily an inner class of CDAMatcher but it created unnecessarily verbose code and
 // it didn't seem like it belonged there. This can be moved in the future with no real damage. 5/26/20
 enum class AnalysisType {
-    NAME, KIND, MODIFIERS, TYPE_PARAMS, SUPERCLASS, INTERFACES, INNER_CLASSES, FIELDS, METHODS;
+    NAME, KIND, MODIFIERS, TYPE_PARAMS, SUPERCLASS, INTERFACES, INNER_CLASSES, FIELDS, METHODS, CONSTRUCTORS;
 
     override fun toString(): String = name.toLowerCase().replace('_', ' ')
 }
@@ -284,7 +299,8 @@ data class CDAResult(
     // see above
     val interfaces: CDAMatcher<List<String>>?,
     val fields: CDAMatcher<List<OssifiedField>>?, // match by answerableName
-    val methods: CDAMatcher<List<OssifiedExecutable>>?, // match by answerableName.
+    val methods: CDAMatcher<List<OssifiedExecutable>>?, // match by answerableName
+    val constructors: CDAMatcher<List<OssifiedExecutable>>?, // match by answerableName
 
     val innerClasses: CDAMatcher<List<String>>?,
     val innerClassAnalyses: Map<String, CDAResult>? // empty if !innerClasses.match, null if !config.checkInnerClasses
@@ -298,6 +314,7 @@ data class CDAResult(
             interfaces?.match ?: true &&
             fields?.match ?: true &&
             methods?.match ?: true &&
+            constructors?.match ?: true &&
             innerClasses?.match ?: true &&
             innerClassAnalyses?.all { entry ->
             entry.value.allMatch
@@ -316,6 +333,7 @@ data class CDAResult(
         this.interfaces?.also(::addMessage)
         this.fields?.also(::addMessage)
         this.methods?.also(::addMessage)
+        this.constructors?.also(::addMessage)
         this.innerClasses?.also(::addMessage)
         this.innerClassAnalyses?.values?.forEach { res ->
             messages.addAll(res.getMessages(include))
@@ -470,7 +488,10 @@ fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
     this.publicFields.filter(filter)
 
 fun Class<*>.publicMethods(filter: (executable: Executable) -> Boolean = { true }) =
-    (this.publicMethods + this.constructors).filter(filter)
+    this.publicMethods.filter(filter)
+
+fun Class<*>.publicConstructors(filter: (executable: Executable) -> Boolean = { true }) =
+    this.constructors.filter(filter)
 
 fun Type.simpleName() = this.typeName.split(".").last()
 fun Executable.simpleName() = this.name.split(".").last()

@@ -28,6 +28,7 @@ val CDAMatcher<*>.message: String
         AnalysisType.INTERFACES -> interfaceMismatchMessage(this as CDAMatcher<List<String>>)
         AnalysisType.FIELDS -> fieldMismatchMessage(this as CDAMatcher<List<OssifiedField>>)
         AnalysisType.METHODS -> methodMismatchMessage(this as CDAMatcher<List<OssifiedExecutable>>)
+        AnalysisType.CONSTRUCTORS -> constructorMismatchMessage(this as CDAMatcher<List<OssifiedExecutable>>)
         AnalysisType.INNER_CLASSES -> innerclassMismatchMessage(this as CDAMatcher<List<String>>)
     } ?: "${this.type.toString().capitalize()}: $NO_ERROR_MSG"
 
@@ -102,6 +103,10 @@ private fun fieldMismatchMessage(matcher: CDAMatcher<List<OssifiedField>>): Stri
 private fun methodMismatchMessage(matcher: CDAMatcher<List<OssifiedExecutable>>): String? = ifMismatched(matcher) {
     mkPublicApiMismatchMsg(matcher.reference, matcher.submission, "method")
 }
+private fun constructorMismatchMessage(matcher: CDAMatcher<List<OssifiedExecutable>>): String? =
+    ifMismatched(matcher) {
+        mkPublicApiMismatchMsg(matcher.reference, matcher.submission, "constructor")
+    }
 
 private fun innerclassMismatchMessage(matcher: CDAMatcher<List<String>>): String? = ifMismatched(matcher) {
     mkPublicApiMismatchMsg(matcher.reference, matcher.submission, "inner class", plural = "es")
