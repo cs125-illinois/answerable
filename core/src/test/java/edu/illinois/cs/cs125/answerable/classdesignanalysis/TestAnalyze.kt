@@ -216,26 +216,26 @@ internal class Analyze {
 
         existenceClasses.correctPairs("innerclasses").forEach { (first, second) ->
             first.innerClassesMatch(second).also {
-                assertTrue(it.first.match)
+                assertTrue(it.innerClassNames.match)
             }
         }
         existenceClasses.incorrectPairs("innerclasses").forEach { (first, second) ->
             first.innerClassesMatch(second).also {
                 // only one thing needs to not match
-                assertFalse(it.first.match)
+                assertFalse(it.innerClassNames.match)
             }
         }
 
         correctnessClasses.correctPairs("innerclasses").forEach { (first, second) ->
             first.innerClassesMatch(second).also {
-                assertTrue(it.first.match)
-                assertTrue(it.second.all { (_, result) -> result.allMatch })
+                assertTrue(it.innerClassNames.match)
+                assertTrue(it.recursiveResults.all { (_, result) -> result.allMatch })
             }
         }
         correctnessClasses.incorrectPairs("innerclasses").forEach { (first, second) ->
             first.innerClassesMatch(second).also {
-                assertTrue(it.first.match)
-                assertFalse(it.second.all { (_, result) -> result.allMatch })
+                assertTrue(it.innerClassNames.match)
+                assertFalse(it.recursiveResults.all { (_, result) -> result.allMatch })
             }
         }
     }
