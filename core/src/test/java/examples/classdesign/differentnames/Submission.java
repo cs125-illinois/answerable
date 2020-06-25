@@ -1,8 +1,6 @@
-package examples.differentnames;
+package examples.classdesign.differentnames;
 
 public class Submission {
-  //private Submission() {}
-
   public int add(int a, int b) {
     return a + b;
   }

@@ -1,9 +1,9 @@
 package examples.oo.reference;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import edu.illinois.cs.cs125.answerable.annotations.Generator;
+import edu.illinois.cs.cs125.answerable.annotations.Solution;
 import edu.illinois.cs.cs125.answerable.annotations.Verify;
+import edu.illinois.cs.cs125.answerable.api.Generators;
 import edu.illinois.cs.cs125.answerable.api.TestOutput;
 
 import java.util.Random;
@@ -15,6 +15,7 @@ public class Equals {
   }
 
   @Override
+  @Solution
   public boolean equals(Object o) {
     if (!(o instanceof Equals)) {
       return false;
@@ -23,13 +24,21 @@ public class Equals {
     return value == other.value;
   }
 
-  @Verify(standalone = true)
+/*  @Verify(standalone = true)
   private static void verify(TestOutput<Equals> ours, TestOutput<Equals> theirs) {
-    assertEquals(ours.getReceiver(), theirs.getReceiver());
-  }
+    return;
+  }*/
 
   @Generator
   private static Equals generate(int complexity, Random random) {
+    return new Equals(complexity);
+  }
+
+  @Generator
+  private static Object genObject(int complexity, Random random) {
+    if (random.nextDouble() < 0.2) {
+      Generators.defaultAsciiGenerator(complexity, random);
+    }
     return new Equals(complexity);
   }
 }

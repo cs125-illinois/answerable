@@ -2,6 +2,7 @@ package edu.illinois.cs.cs125.answerable
 
 import edu.illinois.cs.cs125.answerable.annotations.DEFAULT_EMPTY_NAME
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAConfig
+import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAResult
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.classDesignAnalysis
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.defaultCDAConfig
 import edu.illinois.cs.cs125.answerable.testing.TestingResults
@@ -28,7 +29,7 @@ internal fun assertClassDesignPasses(
     solution: Class<*>,
     submission: Class<*>,
     cdaConfig: CDAConfig = defaultCDAConfig
-) {
+): CDAResult {
     val result = classDesignAnalysis(
         solution,
         submission,
@@ -37,14 +38,22 @@ internal fun assertClassDesignPasses(
     result.errorMessages.forEach {
         Assertions.fail(it)
     }
+
+    return result
 }
 
-internal fun assertClassDesignFails(solution: Class<*>, submission: Class<*>) {
-    val results = classDesignAnalysis(
+internal fun assertClassDesignFails(
+    solution: Class<*>,
+    submission: Class<*>,
+    config: CDAConfig = defaultCDAConfig
+): CDAResult {
+    val result = classDesignAnalysis(
         solution,
-        submission
+        submission,
+        config
     )
-    Assertions.assertFalse(results.allMatch)
+    Assertions.assertFalse(result.allMatch)
+    return result
 }
 
 /**
