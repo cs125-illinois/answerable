@@ -45,7 +45,7 @@ import java.lang.reflect.Type
  * Components can be individually disabled via the [config].
  */
 fun classDesignAnalysis(reference: Class<*>, submission: Class<*>, config: CDAConfig = defaultCDAConfig): CDAResult {
-    val innerClassesResult: Pair<CDAMatcher<List<String>>, Map<String, CDAResult>>? =
+    val innerClassesResult: InnerClassAnalysisResult? =
         runIf(config.checkInnerClasses) { reference.innerClassesMatch(submission, config) }
     return CDAResult(
         config = config,
@@ -58,8 +58,8 @@ fun classDesignAnalysis(reference: Class<*>, submission: Class<*>, config: CDACo
         fields = runIf(config.checkFields) { reference.fieldsMatch(submission) },
         methods = runIf(config.checkMethods) { reference.methodsMatch(submission, config.solutionName) },
         constructors = runIf(config.checkConstructors) { reference.constructorsMatch(submission) },
-        innerClasses = innerClassesResult?.first,
-        innerClassAnalyses = innerClassesResult?.second
+        innerClasses = innerClassesResult?.innerClassNames,
+        innerClassAnalyses = innerClassesResult?.recursiveResults
     )
 }
 
@@ -223,7 +223,7 @@ fun Class<*>.constructorsMatch(other: Class<*>): CDAMatcher<List<OssifiedExecuta
 fun Class<*>.innerClassesMatch(
     other: Class<*>,
     config: CDAConfig = defaultCDAConfig
-): Pair<CDAMatcher<List<String>>, Map<String, CDAResult>> {
+): InnerClassAnalysisResult {
     // We want to use the names as seen in the source. Currently, 'simpleSourceName' simply delegates
     // to 'simpleName' for classes, but this could feasibly change in the future
     // (for example, to gather a qualified name instead).
@@ -236,15 +236,20 @@ fun Class<*>.innerClassesMatch(
             theirInnerClasses.map { it.simpleSourceName }
         )
 
-    if (!nameMatcher.match) return Pair(nameMatcher, mapOf())
+    if (!nameMatcher.match) return InnerClassAnalysisResult(nameMatcher, mapOf())
 
     val recursiveAnalysis: List<Pair<String, CDAResult>> =
         ourInnerClasses.zip(theirInnerClasses).map { (ours, theirs) ->
             ours.simpleSourceName to classDesignAnalysis(ours, theirs, config)
         }
 
-    return Pair(nameMatcher, recursiveAnalysis.toMap())
+    return InnerClassAnalysisResult(nameMatcher, recursiveAnalysis.toMap())
 }
+
+data class InnerClassAnalysisResult(
+    val innerClassNames: CDAMatcher<List<String>>,
+    val recursiveResults: Map<String, CDAResult>
+)
 
 @Suppress("LongParameterList")
 class CDAConfig(
