@@ -1,6 +1,7 @@
 package edu.illinois.cs.cs125.answerable.classdesignanalysis
 
 import com.marcinmoskala.math.combinations
+import edu.illinois.cs.cs125.answerable.assertClassDesignPasses
 import edu.illinois.cs.cs125.answerable.load
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -216,28 +217,48 @@ internal class Analyze {
 
         existenceClasses.correctPairs("innerclasses").forEach { (first, second) ->
             first.innerClassesMatch(second).also {
-                assertTrue(it.first.match)
+                assertTrue(it.innerClassNames.match)
             }
         }
         existenceClasses.incorrectPairs("innerclasses").forEach { (first, second) ->
             first.innerClassesMatch(second).also {
                 // only one thing needs to not match
-                assertFalse(it.first.match)
+                assertFalse(it.innerClassNames.match)
             }
         }
 
         correctnessClasses.correctPairs("innerclasses").forEach { (first, second) ->
             first.innerClassesMatch(second).also {
-                assertTrue(it.first.match)
-                assertTrue(it.second.all { (_, result) -> result.allMatch })
+                assertTrue(it.innerClassNames.match)
+                assertTrue(it.recursiveResults.all { (_, result) -> result.allMatch })
             }
         }
         correctnessClasses.incorrectPairs("innerclasses").forEach { (first, second) ->
             first.innerClassesMatch(second).also {
-                assertTrue(it.first.match)
-                assertFalse(it.second.all { (_, result) -> result.allMatch })
+                assertTrue(it.innerClassNames.match)
+                assertFalse(it.recursiveResults.all { (_, result) -> result.allMatch })
             }
         }
+    }
+
+    @Test
+    fun `should correctly check classes using expectedSubmissionName`() {
+        val prefix = "examples.classdesign.differentnames"
+        assertClassDesignPasses(
+            "$prefix.reference.Question".load(),
+            "$prefix.Submission".load(),
+            CDAConfig(nameEnv = CDANameEnv("Submission"))
+        )
+        assertClassDesignPasses(
+            "$prefix.reference.Question".load(),
+            "$prefix.Incorrect".load(),
+            CDAConfig(nameEnv = CDANameEnv("Incorrect"))
+        )
+        assertClassDesignPasses(
+            "$prefix.reference.TypeNameEverywhere".load(),
+            "$prefix.TNESubmission".load(),
+            CDAConfig(nameEnv = CDANameEnv("TNESubmission"))
+        )
     }
 
     @Test

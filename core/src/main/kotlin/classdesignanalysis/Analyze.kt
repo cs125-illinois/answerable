@@ -15,13 +15,12 @@ import edu.illinois.cs.cs125.answerable.publicFields
 import edu.illinois.cs.cs125.answerable.publicInnerClasses
 import edu.illinois.cs.cs125.answerable.publicMethods
 import edu.illinois.cs.cs125.answerable.simpleSourceName
+import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
-
-// TODO: need some kind of InnerClassAnalysisResult to replace Pair<CDAMatcher<List<String>>, Map<String, CDAResult>>
 
 /*
  * For the purposes of analysis, all Types are compared by name as the name appears in the source code.
@@ -45,21 +44,34 @@ import java.lang.reflect.Type
  * Components can be individually disabled via the [config].
  */
 fun classDesignAnalysis(reference: Class<*>, submission: Class<*>, config: CDAConfig = defaultCDAConfig): CDAResult {
-    val innerClassesResult: Pair<CDAMatcher<List<String>>, Map<String, CDAResult>>? =
-        runIf(config.checkInnerClasses) { reference.innerClassesMatch(submission, config) }
+    val nameEnv = config.nameEnv?.copy(
+        referenceName = config.nameEnv.referenceName ?: reference.simpleSourceName
+    )
+
+    val innerClassesResult: InnerClassAnalysisResult? =
+        runIf(config.checkInnerClasses) {
+            reference.innerClassesMatch(
+                submission,
+                config.copy(nameEnv = nameEnv)
+            )
+        }
     return CDAResult(
         config = config,
-        names = runIf(config.checkName) { reference.namesMatch(submission) },
+        names = runIf(config.checkName) { reference.namesMatch(submission, nameEnv) },
         kinds = runIf(config.checkKind) { reference.kindsMatch(submission) },
         modifiers = runIf(config.checkModifiers) { reference.modifiersMatch(submission) },
         typeParams = runIf(config.checkTypeParams) { reference.typeParametersMatch(submission) },
-        superclass = runIf(config.checkSuperclasses) { reference.superclassesMatch(submission) },
-        interfaces = runIf(config.checkInterfaces) { reference.interfacesMatch(submission) },
-        fields = runIf(config.checkFields) { reference.fieldsMatch(submission) },
-        methods = runIf(config.checkMethods) { reference.methodsMatch(submission, config.solutionName) },
-        constructors = runIf(config.checkConstructors) { reference.constructorsMatch(submission) },
-        innerClasses = innerClassesResult?.first,
-        innerClassAnalyses = innerClassesResult?.second
+        superclass = runIf(config.checkSuperclasses) { reference.superclassesMatch(submission, nameEnv) },
+        interfaces = runIf(config.checkInterfaces) { reference.interfacesMatch(submission, nameEnv) },
+        fields = runIf(config.checkFields) { reference.fieldsMatch(submission, nameEnv) },
+        methods = runIf(config.checkMethods) {
+            reference.methodsMatch(submission, config.solutionName, nameEnv)
+        },
+        constructors = runIf(config.checkConstructors) {
+            reference.constructorsMatch(submission, nameEnv)
+        },
+        innerClasses = innerClassesResult?.innerClassNames,
+        innerClassAnalyses = innerClassesResult?.recursiveResults
     )
 }
 
@@ -67,10 +79,47 @@ internal fun <T> runIf(condition: Boolean, block: () -> T): T? =
     if (condition) block() else null
 
 /**
+ * Used to support differently-named submission classes.
+ *
+ * When matching type names, if the reference refers to itself as a type, it should be matched
+ * as though it referred to the submission's type instead. CDANameEnv represents this substituation.
+ *
+ * If [referenceName] is null, the name of the class which the xxxxMatch method was called on will be used.
+ */
+data class CDANameEnv(
+    val expectedSubmissionName: String,
+    val referenceName: String? = null
+)
+
+/**
+ * Factors out the most common use case of [changeTypeName].
+ *
+ * If [cdaNameEnv] is null, the string is returned unchanged. Otherwise, if [cdaNameEnv] contains a
+ * referenceName, that referenceName is replaced with the expected submission name. Otherwise,
+ * the simpleName of [clazz] is used as if it were the referenceName.
+ */
+private fun <T> T.changeTypeName(clazz: Class<*>, cdaNameEnv: CDANameEnv?, ctn: (T, String, String) -> T): T =
+    if (cdaNameEnv == null) {
+        this
+    } else {
+        ctn(this, cdaNameEnv.referenceName ?: clazz.simpleSourceName, cdaNameEnv.expectedSubmissionName)
+    }
+internal fun String.changeTypeName(clazz: Class<*>, cdaNameEnv: CDANameEnv?): String =
+    this.changeTypeName(clazz, cdaNameEnv, String::changeTypeName)
+internal fun OssifiedField.changeTypeName(clazz: Class<*>, cdaNameEnv: CDANameEnv?): OssifiedField =
+    this.changeTypeName(clazz, cdaNameEnv, OssifiedField::changeTypeName)
+internal fun OssifiedExecutable.changeTypeName(clazz: Class<*>, cdaNameEnv: CDANameEnv?): OssifiedExecutable =
+    this.changeTypeName(clazz, cdaNameEnv, OssifiedExecutable::changeTypeName)
+
+/**
  * Component analyzer. Checks the names of the classes, as they appear in the source.
  */
-fun Class<*>.namesMatch(other: Class<*>): CDAMatcher<String> =
-    CDAMatcher(AnalysisType.NAME, this.simpleSourceName, other.simpleSourceName)
+fun Class<*>.namesMatch(other: Class<*>, cdaNameEnv: CDANameEnv? = null): CDAMatcher<String> =
+    CDAMatcher(
+        AnalysisType.NAME,
+        this.simpleSourceName.changeTypeName(this, cdaNameEnv),
+        other.simpleSourceName
+    )
 
 /**
  * Component analyzer. Checks the kinds of the classes. A class's kind is either
@@ -125,7 +174,7 @@ fun Class<*>.typeParametersMatch(other: Class<*>): CDAMatcher<List<String>> =
  * Interfaces also have a null superclass, even if they extend other interfaces. Such extensions
  * are reflected by [interfacesMatch].
  */
-fun Class<*>.superclassesMatch(other: Class<*>): CDAMatcher<String?> {
+fun Class<*>.superclassesMatch(other: Class<*>, cdaNameEnv: CDANameEnv? = null): CDAMatcher<String?> {
     // It would make sense to instead leave "Object" in the matcher itself, and only strip it in messages for
     // the purpose of not having "extends Object" in the message (which can be confusing for beginners).
     // Doing it this way is a design decision, so if people complain about it in the future, change it!
@@ -135,7 +184,7 @@ fun Class<*>.superclassesMatch(other: Class<*>): CDAMatcher<String?> {
 
     return CDAMatcher(
         AnalysisType.SUPERCLASS,
-        unlessObject(this.genericSuperclass)?.simpleSourceName,
+        unlessObject(this.genericSuperclass)?.simpleSourceName?.changeTypeName(this, cdaNameEnv),
         unlessObject(other.genericSuperclass)?.simpleSourceName
     )
 }
@@ -144,10 +193,10 @@ fun Class<*>.superclassesMatch(other: Class<*>): CDAMatcher<String?> {
  * Component analyzer. Checks that the classes implement the same set of interfaces, as the names
  * of the interfaces appear in the source. The interfaces can be implemented in any order.
  */
-fun Class<*>.interfacesMatch(other: Class<*>): CDAMatcher<List<String>> =
+fun Class<*>.interfacesMatch(other: Class<*>, cdaNameEnv: CDANameEnv? = null): CDAMatcher<List<String>> =
     CDAMatcher(
         AnalysisType.INTERFACES,
-        this.genericInterfaces.map { it.simpleSourceName }.sorted(),
+        this.genericInterfaces.map { it.simpleSourceName.changeTypeName(this, cdaNameEnv) }.sorted(),
         other.genericInterfaces.map { it.simpleSourceName }.sorted()
     )
 
@@ -155,13 +204,15 @@ fun Class<*>.interfacesMatch(other: Class<*>): CDAMatcher<List<String>> =
  * Component analyzer. Checks that the classes have the same public fields, by name and type.
  * The type is checked by name, as it appears in the source.
  */
-fun Class<*>.fieldsMatch(other: Class<*>): CDAMatcher<List<OssifiedField>> {
+fun Class<*>.fieldsMatch(other: Class<*>, cdaNameEnv: CDANameEnv? = null): CDAMatcher<List<OssifiedField>> {
 
     fun fieldFilter(field: Field) = referenceAnnotations.none { field.isAnnotationPresent(it) }
 
     return CDAMatcher(
         AnalysisType.FIELDS,
-        this.publicFields(::fieldFilter).map(::OssifiedField).sortedBy { it.answerableName },
+        this.publicFields(::fieldFilter)
+            .map { OssifiedField(it).changeTypeName(this, cdaNameEnv) }
+            .sortedBy { it.answerableName },
         other.publicFields(::fieldFilter).map(::OssifiedField).sortedBy { it.answerableName }
     )
 }
@@ -173,14 +224,17 @@ fun Class<*>.fieldsMatch(other: Class<*>): CDAMatcher<List<OssifiedField>> {
  */
 fun Class<*>.methodsMatch(
     other: Class<*>,
-    solutionName: String = DEFAULT_EMPTY_NAME
+    solutionName: String = DEFAULT_EMPTY_NAME,
+    cdaNameEnv: CDANameEnv? = null
 ): CDAMatcher<List<OssifiedExecutable>> {
     fun methodFilter(method: Executable) = referenceAnnotations.none { method.isAnnotationPresent(it) } &&
         !(method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false)
 
     return CDAMatcher(
         AnalysisType.METHODS,
-        this.publicMethods(::methodFilter).map(::OssifiedExecutable).sortedBy { it.answerableName },
+        this.publicMethods(::methodFilter)
+            .map { OssifiedExecutable(it).changeTypeName(this, cdaNameEnv) }
+            .sortedBy { it.answerableName },
         other.publicMethods(::methodFilter).map(::OssifiedExecutable).sortedBy { it.answerableName }
     )
 }
@@ -200,10 +254,12 @@ private val referenceAnnotations = setOf(
  * Component analyzer. Checks that classes contain the same constructors. Constructors are compared
  * the same way methods are compared. However,
  */
-fun Class<*>.constructorsMatch(other: Class<*>): CDAMatcher<List<OssifiedExecutable>> =
+fun Class<*>.constructorsMatch(other: Class<*>, cdaNameEnv: CDANameEnv? = null): CDAMatcher<List<OssifiedExecutable>> =
     CDAMatcher(
         AnalysisType.CONSTRUCTORS,
-        this.publicConstructors().map(::OssifiedExecutable).sortedBy { it.answerableName },
+        this.publicConstructors()
+            .map { OssifiedExecutable(it).changeTypeName(this, cdaNameEnv) }
+            .sortedBy { it.answerableName },
         other.publicConstructors().map(::OssifiedExecutable).sortedBy { it.answerableName }
     )
 
@@ -223,7 +279,7 @@ fun Class<*>.constructorsMatch(other: Class<*>): CDAMatcher<List<OssifiedExecuta
 fun Class<*>.innerClassesMatch(
     other: Class<*>,
     config: CDAConfig = defaultCDAConfig
-): Pair<CDAMatcher<List<String>>, Map<String, CDAResult>> {
+): InnerClassAnalysisResult {
     // We want to use the names as seen in the source. Currently, 'simpleSourceName' simply delegates
     // to 'simpleName' for classes, but this could feasibly change in the future
     // (for example, to gather a qualified name instead).
@@ -236,18 +292,23 @@ fun Class<*>.innerClassesMatch(
             theirInnerClasses.map { it.simpleSourceName }
         )
 
-    if (!nameMatcher.match) return Pair(nameMatcher, mapOf())
+    if (!nameMatcher.match) return InnerClassAnalysisResult(nameMatcher, mapOf())
 
     val recursiveAnalysis: List<Pair<String, CDAResult>> =
         ourInnerClasses.zip(theirInnerClasses).map { (ours, theirs) ->
             ours.simpleSourceName to classDesignAnalysis(ours, theirs, config)
         }
 
-    return Pair(nameMatcher, recursiveAnalysis.toMap())
+    return InnerClassAnalysisResult(nameMatcher, recursiveAnalysis.toMap())
 }
 
+data class InnerClassAnalysisResult(
+    val innerClassNames: CDAMatcher<List<String>>,
+    val recursiveResults: Map<String, CDAResult>
+)
+
 @Suppress("LongParameterList")
-class CDAConfig(
+data class CDAConfig(
     val checkName: Boolean = true,
     val checkKind: Boolean = true,
     val checkModifiers: Boolean = true,
@@ -258,6 +319,12 @@ class CDAConfig(
     val checkMethods: Boolean = true,
     val checkConstructors: Boolean = true,
     val checkInnerClasses: Boolean = true,
+
+    /**
+     * Used to support differently-named solutions. [referenceName] should be the name of
+     * the outermost reference class. `null` can be used instead when analyzing the outermost class.
+     */
+    val nameEnv: CDANameEnv? = null,
     val solutionName: String = DEFAULT_EMPTY_NAME
 )
 val defaultCDAConfig = CDAConfig()
@@ -366,6 +433,7 @@ val noCDAResult: CDAResult = classDesignAnalysis(
         checkTypeParams = false,
         checkFields = false,
         checkMethods = false,
+        checkConstructors = false,
         checkSuperclasses = false,
         checkInterfaces = false,
         checkInnerClasses = false
@@ -397,11 +465,23 @@ val Class<*>.kind
         else -> ClassKind.CLASS
     }
 
-class OssifiedField(field: Field) {
-    val modifiers: List<String> = Modifier.toString(field.modifiers).split(" ")
-    // note: formerly used field.type.simpleName, which fails for a generic field in a generic class
-    val type: String = field.genericType.simpleSourceName
-    val name: String = field.simpleName()
+class OssifiedField private constructor(
+    val modifiers: List<String>,
+    val type: String,
+    val name: String
+) {
+    constructor(field: Field) : this(
+        modifiers = Modifier.toString(field.modifiers).split(" "),
+        // note: formerly used field.type.simpleName, which fails for a generic field in a generic class
+        type = field.genericType.simpleSourceName,
+        name = field.simpleName()
+    )
+
+    internal fun changeTypeName(from: String, to: String): OssifiedField = OssifiedField(
+        modifiers = modifiers,
+        type = type.changeTypeName(from, to),
+        name = name
+    )
 
     val answerableName: String
         get() = (modifiers.toMutableList() + type + name).joinToString(separator = " ")
@@ -422,28 +502,40 @@ class OssifiedField(field: Field) {
     }
 }
 
-@Suppress("MemberVisibilityCanBePrivate")
-class OssifiedExecutable(executable: Executable) {
-    val isDefault: Boolean = executable is Method && executable.isDefault
+@Suppress("MemberVisibilityCanBePrivate", "LongParameterList")
+class OssifiedExecutable private constructor(
+    val isConstructor: Boolean,
+    val isDefault: Boolean,
+    val modifiers: List<String>,
+    val typeParams: List<String>,
+    val returnType: String?,
+    val name: String,
+    val parameters: List<String>,
+    val throws: List<String>
+) {
+    constructor(executable: Executable) : this(
+        isConstructor = executable is Constructor<*>,
+        isDefault = executable is Method && executable.isDefault,
+        // we need to ignore transient because methods cannot be transient. It seems like that bit is being used
+        // to mark that a method is varargs?
+        // If you want to ignore a modifier, you have to filter it out of the list. Storing modifiers as an int
+        // makes it harder to serialize, and I can't think of a practical reason to ignore modifiers in CDA.
+        modifiers = Modifier.toString(
+            executable.modifiers and Modifier.TRANSIENT.inv()
+        ).split(" "),
 
-    // we need to ignore transient because methods cannot be transient. It seems like that bit is being used
-    // to mark that a method is varargs?
-    // If you want to ignore a modifier, you have to filter it out of the list. Storing modifiers as an int
-    // makes it harder to serialize, and I can't think of a practical reason to ignore modifiers in CDA.
-    val modifiers: List<String> = Modifier.toString(
-        executable.modifiers and Modifier.TRANSIENT.inv()
-    ).split(" ")
-    val typeParams: List<String> = executable.typeParameters.map { it.simpleSourceName }
-    val returnType: String? = (executable as? Method)?.genericReturnType?.simpleSourceName
-    val name: String = executable.simpleName()
-    val parameters: List<String> = executable.genericParameterTypes.mapIndexed { index, type ->
-        if (executable.isVarArgs && index == executable.genericParameterTypes.size - 1) {
-            type.simpleSourceName.replaceFirst("\\[]$".toRegex(), "...")
-        } else {
-            type.simpleSourceName
-        }
-    }
-    val throws: List<String> = executable.genericExceptionTypes.map { it.simpleSourceName }
+        typeParams = executable.typeParameters.map { it.simpleSourceName },
+        returnType = (executable as? Method)?.genericReturnType?.simpleSourceName,
+        name = executable.simpleName(),
+        parameters = executable.genericParameterTypes.mapIndexed { index, type ->
+            if (executable.isVarArgs && index == executable.genericParameterTypes.size - 1) {
+                type.simpleSourceName.replaceFirst("\\[]$".toRegex(), "...")
+            } else {
+                type.simpleSourceName
+            }
+        },
+        throws = executable.genericExceptionTypes.map { it.simpleSourceName }
+    )
 
     val answerableName: String
         get() {
@@ -463,6 +555,17 @@ class OssifiedExecutable(executable: Executable) {
             }
             return parts.joinToString(separator = " ")
         }
+
+    internal fun changeTypeName(from: String, to: String): OssifiedExecutable = OssifiedExecutable(
+        isConstructor = isConstructor,
+        isDefault = isDefault,
+        modifiers = modifiers,
+        typeParams = typeParams.map { it.changeTypeName(from, to) },
+        returnType = returnType?.changeTypeName(from, to),
+        name = if (isConstructor) name.changeTypeName(from, to) else name,
+        parameters = parameters.map { it.changeTypeName(from, to) },
+        throws = throws.map { it.changeTypeName(from, to) }
+    )
 
     override fun toString(): String = answerableName
 
@@ -498,3 +601,26 @@ fun Executable.simpleName() = this.name.split(".").last()
 fun Executable.answerableName() = OssifiedExecutable(this).answerableName
 fun Field.simpleName() = this.name.split(".").last()
 fun Field.answerableName() = OssifiedField(this).answerableName
+
+/**
+ * Finds all instances of the type name [from] in [this] and replaces them with [to].
+ *
+ * Sometimes, this can be tricky. For example, "YourBinaryTree".changeTypeName("BinaryTree", "Submission")
+ * must return "YourBinaryTree", not "YourSubmission".
+ */
+fun String.changeTypeName(from: String, to: String): String {
+    fun isIsolatedTypeName(match: MatchResult): Boolean {
+        val matchStart = match.range.first
+        val matchEnd = match.range.last
+        val isStartOfName = matchStart == 0 || !Character.isJavaIdentifierPart(this[matchStart - 1])
+        val isEndOfName = matchEnd == this.length - 1 || !Character.isJavaIdentifierPart(this[matchEnd + 1])
+        return isStartOfName && isEndOfName
+    }
+    return this.replace(from.toRegex()) { mr ->
+        if (isIsolatedTypeName(mr)) {
+            to
+        } else {
+            from
+        }
+    }
+}

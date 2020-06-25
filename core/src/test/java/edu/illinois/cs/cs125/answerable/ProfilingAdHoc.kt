@@ -5,33 +5,6 @@ import examples.binarytree.reference.YourBinaryTree
 import examples.binarytree.size.ClassicBinaryTreeSizeTest
 import examples.sorting.ClassicSortTest
 import examples.sorting.reference.ArraySorter
-import org.junit.jupiter.api.Test
-
-class AdHoc {
-    @Test
-    fun `ad hoc`() {
-        /*assertClassDesignPasses(
-            examples.differentnames.reference.Question::class.java,
-            examples.differentnames.Submission::class.java,
-            CDAConfig(checkName = false)
-        )
-        assertClassDesignPasses(
-            examples.differentnames.reference.Question::class.java,
-            examples.differentnames.Incorrect::class.java,
-            CDAConfig(checkName = false)
-        )*/
-
-        PassedClassDesignRunner(
-            examples.differentnames.reference.Question::class.java,
-            examples.differentnames.Submission::class.java
-        ).runTestsUnsecured(0x0403).assertAllSucceeded()
-
-        PassedClassDesignRunner(
-            examples.differentnames.reference.Question::class.java,
-            examples.differentnames.Incorrect::class.java
-        ).runTestsUnsecured(0x0403).assertSomethingFailed()
-    }
-}
 
 fun main() {
     val testFunc = ::testSortingAnswerable

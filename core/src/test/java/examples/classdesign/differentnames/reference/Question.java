@@ -1,12 +1,11 @@
-package examples.differentnames.reference;
+package examples.classdesign.differentnames.reference;
 
 import edu.illinois.cs.cs125.answerable.annotations.Generator;
 import edu.illinois.cs.cs125.answerable.annotations.Solution;
+
 import java.util.Random;
 
 public class Question {
-  // private Question() {}
-
   @Solution
   public int add(int x, int y) {
     return x + y;
