@@ -15,6 +15,7 @@ import edu.illinois.cs.cs125.answerable.publicFields
 import edu.illinois.cs.cs125.answerable.publicInnerClasses
 import edu.illinois.cs.cs125.answerable.publicMethods
 import edu.illinois.cs.cs125.answerable.simpleSourceName
+import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -402,11 +403,23 @@ val Class<*>.kind
         else -> ClassKind.CLASS
     }
 
-class OssifiedField(field: Field) {
-    val modifiers: List<String> = Modifier.toString(field.modifiers).split(" ")
-    // note: formerly used field.type.simpleName, which fails for a generic field in a generic class
-    val type: String = field.genericType.simpleSourceName
-    val name: String = field.simpleName()
+class OssifiedField private constructor(
+    val modifiers: List<String>,
+    val type: String,
+    val name: String
+) {
+    constructor(field: Field): this(
+        modifiers = Modifier.toString(field.modifiers).split(" "),
+        // note: formerly used field.type.simpleName, which fails for a generic field in a generic class
+        type = field.genericType.simpleSourceName,
+        name = field.simpleName()
+    )
+
+    internal fun changeTypeName(from: String, to: String): OssifiedField = OssifiedField(
+        modifiers = modifiers,
+        type = type.changeTypeName(from, to),
+        name = name
+    )
 
     val answerableName: String
         get() = (modifiers.toMutableList() + type + name).joinToString(separator = " ")
@@ -428,27 +441,39 @@ class OssifiedField(field: Field) {
 }
 
 @Suppress("MemberVisibilityCanBePrivate")
-class OssifiedExecutable(executable: Executable) {
-    val isDefault: Boolean = executable is Method && executable.isDefault
+class OssifiedExecutable private constructor(
+    private val isConstructor: Boolean,
+    val isDefault: Boolean,
+    val modifiers: List<String>,
+    val typeParams: List<String>,
+    val returnType: String?,
+    val name: String,
+    val parameters: List<String>,
+    val throws: List<String>
+) {
+    constructor(executable: Executable): this(
+        isConstructor = executable is Constructor<*>,
+        isDefault = executable is Method && executable.isDefault,
+        // we need to ignore transient because methods cannot be transient. It seems like that bit is being used
+        // to mark that a method is varargs?
+        // If you want to ignore a modifier, you have to filter it out of the list. Storing modifiers as an int
+        // makes it harder to serialize, and I can't think of a practical reason to ignore modifiers in CDA.
+        modifiers = Modifier.toString(
+            executable.modifiers and Modifier.TRANSIENT.inv()
+        ).split(" "),
 
-    // we need to ignore transient because methods cannot be transient. It seems like that bit is being used
-    // to mark that a method is varargs?
-    // If you want to ignore a modifier, you have to filter it out of the list. Storing modifiers as an int
-    // makes it harder to serialize, and I can't think of a practical reason to ignore modifiers in CDA.
-    val modifiers: List<String> = Modifier.toString(
-        executable.modifiers and Modifier.TRANSIENT.inv()
-    ).split(" ")
-    val typeParams: List<String> = executable.typeParameters.map { it.simpleSourceName }
-    val returnType: String? = (executable as? Method)?.genericReturnType?.simpleSourceName
-    val name: String = executable.simpleName()
-    val parameters: List<String> = executable.genericParameterTypes.mapIndexed { index, type ->
-        if (executable.isVarArgs && index == executable.genericParameterTypes.size - 1) {
-            type.simpleSourceName.replaceFirst("\\[]$".toRegex(), "...")
-        } else {
-            type.simpleSourceName
-        }
-    }
-    val throws: List<String> = executable.genericExceptionTypes.map { it.simpleSourceName }
+        typeParams = executable.typeParameters.map { it.simpleSourceName },
+        returnType = (executable as? Method)?.genericReturnType?.simpleSourceName,
+        name = executable.simpleName(),
+        parameters = executable.genericParameterTypes.mapIndexed { index, type ->
+            if (executable.isVarArgs && index == executable.genericParameterTypes.size - 1) {
+                type.simpleSourceName.replaceFirst("\\[]$".toRegex(), "...")
+            } else {
+                type.simpleSourceName
+            }
+        },
+        throws = executable.genericExceptionTypes.map { it.simpleSourceName }
+    )
 
     val answerableName: String
         get() {
@@ -468,6 +493,17 @@ class OssifiedExecutable(executable: Executable) {
             }
             return parts.joinToString(separator = " ")
         }
+
+    internal fun changeTypeName(from: String, to: String): OssifiedExecutable = OssifiedExecutable(
+        isConstructor = isConstructor,
+        isDefault = isDefault,
+        modifiers = modifiers,
+        typeParams = typeParams.map { it.changeTypeName(from, to) },
+        returnType = returnType?.changeTypeName(from, to),
+        name = if (isConstructor) name.changeTypeName(from, to) else name,
+        parameters = parameters.map { it.changeTypeName(from, to) },
+        throws = throws.map { it.changeTypeName(from, to) }
+    )
 
     override fun toString(): String = answerableName
 
