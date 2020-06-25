@@ -503,3 +503,26 @@ fun Executable.simpleName() = this.name.split(".").last()
 fun Executable.answerableName() = OssifiedExecutable(this).answerableName
 fun Field.simpleName() = this.name.split(".").last()
 fun Field.answerableName() = OssifiedField(this).answerableName
+
+/**
+ * Finds all instances of the type name [from] in [this] and replaces them with [to].
+ *
+ * Sometimes, this can be tricky. For example, "YourBinaryTree".changeTypeName("BinaryTree", "Submission")
+ * must return "YourBinaryTree", not "YourSubmission".
+ */
+fun String.changeTypeName(from: String, to: String): String {
+    fun isIsolatedTypeName(match: MatchResult): Boolean {
+        val matchStart = match.range.first
+        val matchEnd = match.range.last
+        val isStartOfName = matchStart == 0 || !Character.isJavaIdentifierPart(this[matchStart - 1])
+        val isEndOfName = matchEnd == this.length - 1 || !Character.isJavaIdentifierPart(this[matchEnd + 1])
+        return isStartOfName && isEndOfName
+    }
+    return this.replace(from.toRegex()) { mr ->
+        if (isIsolatedTypeName(mr)) {
+            to
+        } else {
+            from
+        }
+    }
+}
