@@ -1,10 +1,10 @@
 package examples.testgeneration.mutablearguments.reference;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+
 import edu.illinois.cs.cs125.answerable.annotations.Solution;
 import edu.illinois.cs.cs125.answerable.annotations.Verify;
 import edu.illinois.cs.cs125.answerable.api.TestOutput;
-
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 public class MutatesArguments {
   @Solution

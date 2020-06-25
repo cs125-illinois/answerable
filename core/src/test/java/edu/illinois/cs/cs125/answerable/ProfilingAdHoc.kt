@@ -1,6 +1,5 @@
 package edu.illinois.cs.cs125.answerable
 
-import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAConfig
 import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
 import examples.binarytree.reference.YourBinaryTree
 import examples.binarytree.size.ClassicBinaryTreeSizeTest

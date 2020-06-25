@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 import java.util.Random
 import kotlin.math.absoluteValue
 
-class GeneratorsTest {
+class GeneratorTests {
 
     private lateinit var random: Random
 

@@ -24,7 +24,7 @@ import java.lang.reflect.Method
  * @param enabled The names of the named annotations which are enabled for this @[Solution].
  * @param prints Whether or not this solution is expected to print to the console.
  */
-@Target(AnnotationTarget.FUNCTION)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Solution(
     val name: String = DEFAULT_EMPTY_NAME,

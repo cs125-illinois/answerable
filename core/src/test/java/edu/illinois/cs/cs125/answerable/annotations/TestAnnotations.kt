@@ -5,9 +5,7 @@ import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import edu.illinois.cs.cs125.answerable.languageMode
 import org.junit.jupiter.api.Test
 
-internal fun String.test(): Class<*> {
-    return Class.forName("${TestAnnotations::class.java.packageName}.fixtures.$this")
-}
+private fun String.test(): Class<*> = Class.forName("${TestAnnotations::class.java.packageName}.fixtures.$this")
 
 class TestAnnotations {
     @Test

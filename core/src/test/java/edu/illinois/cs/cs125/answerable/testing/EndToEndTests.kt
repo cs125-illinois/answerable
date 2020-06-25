@@ -5,11 +5,13 @@ import edu.illinois.cs.cs125.answerable.runTestsUnsecured
 import org.junit.jupiter.api.Test
 import kotlin.random.Random
 
-class EqualsTest {
+private fun String.load(): Class<*> = Class.forName("${EndToEndTests::class.java.packageName}.fixtures.$this")
+
+class EndToEndTests {
     @Test
-    fun testEquals() {
-        TestGenerator(examples.oo.reference.Equals::class.java)
-            .loadSubmission(examples.oo.reference.Equals::class.java)
+    fun testGetSetEquals() {
+        TestGenerator("oo.reference.GetSetEquals".load())
+            .loadSubmission("oo.GetSetEquals".load())
             .runTestsUnsecured(Random.nextLong()).also {
                 it.assertAllSucceeded()
             }
