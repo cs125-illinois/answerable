@@ -178,33 +178,38 @@ class PairRunner(val pair: TestPair) {
         val same = sameReturn && sameThrew
     }
 
-    fun next(): Boolean {
-        methodIterator.first().also { invoke(it) }
-        return ready
-    }
+    val methodResults: MutableList<MethodResult> = mutableListOf()
 
-    fun invoke(solutionMethod: Method, args: Array<Any?> = arrayOf()): MethodResult {
+    fun next(): Boolean {
         check(ready) { "Receiver object is not ready to invoke another method" }
 
+        val solutionMethod = methodIterator.first()
+        check(solutionMethod.parameterTypes.isEmpty()) {
+            "No support for parameter generation yet"
+        }
         val submissionMethod = pair.submissionMethods[solutionMethod] ?: error(
             "Answerable couldn't find a submission method that should exist"
         )
 
         @SuppressWarnings("TooGenericExceptionCaught")
         val solutionResult = try {
-            MethodResult.Result(solutionMethod.invoke(solution, *args), null)
+            MethodResult.Result(solutionMethod.invoke(solution), null)
         } catch (e: Throwable) {
             MethodResult.Result(null, e)
         }
 
         @SuppressWarnings("TooGenericExceptionCaught")
         val submissionResult = try {
-            MethodResult.Result(submissionMethod.invoke(submission, *args), null)
+            MethodResult.Result(submissionMethod.invoke(submission), null)
         } catch (e: Throwable) {
             MethodResult.Result(null, e)
         }
 
-        return MethodResult(solutionResult, submissionResult).also { ready = it.same }
+        MethodResult(solutionResult, submissionResult).also {
+            methodResults.add(it)
+            ready = it.same
+            return it.same
+        }
     }
 }
 

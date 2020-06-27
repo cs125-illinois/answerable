@@ -12,6 +12,9 @@ class `TestExamples` : StringSpec({
     examples.singlemethodnoarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.singlestaticmethodsingleintargument.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
 })
 
 fun Class<*>.test() {
