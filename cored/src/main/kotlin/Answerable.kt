@@ -1,8 +1,9 @@
-@file:Suppress("unused")
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
 
 package edu.illinois.cs.cs125.answerable.core
 
 import java.lang.reflect.Constructor
+import java.lang.reflect.Executable
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.util.Random
@@ -25,17 +26,20 @@ class Answerable(val solution: Class<*>, val settings: Settings = Settings()) {
         }
     }
 
-    val solutionMethods = solution.declaredMethods.also {
+    val publicMethods = (solution.declaredMethods.toList() + solution.declaredConstructors.toList()).map {
+        it as Executable
+    }.filter { !it.isPrivate() }
+
+    val solutionMethods = publicMethods.filterIsInstance<Method>().also {
         check(it.isNotEmpty()) { "Answerable found no methods to test in ${solution.name}" }
     }.toSet()
-    val solutionConstructors = solution.declaredConstructors.also {
+    val solutionConstructors = publicMethods.filterIsInstance<Constructor<*>>().also {
         check(it.isNotEmpty()) { "Answerable found no available constructors in ${solution.name}" }
     }.toSet()
     val onlyStatic = solutionMethods.all { it.isStatic() }
 
-    fun test(submission: Class<*>, settings: Settings = Settings()) {
-        Tester(this, submission, settings).test()
-    }
+    fun check(submission: Class<*>, settings: Settings = Settings()): TestPair = TestPair(this, submission, settings)
+    fun test(submission: Class<*>, settings: Settings = Settings()) = check(submission, settings).test()
 }
 
 fun Set<Method>.cycle() = sequence {
@@ -47,34 +51,36 @@ class RandomPair(seed: Long = Random().nextLong()) {
     val submission = Random().also { it.setSeed(seed) }
 }
 
-class Tester(
+class ClassDesignError(klass: Class<*>, executable: Executable) : Exception(
+    "Submission class ${klass.name} didn't provide ${if (executable is Method) {
+        "method"
+    } else {
+        "constructor"
+    }} ${executable.fullName()}"
+)
+
+class TestPair(
     val answerable: Answerable,
     val submission: Class<*>,
     settings: Answerable.Settings = Answerable.Settings()
 ) {
     val settings = settings merge answerable.settings
 
-    val submissionConstructors: Map<Constructor<*>, Constructor<*>>
-    val submissionMethods: Map<Method, Method>
+    val submissionConstructors = answerable.solutionConstructors.map { constructor ->
+        constructor to (submission.findConstructor(constructor) ?: throw ClassDesignError(submission, constructor))
+    }.toMap()
+    val submissionMethods = answerable.solutionMethods.map { method ->
+        method to (submission.findMethod(method) ?: throw ClassDesignError(submission, method))
+    }.toMap()
 
-    init {
-        submissionConstructors = answerable.solutionConstructors.map { constructor ->
-            constructor to (submission.findConstructor(constructor)
-                ?: error("Submission didn't provide constructor: $constructor"))
-        }.toMap()
-        submissionMethods = answerable.solutionMethods.map { method ->
-            method to (submission.findMethod(method) ?: error("Submission didn't provide method: $method"))
-        }.toMap()
-    }
-
-    fun createReceivers(settings: Answerable.Settings): List<Receivers> {
+    fun createReceivers(settings: Answerable.Settings): List<PairRunner> {
         return if (answerable.onlyStatic) {
-            listOf(Receivers(this).also { it.create() })
+            listOf(PairRunner(this).also { it.create() })
         } else {
-            mutableListOf<Receivers>().also { receivers ->
+            mutableListOf<PairRunner>().also { receivers ->
                 var ready = 0
                 for (i in 0 until settings.receiverCount * settings.maxReceiverRetries) {
-                    Receivers(this)
+                    PairRunner(this)
                         .also { it.create() }
                         .also {
                             if (it.ready) {
@@ -91,8 +97,8 @@ class Tester(
         }
     }
 
-    fun List<Receivers>.cycle() = sequence {
-        yield(filter { it.ready }.shuffled().first())
+    fun List<PairRunner>.cycle() = sequence {
+        yield(filter { it.ready }.shuffled().firstOrNull())
     }
 
     fun test() {
@@ -108,28 +114,29 @@ class Tester(
             }
         }.cycle()
         repeat(settings.testCount) {
-            receivers.first().also {
+            receivers.first()?.also {
                 it.next()
-            }
+            } ?: error("Ran out of receivers to test")
         }
     }
 }
 
-class Receivers(val pair: Tester) {
+class PairRunner(val pair: TestPair) {
+    var ready = false
+
     var solution: Any? = null
     var submission: Any? = null
-    var ready = false
-    val methodIterator = pair.answerable.solutionMethods.cycle()
 
-    data class ConstructorResult(val solution: Throwable?, val submission: Throwable?) {
+    data class ConstructorResult(val solution: Throwable?, val submission: Throwable?, val method: String? = null) {
         val same = (solution == null && submission == null) || (solution?.equals(submission) ?: false)
     }
 
-    fun create(): ConstructorResult {
-        return if (pair.answerable.onlyStatic) {
-            ConstructorResult(null, null).also {
-                ready = true
-            }
+    lateinit var constructorResult: ConstructorResult
+
+    @Suppress("TooGenericExceptionCaught")
+    fun create(): Boolean {
+        constructorResult = if (pair.answerable.onlyStatic) {
+            ConstructorResult(null, null)
         } else {
             val solutionConstructor = pair.answerable.solutionConstructors.toList().shuffled().take(1).first()
             check(solutionConstructor.parameters.isEmpty()) {
@@ -150,9 +157,14 @@ class Receivers(val pair: Tester) {
             } catch (e: Throwable) {
                 e
             }
-            ConstructorResult(solutionThrew, submissionThrew).also { ready = it.same }
+            ConstructorResult(solutionThrew, submissionThrew)
+        }.also {
+            ready = it.same
         }
+        return ready
     }
+
+    val methodIterator = pair.answerable.solutionMethods.cycle()
 
     data class MethodResult(val solution: Result, val submission: Result) {
         data class Result(val returned: Any?, val threw: Throwable?)
@@ -198,7 +210,9 @@ class Receivers(val pair: Tester) {
 
 fun Class<*>.answerable() = Answerable(this)
 
-fun Method.isStatic() = Modifier.isStatic(modifiers)
+fun Executable.isStatic() = Modifier.isStatic(modifiers)
+fun Executable.isPrivate() = Modifier.isPrivate(modifiers)
+fun Executable.fullName() = "$name(${parameters.joinToString(", ") { it.type.name }})"
 
 fun Class<*>.findMethod(method: Method) = this.declaredMethods.find {
     it?.parameterTypes?.contentEquals(method.parameterTypes) ?: false
@@ -211,14 +225,14 @@ fun Class<*>.findConstructor(constructor: Constructor<*>) = this.declaredConstru
 inline infix fun <reified T : Any> T.merge(other: T): T {
     val nameToProperty = T::class.declaredMemberProperties.associateBy { it.name }
     val primaryConstructor = T::class.primaryConstructor!!
-    val args = primaryConstructor.parameters.associate { parameter ->
+    val args = primaryConstructor.parameters.associateWith { parameter ->
         val property = nameToProperty[parameter.name]!!
         val value = if (property.get(other) != -1) {
             property.get(other)
         } else {
             property.get(this)
         }
-        parameter to value
+        value
     }
     return primaryConstructor.callBy(args)
 }

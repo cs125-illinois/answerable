@@ -5,7 +5,7 @@ import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 
 @Suppress("RemoveSingleExpressionStringTemplate")
-class TestExamples : StringSpec({
+class `TestExamples` : StringSpec({
     examples.singlestaticmethodnoarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
