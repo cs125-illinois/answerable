@@ -1,11 +1,11 @@
-import edu.illinois.cs.cs125.answerable.core.Answerable
-import edu.illinois.cs.cs125.answerable.core.answerable
+package edu.illinois.cs.cs125.answerable.core
+
 import io.github.classgraph.ClassGraph
 import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 
 @Suppress("RemoveSingleExpressionStringTemplate")
-class `TestExamples` : StringSpec({
+class TestExamples : StringSpec({
     examples.singlestaticmethodnoarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
@@ -38,5 +38,3 @@ fun Class<*>.test() {
         }
     }
 }
-
-fun Class<*>.testName() = packageName.removePrefix("examples.")

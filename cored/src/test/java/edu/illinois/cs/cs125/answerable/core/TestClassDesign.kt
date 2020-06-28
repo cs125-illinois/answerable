@@ -1,5 +1,5 @@
-import edu.illinois.cs.cs125.answerable.core.ClassDesignError
-import edu.illinois.cs.cs125.answerable.core.answerable
+package edu.illinois.cs.cs125.answerable.core
+
 import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 
