@@ -13,7 +13,7 @@ class TestExamples : StringSpec({
         "${it.testName()}" { it.test() }
     }
     examples.singlestaticmethodsingleintargument.Correct::class.java.also {
-        "${it.testName()}" { it.test() }
+        "f:${it.testName()}" { it.test() }
     }
 })
 
