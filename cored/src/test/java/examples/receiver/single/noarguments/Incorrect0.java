@@ -1,4 +1,4 @@
-package examples.singlemethodnoarguments;
+package examples.receiver.single.noarguments;
 
 public class Incorrect0 {
   private int value = 0;

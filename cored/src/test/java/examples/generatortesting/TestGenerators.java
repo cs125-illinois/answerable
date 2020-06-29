@@ -11,6 +11,12 @@ public class TestGenerators {
   public static void testLong(long value) {
   }
 
+  public static void testBoolean(boolean value) {
+  }
+
+  public static void testIntAndBoolean(int first, boolean second) {
+  }
+
   public static void testString(String value) {
   }
 

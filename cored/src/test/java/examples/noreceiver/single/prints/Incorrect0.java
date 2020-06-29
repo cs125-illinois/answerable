@@ -1,4 +1,4 @@
-package examples.singlestaticmethodprints;
+package examples.noreceiver.single.prints;
 
 @SuppressWarnings("unused")
 public class Incorrect0 {

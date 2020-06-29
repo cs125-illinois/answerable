@@ -1,4 +1,4 @@
-package examples.singlestaticmethodnoarguments;
+package examples.noreceiver.single.noarguments;
 
 public class Correct {
   public static int value() {

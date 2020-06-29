@@ -6,16 +6,19 @@ import io.kotlintest.specs.StringSpec
 
 @Suppress("RemoveSingleExpressionStringTemplate")
 class TestExamples : StringSpec({
-    examples.singlestaticmethodnoarguments.Correct::class.java.also {
+    examples.noreceiver.single.noarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.singlemethodnoarguments.Correct::class.java.also {
+    examples.receiver.single.noarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.singlestaticmethodsingleintargument.Correct::class.java.also {
+    examples.noreceiver.single.intargument.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.singlestaticmethodprints.Correct::class.java.also {
+    examples.noreceiver.single.prints.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
+    examples.noreceiver.single.submissionprints.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
 })

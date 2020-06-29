@@ -151,7 +151,13 @@ class TypeParameterGenerator(
         parameterGenerators.map { it.simple }.combine(ParametersGenerator.Type.SIMPLE)
     }
     override val edge by lazy {
-        parameterGenerators.map { it.edge }.combine(ParametersGenerator.Type.EDGE)
+        parameterGenerators.map {
+            if (it.edge.isNotEmpty()) {
+                it.edge
+            } else {
+                it.simple
+            }
+        }.combine(ParametersGenerator.Type.EDGE)
     }
     override val mixed by lazy {
         parameterGenerators.map { it.simple + it.edge }.combine(ParametersGenerator.Type.MIXED).filter {

@@ -1,4 +1,4 @@
-package examples.singlestaticmethodsingleintargument;
+package examples.noreceiver.single.intargument;
 
 @SuppressWarnings("unused")
 public class Incorrect0 {

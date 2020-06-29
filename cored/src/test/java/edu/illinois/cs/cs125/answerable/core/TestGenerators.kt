@@ -32,6 +32,13 @@ class TestGenerators : StringSpec({
             method.testGenerator(generator)
         }
     }
+    "it should generate booleans properly" {
+        methodNamed("testBoolean").also { method ->
+            val generator = Defaults.create(method.parameterTypes[0])
+            method.invoke(null, true)
+            method.testGenerator(generator)
+        }
+    }
     "it should generate Strings properly" {
         methodNamed("testString").also { method ->
             val generator = Defaults.create(method.parameterTypes[0])
@@ -88,6 +95,7 @@ class TestGenerators : StringSpec({
         methodNamed("testTwoInts").testParameterGenerator(3, 2, 2)
         methodNamed("testIntArray").testParameterGenerator(2, 1)
         methodNamed("testTwoIntArrays").testParameterGenerator(2, 1, 2)
+        methodNamed("testIntAndBoolean").testParameterGenerator(3 * 2, 2 * 2)
     }
 })
 
@@ -95,10 +103,10 @@ private fun methodNamed(name: String) = examples.generatortesting.TestGenerators
     .find { it.name == name } ?: error("Couldn't find method $name")
 
 private fun <T> Method.testGenerator(typeGenerator: TypeGenerator<T>) {
-    invoke(null, typeGenerator.edge.first().either)
-    invoke(null, typeGenerator.simple.first().either)
-    invoke(null, typeGenerator.random(TypeGenerator.Complexity()).either)
-    invoke(null, typeGenerator.random(TypeGenerator.Complexity().max()).either)
+    typeGenerator.simple.forEach { invoke(null, it.either) }
+    typeGenerator.edge.forEach { invoke(null, it.either) }
+    repeat(8) { invoke(null, typeGenerator.random(TypeGenerator.Complexity()).either) }
+    repeat(8) { invoke(null, typeGenerator.random(TypeGenerator.Complexity().max()).either) }
 }
 
 private fun Int.pow(exponent: Int) = Math.pow(toDouble(), exponent.toDouble()).toInt()

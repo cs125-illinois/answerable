@@ -220,14 +220,12 @@ class PairRunner(val index: Int, val pair: Pair, val methodGenerators: MethodGen
                 solutionMethod.invoke(solution, *parameters.solution)
             }
         }
-        println(solutionResult)
 
         val submissionResult = pair.solution.captureOutput {
             unwrapMethodInvocationException {
                 submissionMethod.invoke(submission, *parameters.submission)
             }
         }
-        println(submissionResult)
 
         Step(solutionResult, submissionResult, Step.Type.METHOD).also { ready = it.same }
         return ready

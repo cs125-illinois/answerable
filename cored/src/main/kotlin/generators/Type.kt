@@ -1,14 +1,16 @@
 package edu.illinois.cs.cs125.answerable.core.generators
 
 import java.lang.reflect.Array
+import kotlin.math.pow
 import kotlin.random.Random
 
 sealed class TypeGenerator<T>(internal val random: Random) {
     abstract val simple: Set<Value<T>>
     abstract val edge: Set<Value<T?>>
-    abstract fun random(complexity: Complexity): Value<T?>
+    abstract fun random(complexity: Complexity): Value<T>
 
     class Complexity(level: Int = MIN) {
+        @Suppress("MemberVisibilityCanBePrivate")
         var level = level
             set(value) {
                 require(value in MIN..MAX) { "Invalid complexity value: $value" }
@@ -34,7 +36,7 @@ sealed class TypeGenerator<T>(internal val random: Random) {
             return this
         }
 
-        fun power(base: Int = 2) = Math.pow(base.toDouble(), level.toDouble()).toInt()
+        fun power(base: Int = 2) = base.toDouble().pow(level.toDouble()).toInt()
 
         companion object {
             const val MIN = 1
@@ -56,6 +58,7 @@ object Defaults {
     init {
         map[Int::class.java] = IntGenerator.Companion::create
         map[Long::class.java] = LongGenerator.Companion::create
+        map[Boolean::class.java] = BooleanGenerator.Companion::create
         map[String::class.java] = StringGenerator.Companion::create
     }
 
@@ -76,8 +79,9 @@ object Defaults {
 }
 
 @Suppress("UNCHECKED_CAST")
-class ArrayGenerator(random: Random, val klass: Class<*>) : TypeGenerator<Any>(random) {
+class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerator<Any>(random) {
     private val componentGenerator = Defaults.create(klass, random)
+    private val isNested = klass.isArray
 
     override val simple: Set<Value<Any>>
         get() {
@@ -92,13 +96,18 @@ class ArrayGenerator(random: Random, val klass: Class<*>) : TypeGenerator<Any>(r
             ).values()
         }
     override val edge = setOf<Any?>(null).values()
-    override fun random(complexity: Complexity): Value<Any?> {
-        return (Array.newInstance(klass, complexity.power() + 2).also { array ->
-            (0 until complexity.power() + 2).forEach { index ->
+    override fun random(complexity: Complexity): Value<Any> {
+        val innerComplexity = if (isNested) {
+            Complexity(complexity.level - 2)
+        } else {
+            complexity
+        }
+        return (Array.newInstance(klass, complexity.power()).also { array ->
+            (0 until complexity.power()).forEach { index ->
                 Array.set(
                     array,
                     index,
-                    componentGenerator.random(complexity).either
+                    componentGenerator.random(innerComplexity).either
                 )
             }
         }).value()
@@ -109,7 +118,7 @@ class IntGenerator(random: Random) : TypeGenerator<Int>(random) {
 
     override val simple = (-1..1).toSet().values()
     override val edge = setOf<Int?>(Int.MIN_VALUE, Int.MAX_VALUE).values()
-    override fun random(complexity: Complexity): Value<Int?> = random(complexity, random).value()
+    override fun random(complexity: Complexity): Value<Int> = random(complexity, random).value()
 
     companion object {
         fun random(complexity: Complexity, random: Random = Random) = complexity.power().let { bound ->
@@ -125,7 +134,7 @@ class LongGenerator(random: Random) : TypeGenerator<Long>(random) {
 
     override val simple = (-1L..1L).toSet().values()
     override val edge = setOf<Long?>(Long.MIN_VALUE, Long.MAX_VALUE).values()
-    override fun random(complexity: Complexity): Value<Long?> = random(complexity, random).value()
+    override fun random(complexity: Complexity): Value<Long> = random(complexity, random).value()
 
     companion object {
         @Suppress("MagicNumber")
@@ -138,11 +147,22 @@ class LongGenerator(random: Random) : TypeGenerator<Long>(random) {
     }
 }
 
+class BooleanGenerator(random: Random) : TypeGenerator<Boolean>(random) {
+
+    override val simple = setOf(true, false).values()
+    override val edge = setOf<Boolean?>().values()
+    override fun random(complexity: Complexity): Value<Boolean> = random.nextBoolean().value()
+
+    companion object {
+        fun create(random: Random = Random) = BooleanGenerator(random)
+    }
+}
+
 class StringGenerator(random: Random) : TypeGenerator<String>(random) {
 
     override val simple = setOf("test", "test string").values()
     override val edge = listOf(null, "").values()
-    override fun random(complexity: Complexity): Value<String?> = random(complexity, random).value()
+    override fun random(complexity: Complexity): Value<String> = random(complexity, random).value()
 
     companion object {
         @Suppress("MemberVisibilityCanBePrivate")
