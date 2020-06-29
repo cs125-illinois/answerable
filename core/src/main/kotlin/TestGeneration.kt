@@ -35,7 +35,7 @@ import edu.illinois.cs.cs125.answerable.testing.ExecutedTestStep
 import edu.illinois.cs.cs125.answerable.testing.GenWrapper
 import edu.illinois.cs.cs125.answerable.testing.GeneratorMap
 import edu.illinois.cs.cs125.answerable.testing.GeneratorMapBuilder
-import edu.illinois.cs.cs125.answerable.testing.GeneratorType
+import edu.illinois.cs.cs125.answerable.testing.GeneratorRequest
 import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
 import edu.illinois.cs.cs125.answerable.testing.TestStep
 import edu.illinois.cs.cs125.answerable.testing.TestType
@@ -154,7 +154,7 @@ class TestGenerator(
     internal val isStatic = referenceMethod?.let { Modifier.isStatic(it.modifiers) } ?: false
 
     internal val params = usableReferenceMethod?.getAnswerableParams() ?: arrayOf()
-    internal val paramsWithReceiver = arrayOf(GeneratorType(usableReferenceClass), *params)
+    internal val paramsWithReceiver = arrayOf(GeneratorRequest(usableReferenceClass), *params)
 
     internal val random: Random = Random(0)
     internal val generators: GeneratorMap = buildGeneratorMap(random)
@@ -198,9 +198,9 @@ class TestGenerator(
 
         usableControlClass.getEnabledGenerators(enabledNames).map {
             if (it.returnType == usableReferenceClass && submittedClassGenerator != null) {
-                Pair(GeneratorType(it.genericReturnType), CustomGen(submittedClassGenerator))
+                Pair(GeneratorRequest(it.genericReturnType), CustomGen(submittedClassGenerator))
             } else {
-                Pair(GeneratorType(it.genericReturnType), CustomGen(it))
+                Pair(GeneratorRequest(it.genericReturnType), CustomGen(it))
             }
         }.also { enabledGens ->
             enabledGens.groupBy { it.first }.forEach { gensForType ->
@@ -208,16 +208,16 @@ class TestGenerator(
                     "Found multiple enabled generators for type `${gensForType.key.type.sourceName}'."
                 )
             }
-        }.forEach(generatorMapBuilder::accept)
+        }.forEach(generatorMapBuilder::addKnownGenerator)
 
         // The map builder needs to be aware of all named generators for parameter-specific generator choices
         usableControlClass.getAllNamedGenerators().map { (name, method) ->
             if (method.returnType == usableReferenceClass && submittedClassGenerator != null) {
-                Pair(GeneratorType(method.genericReturnType, name), CustomGen(submittedClassGenerator))
+                Pair(GeneratorRequest(method.genericReturnType, name), CustomGen(submittedClassGenerator))
             } else {
-                Pair(GeneratorType(method.genericReturnType, name), CustomGen(method))
+                Pair(GeneratorRequest(method.genericReturnType, name), CustomGen(method))
             }
-        }.forEach(generatorMapBuilder::accept)
+        }.forEach(generatorMapBuilder::addKnownGenerator)
 
         return generatorMapBuilder.build().also { generatorMap ->
             usableControlClass.getGroupedGenerator(solutionName)?.also {
@@ -508,7 +508,7 @@ internal class TestRunWorker internal constructor(
         index: Int,
         total: Int,
         cases: Map<Type, ArrayWrapper?>,
-        backups: Map<GeneratorType, GenWrapper<*>>
+        backups: Map<GeneratorRequest, GenWrapper<*>>
     ): Array<Any?> {
         var segmentSize = total
         var segmentIndex = index
@@ -558,7 +558,7 @@ internal class TestRunWorker internal constructor(
     private fun mkSimpleEdgeMixedCase(
         edges: Map<Type, ArrayWrapper?>,
         simples: Map<Type, ArrayWrapper?>,
-        backups: Map<GeneratorType, GenWrapper<*>>,
+        backups: Map<GeneratorRequest, GenWrapper<*>>,
         random: Random
     ): Array<Any?> {
         val case = Array<Any?>(params.size) { null }
@@ -590,7 +590,7 @@ internal class TestRunWorker internal constructor(
     private fun mkGeneratedMixedCase(
         edges: Map<Type, ArrayWrapper?>,
         simples: Map<Type, ArrayWrapper?>,
-        gens: Map<GeneratorType, GenWrapper<*>>,
+        gens: Map<GeneratorRequest, GenWrapper<*>>,
         complexity: Int,
         random: Random
     ): Array<Any?> {
@@ -647,7 +647,7 @@ internal class TestRunWorker internal constructor(
         when (receiverGenStrategy) {
             TestGenerator.ReceiverGenStrategy.NONE -> null
             TestGenerator.ReceiverGenStrategy.DEFAULTCONSTRUCTOR -> referenceDefaultCtor?.newInstance()
-            TestGenerator.ReceiverGenStrategy.GENERATOR -> referenceGens[GeneratorType(usableReferenceClass)]?.generate(
+            TestGenerator.ReceiverGenStrategy.GENERATOR -> referenceGens[GeneratorRequest(usableReferenceClass)]?.generate(
                 complexity
             )
             TestGenerator.ReceiverGenStrategy.NEXT -> referenceAtNext?.invoke(
@@ -663,7 +663,7 @@ internal class TestRunWorker internal constructor(
             TestGenerator.ReceiverGenStrategy.NONE -> null
             TestGenerator.ReceiverGenStrategy.DEFAULTCONSTRUCTOR -> submissionDefaultCtor?.newInstance()
             TestGenerator.ReceiverGenStrategy.GENERATOR ->
-                submissionGens[GeneratorType(usableReferenceClass)]?.generate(
+                submissionGens[GeneratorRequest(usableReferenceClass)]?.generate(
                     complexity
                 )
             TestGenerator.ReceiverGenStrategy.NEXT -> submissionAtNext?.invoke(

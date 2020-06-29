@@ -3,7 +3,7 @@ package edu.illinois.cs.cs125.answerable
 import edu.illinois.cs.cs125.answerable.testing.CustomGen
 import edu.illinois.cs.cs125.answerable.testing.DiscardedTestStep
 import edu.illinois.cs.cs125.answerable.testing.ExecutedTestStep
-import edu.illinois.cs.cs125.answerable.testing.GeneratorType
+import edu.illinois.cs.cs125.answerable.testing.GeneratorRequest
 import edu.illinois.cs.cs125.answerable.testing.TestRunnerArgs
 import examples.testgeneration.mutablearguments.MutatesArguments
 import examples.testgeneration.validation.reference.Adder
@@ -35,7 +35,7 @@ internal class TestGeneratorTest {
         )
 
         assertTrue(
-            GeneratorType(Array<IntArray>::class.java) in tg.generators.keys,
+            GeneratorRequest(Array<IntArray>::class.java) in tg.generators.keys,
             "Generators does not contain key `Array<Array<Int>>'."
         )
 
@@ -52,7 +52,7 @@ internal class TestGeneratorTest {
         val tg = TestGenerator(examples.testgeneration.generators.reference.OverrideDefaultArray::class.java)
 
         assertTrue(
-            tg.generators[GeneratorType(Array<Array<String>>::class.java)]?.gen is CustomGen,
+            tg.generators[GeneratorRequest(Array<Array<String>>::class.java)]?.gen is CustomGen,
             "Generators does not contain a CustomGen for `String[][]'."
         )
         assertEquals(1, tg.generators.size)

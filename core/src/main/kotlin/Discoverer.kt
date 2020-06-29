@@ -7,7 +7,7 @@ import edu.illinois.cs.cs125.answerable.annotations.Next
 import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.UseGenerator
-import edu.illinois.cs.cs125.answerable.testing.GeneratorType
+import edu.illinois.cs.cs125.answerable.testing.GeneratorRequest
 import java.lang.IllegalStateException
 import java.lang.reflect.Field
 import java.lang.reflect.GenericArrayType
@@ -67,7 +67,7 @@ internal val Class<*>.publicInnerClasses: List<Class<*>>
     get() = declaredClasses.filter { Modifier.isPublic(it.modifiers) }
 
 internal fun Method.getAnswerableParams() =
-    this.parameters.map { GeneratorType(it.parameterizedType, it.getAnnotation(UseGenerator::class.java)?.name) }
+    this.parameters.map { GeneratorRequest(it.parameterizedType, it.getAnnotation(UseGenerator::class.java)?.name) }
         .toTypedArray()
 
 internal fun Class<*>.getDefaultAtNext(): Method? =

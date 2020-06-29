@@ -15,22 +15,32 @@ import java.lang.reflect.WildcardType
 import java.util.Random
 import kotlin.math.min
 
-// NOTE: [Generator Keys]
+// [NOTE: Generator Keys]
 // goalTypes holds types that we need generators for. @UseGenerator annotations allow specifying a specific generator.
-// The string in the Pair is non-null iff a specific generator is requested.
+// The name in the GeneratorRequest is non-null iff a specific generator is requested.
+// [NOTE: Lazy closures in knownGenerators]
+// In several cases, we need to construct parameterized generators. Eventually, this behavior will even be exposed
+// for users to write parametric generators. Parametric generators require access to a generator for the actual
+// type parameter; for example, an array generator needs access to a component generator. This are passed as arguments.
+// Consider if the component is Int. We need to be sure we use the same Int generator that is being used for testing.
+// To achieve this, the Gen<*>s held in the knownGenerators map are lazy. When the lazy closure is forced, by build(),
+// it will grab the actual generator for the component type.
+//
+// Even after parametric generation becomes exposed, arrays will have to be special-cased, because the array generators
+// require access to a Class<*> instance so that they can use java.lang.reflect.Array.newInstance.
 internal class GeneratorMapBuilder(
-    goalTypes: kotlin.Array<GeneratorType>,
+    goalTypes: kotlin.Array<GeneratorRequest>,
     private val random: Random,
     private val pool: TypePool,
     private val receiverType: Class<*>?,
     languageMode: LanguageMode
 ) {
-    private var knownGenerators: MutableMap<GeneratorType, Lazy<Gen<*>>> = mutableMapOf()
-    private val defaultGenerators: Map<GeneratorType, Gen<*>> =
-        languageMode.defaultGenerators.mapKeys { (klass, _) -> GeneratorType(klass) }
+    private var knownGenerators: MutableMap<GeneratorRequest, Lazy<Gen<*>>> = mutableMapOf()
+    private val defaultGenerators: Map<GeneratorRequest, Gen<*>> =
+        languageMode.defaultGenerators.mapKeys { (klass, _) -> GeneratorRequest(klass) }
 
     init {
-        defaultGenerators.forEach { (k, v) -> accept(k, v) }
+        defaultGenerators.forEach { (k, v) -> addKnownGenerator(k, v) }
         knownGenerators[String::class.java.asGeneratorType()] = lazy {
             DefaultStringGen(
                 knownGenerators[Char::class.java.asGeneratorType()]!!.value
@@ -38,7 +48,7 @@ internal class GeneratorMapBuilder(
         }
     }
 
-    private val requiredGenerators: Set<GeneratorType> = goalTypes.toSet().also { it.forEach(this::request) }
+    private val requiredGenerators: Set<GeneratorRequest> = goalTypes.toSet().also { it.forEach(this::requestArrayGenerator) }
 
     private fun lazyGenError(type: Type) =
         AnswerableMisuseException(
@@ -49,30 +59,31 @@ internal class GeneratorMapBuilder(
     private fun lazyArrayError(type: Type) =
         AnswerableMisuseException(
             "A generator for an array with component type `${pool.getOriginalClass(type).sourceName}' was requested, " +
-                "but no generator for that type was found."
+                "but no generator for that component type was found."
         )
 
-    fun accept(pair: kotlin.Pair<GeneratorType, Gen<*>?>) = accept(pair.first, pair.second)
+    fun addKnownGenerator(pair: kotlin.Pair<GeneratorRequest, Gen<*>?>) = addKnownGenerator(pair.first, pair.second)
 
-    fun accept(generatorType: GeneratorType, gen: Gen<*>?) {
+    fun addKnownGenerator(generatorRequest: GeneratorRequest, gen: Gen<*>?) {
         if (gen != null) {
             // kotlin fails to smart cast here even though it says the cast isn't needed
             @Suppress("USELESS_CAST")
-            knownGenerators[generatorType] = lazy { gen as Gen<*> }
+            knownGenerators[generatorRequest] = lazy { gen as Gen<*> }
         }
     }
 
-    private fun request(generatorType: GeneratorType) {
-        if (generatorType.requested == null) {
-            request(generatorType.type)
+    private fun requestArrayGenerator(generatorRequest: GeneratorRequest) {
+        if (generatorRequest.name == null) {
+            requestArrayGenerator(generatorRequest.type)
         }
     }
 
-    private fun request(type: Type) {
+    private fun requestArrayGenerator(type: Type) {
         when (type) {
             is Class<*> -> if (type.isArray) {
-                request(type.componentType)
+                requestArrayGenerator(type.componentType)
                 knownGenerators[type.asGeneratorType()] =
+                    // see [Note: Lazy closures in knownGenerators]
                     lazy {
                         DefaultArrayGen(
                             knownGenerators[type.componentType.asGeneratorType()]?.value
@@ -122,26 +133,23 @@ internal class GeneratorMapBuilder(
     }
 
     @Suppress("ReturnCount")
-    private fun selectGenerator(goal: GeneratorType): Gen<*>? {
+    private fun selectGenerator(goal: GeneratorRequest): Gen<*>? {
         // Selects a variant-compatible generator if an exact match isn't found
         // e.g. Kotlin Function1<? super Whatever, SomethingElse> (required) is compatible
         //        with Function1<        Whatever, SomethingElse> (known)
         knownGenerators[goal]?.value?.also { return it }
         knownGenerators.filter { (known, _) ->
-            known.requested == goal.requested && generatorCompatible(goal.type, known.type)
+            known.name == goal.name && generatorCompatible(goal.type, known.type)
         }.toList().firstOrNull()?.second?.also { return it.value }
         // As a final check before giving up the generator search, look on the class itself
-        return if (goal.type !is Class<*> || goal.requested != null) {
-            null
-        } else {
-            goal.klass.getAllGenerators().find {
-                it.returnType == goal.type
-            }?.let { generatorMethod ->
-                CustomGen(generatorMethod).also { generator ->
-                    accept(goal, generator)
-                }
-            }
+        if (goal.type is Class<*> && goal.name == null) {
+            val generatorMethod = goal.type.getAllGenerators().find { it.returnType == goal.type }
+                ?: return null
+            val customGen = CustomGen(generatorMethod)
+            addKnownGenerator(goal, customGen)
+            return customGen
         }
+        return null
     }
 
     fun build(): GeneratorMap = requiredGenerators
@@ -161,13 +169,13 @@ internal class GeneratorMapBuilder(
         }
 }
 
-internal data class GeneratorMap(val map: Map<GeneratorType, GenWrapper<*>>) :
-    Map<GeneratorType, GenWrapper<*>> by map {
+internal data class GeneratorMap(val map: Map<GeneratorRequest, GenWrapper<*>>) :
+    Map<GeneratorRequest, GenWrapper<*>> by map {
     var parameterGenerator: GenWrapper<*>? = null
 
     @Suppress("NestedBlockDepth")
     fun generate(
-        params: kotlin.Array<GeneratorType>,
+        params: kotlin.Array<GeneratorRequest>,
         comp: Int
     ): kotlin.Array<Any?> {
         if (parameterGenerator != null) {
@@ -182,7 +190,7 @@ internal data class GeneratorMap(val map: Map<GeneratorType, GenWrapper<*>>) :
         }
         if (params.size > 1) {
             when (params.size) {
-                2 -> this[GeneratorType(Pair::class.java)]
+                2 -> this[GeneratorRequest(Pair::class.java)]
                 else -> null
             }?.also {
                 println("Here")
@@ -193,19 +201,19 @@ internal data class GeneratorMap(val map: Map<GeneratorType, GenWrapper<*>>) :
 }
 
 internal class GenWrapper<T>(val gen: Gen<T>, private val random: Random) {
-    operator fun invoke(complexity: Int) = gen.generate(complexity, random)
+    operator fun invoke(complexity: Int) = generate(complexity)
 
     fun generate(complexity: Int): T = gen.generate(complexity, random)
 }
 
 // So named as to avoid conflict with the @Generator annotation, as that class name is part of the public API
 // and this one is not.
+// TODO: rename to (Answerable/Type)Generator and expose?
 internal interface Gen<out T> {
     fun generate(complexity: Int, random: Random): T
 }
 
-@Suppress("NOTHING_TO_INLINE")
-internal inline operator fun <T> Gen<T>.invoke(complexity: Int, random: Random): T = generate(complexity, random)
+internal operator fun <T> Gen<T>.invoke(complexity: Int, random: Random): T = generate(complexity, random)
 internal class CustomGen(private val gen: Method) :
     Gen<Any?> {
     override fun generate(complexity: Int, random: Random): Any? = gen(null, complexity, random)
@@ -355,10 +363,6 @@ internal val primitiveGenerators: Map<Class<*>, Gen<*>> = mapOf(
     Boolean::class.java to defaultBooleanGen
 )
 
-data class GeneratorType(val type: Type, val requested: String? = null) {
-    constructor(klass: Class<*>) : this(klass as Type)
+data class GeneratorRequest(val type: Type, val name: String? = null)
 
-    val klass by lazy { type as Class<*> }
-}
-
-fun Class<*>.asGeneratorType() = GeneratorType(this as Type, null)
+fun Class<*>.asGeneratorType() = GeneratorRequest(this, null)
