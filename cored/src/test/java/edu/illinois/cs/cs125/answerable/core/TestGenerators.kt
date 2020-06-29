@@ -1,5 +1,10 @@
 package edu.illinois.cs.cs125.answerable.core
 
+import edu.illinois.cs.cs125.answerable.core.generators.Defaults
+import edu.illinois.cs.cs125.answerable.core.generators.TypeGenerator
+import edu.illinois.cs.cs125.answerable.core.generators.TypeParameterGenerator
+import edu.illinois.cs.cs125.answerable.core.generators.getArrayType
+import edu.illinois.cs.cs125.answerable.core.generators.product
 import io.kotlintest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotlintest.matchers.collections.shouldHaveSize
 import io.kotlintest.shouldBe
@@ -78,43 +83,44 @@ class TestGenerators : StringSpec({
             it shouldContainExactlyInAnyOrder setOf(listOf(1, 3), listOf(1, 4), listOf(2, 3), listOf(2, 4))
         }
     }
-    "f:it should generate parameters properly" {
-        methodNamed("testInt").testParameterGenerator(3, 2, 5)
-        methodNamed("testTwoInts").testParameterGenerator(3 * 3, 2 * 2, 5 * 5)
-        methodNamed("testIntArray").testParameterGenerator(2, 1, 3)
-        methodNamed("testTwoIntArrays").testParameterGenerator(2 * 2, 1 * 1, 3 * 3)
+    "it should generate parameters properly" {
+        methodNamed("testInt").testParameterGenerator(3, 2)
+        methodNamed("testTwoInts").testParameterGenerator(3, 2, 2)
+        methodNamed("testIntArray").testParameterGenerator(2, 1)
+        methodNamed("testTwoIntArrays").testParameterGenerator(2, 1, 2)
     }
 })
 
 private fun methodNamed(name: String) = examples.generatortesting.TestGenerators::class.java.declaredMethods
     .find { it.name == name } ?: error("Couldn't find method $name")
 
-private fun <T> Method.testGenerator(generator: Generator<T>) {
-    invoke(null, generator.edge.first().v)
-    invoke(null, generator.simple.first().v)
-    invoke(null, generator.random(Generator.Complexity()).v)
-    invoke(null, generator.random(Generator.Complexity().max()).v)
+private fun <T> Method.testGenerator(typeGenerator: TypeGenerator<T>) {
+    invoke(null, typeGenerator.edge.first().either)
+    invoke(null, typeGenerator.simple.first().either)
+    invoke(null, typeGenerator.random(TypeGenerator.Complexity()).either)
+    invoke(null, typeGenerator.random(TypeGenerator.Complexity().max()).either)
 }
 
-private fun Method.testParameterGenerator(simpleSize: Int, edgeSize: Int, mixedSize: Int) {
-    val parameterGenerator = ParameterGenerator(parameters)
+private fun Int.pow(exponent: Int) = Math.pow(toDouble(), exponent.toDouble()).toInt()
+
+private fun Method.testParameterGenerator(simpleSize: Int, edgeSize: Int, dimensionality: Int = 1) {
+    val parameterGenerator =
+        TypeParameterGenerator(parameters)
     parameterGenerator.simple.also { simple ->
-        simple shouldHaveSize simpleSize
-        simple.forEach { invoke(null, *it.v) }
+        simple shouldHaveSize simpleSize.pow(dimensionality)
+        simple.forEach { invoke(null, *it.either) }
     }
     parameterGenerator.edge.also { edge ->
-        edge shouldHaveSize edgeSize
-        edge.forEach { invoke(null, *it.v) }
+        edge shouldHaveSize edgeSize.pow(dimensionality)
+        edge.forEach { invoke(null, *it.either) }
     }
     parameterGenerator.mixed.also { mixed ->
+        val mixedSize =
+            (simpleSize + edgeSize).pow(dimensionality) - simpleSize.pow(dimensionality) - edgeSize.pow(dimensionality)
         mixed shouldHaveSize mixedSize
-        mixed.forEach { invoke(null, *it.v) }
+        mixed.forEach { invoke(null, *it.either) }
     }
-    parameterGenerator.mixed.also { mixed ->
-        mixed shouldHaveSize mixedSize
-        mixed.forEach { invoke(null, *it.v) }
-    }
-    Generator.Complexity.ALL.forEach { complexity ->
-        invoke(null, *parameterGenerator.random(complexity).v)
+    TypeGenerator.Complexity.ALL.forEach { complexity ->
+        invoke(null, *parameterGenerator.random(complexity).either)
     }
 }

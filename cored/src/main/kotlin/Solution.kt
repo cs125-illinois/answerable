@@ -2,26 +2,37 @@
 
 package edu.illinois.cs.cs125.answerable.core
 
+import edu.illinois.cs.cs125.answerable.core.generators.EmptyParameters
+import edu.illinois.cs.cs125.answerable.core.generators.MethodGenerators
+import edu.illinois.cs.cs125.answerable.core.generators.ParameterGeneratorFactory
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
-import java.util.Random
+import kotlin.random.Random
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.primaryConstructor
 
-class Answerable(val solution: Class<*>, val settings: Settings = Settings()) {
+class Solution(val solution: Class<*>, val settings: Settings = Settings()) {
     data class Settings(
         val receiverCount: Int = -1,
         val testCount: Int = -1,
-        val maxReceiverRetries: Int = -1
-
+        val maxReceiverRetries: Int = -1,
+        val seed: Int = -1,
+        val simpleCount: Int = -1,
+        val edgeCount: Int = -1,
+        val mixedCount: Int = -1,
+        val fixedCount: Int = -1
     ) {
         companion object {
             val DEFAULTS = Settings(
                 receiverCount = 32,
                 testCount = 256,
-                maxReceiverRetries = 8
+                maxReceiverRetries = 8,
+                simpleCount = Int.MAX_VALUE,
+                edgeCount = Int.MAX_VALUE,
+                mixedCount = Int.MAX_VALUE,
+                fixedCount = Int.MAX_VALUE
             )
         }
     }
@@ -29,6 +40,8 @@ class Answerable(val solution: Class<*>, val settings: Settings = Settings()) {
     val publicMethods = (solution.declaredMethods.toList() + solution.declaredConstructors.toList()).map {
         it as Executable
     }.filter { !it.isPrivate() }
+    val parameterGeneratorFactory: ParameterGeneratorFactory =
+        ParameterGeneratorFactory(publicMethods)
 
     val solutionMethods = publicMethods.filterIsInstance<Method>().also {
         check(it.isNotEmpty()) { "Answerable found no methods to test in ${solution.name}" }
@@ -36,19 +49,21 @@ class Answerable(val solution: Class<*>, val settings: Settings = Settings()) {
     val solutionConstructors = publicMethods.filterIsInstance<Constructor<*>>().also {
         check(it.isNotEmpty()) { "Answerable found no available constructors in ${solution.name}" }
     }.toSet()
+
     val onlyStatic = solutionMethods.all { it.isStatic() }
 
-    fun check(submission: Class<*>, settings: Settings = Settings()): TestPair = TestPair(this, submission, settings)
-    fun test(submission: Class<*>, settings: Settings = Settings()) = check(submission, settings).test()
+    fun submission(submission: Class<*>) = Pair(this, submission)
 }
 
 fun Set<Method>.cycle() = sequence {
     yield(shuffled().first())
 }
 
-class RandomPair(seed: Long = Random().nextLong()) {
-    val solution = Random().also { it.setSeed(seed) }
-    val submission = Random().also { it.setSeed(seed) }
+class RandomPair(seed: Long = Random.nextLong()) {
+    val solution = java.util.Random().also { it.setSeed(seed) }
+    val submission = java.util.Random().also { it.setSeed(seed) }
+    val synced: Boolean
+        get() = solution.nextLong() == submission.nextLong()
 }
 
 class ClassDesignError(klass: Class<*>, executable: Executable) : Exception(
@@ -59,28 +74,24 @@ class ClassDesignError(klass: Class<*>, executable: Executable) : Exception(
     }} ${executable.fullName()}"
 )
 
-class TestPair(
-    val answerable: Answerable,
-    val submission: Class<*>,
-    settings: Answerable.Settings = Answerable.Settings()
-) {
-    val settings = settings merge answerable.settings
-
-    val submissionConstructors = answerable.solutionConstructors.map { constructor ->
+class Pair(val solution: Solution, val submission: Class<*>) {
+    val submissionConstructors = solution.solutionConstructors.map { constructor ->
         constructor to (submission.findConstructor(constructor) ?: throw ClassDesignError(submission, constructor))
     }.toMap()
-    val submissionMethods = answerable.solutionMethods.map { method ->
+    val submissionMethods = solution.solutionMethods.map { method ->
         method to (submission.findMethod(method) ?: throw ClassDesignError(submission, method))
     }.toMap()
 
-    fun createReceivers(settings: Answerable.Settings): List<PairRunner> {
-        return if (answerable.onlyStatic) {
-            listOf(PairRunner(this).also { it.create() })
+    fun createReceivers(
+        settings: Solution.Settings, methodParameterGenerators: MethodGenerators
+    ): List<PairRunner> {
+        return if (solution.onlyStatic) {
+            listOf(PairRunner(0, this, methodParameterGenerators).also { it.create() })
         } else {
             mutableListOf<PairRunner>().also { receivers ->
                 var ready = 0
                 for (i in 0 until settings.receiverCount * settings.maxReceiverRetries) {
-                    PairRunner(this)
+                    PairRunner(receivers.size, this, methodParameterGenerators)
                         .also { it.create() }
                         .also {
                             if (it.ready) {
@@ -93,35 +104,35 @@ class TestPair(
                         break
                     }
                 }
+                check(receivers.size == settings.receiverCount) {
+                    "Couldn't create the requested number of receivers"
+                }
             }.toList()
         }
     }
 
-    fun List<PairRunner>.cycle() = sequence {
-        yield(filter { it.ready }.shuffled().firstOrNull())
+    fun List<PairRunner>.cycle(random: Random = Random) = sequence {
+        yield(filter { it.ready }.shuffled(random).firstOrNull())
     }
 
-    fun test() {
-        val settings = Answerable.Settings.DEFAULTS merge settings
-        val expectedReceivers = if (answerable.onlyStatic) {
-            1
+    fun test(settings: Solution.Settings = Solution.Settings()) {
+        val testSettings = Solution.Settings.DEFAULTS merge settings
+
+        val random = if (settings.seed == -1) {
+            Random(Random.nextLong())
         } else {
-            settings.receiverCount
+            Random(settings.seed.toLong())
         }
-        val receivers = createReceivers(settings).also {
-            require(it.size == expectedReceivers) {
-                "Didn't generate the requested number of receivers: ${it.size} < ${settings.receiverCount}"
-            }
-        }.cycle()
-        repeat(settings.testCount) {
-            receivers.first()?.also {
-                it.next()
-            } ?: error("Ran out of receivers to test")
+
+        val methodGenerators = solution.parameterGeneratorFactory.get(random, testSettings)
+        val receivers = createReceivers(testSettings, methodGenerators).cycle(random)
+        for (i in 0 until testSettings.testCount) {
+            receivers.first()?.next() ?: error("Ran out of receivers to test")
         }
     }
 }
 
-class PairRunner(val pair: TestPair) {
+class PairRunner(val index: Int, val pair: Pair, val methodGenerators: MethodGenerators) {
     var ready = false
 
     var solution: Any? = null
@@ -135,15 +146,17 @@ class PairRunner(val pair: TestPair) {
 
     @Suppress("TooGenericExceptionCaught")
     fun create(): Boolean {
-        constructorResult = if (pair.answerable.onlyStatic) {
+        constructorResult = if (pair.solution.onlyStatic) {
             ConstructorResult(null, null)
         } else {
-            val solutionConstructor = pair.answerable.solutionConstructors.toList().shuffled().take(1).first()
-            check(solutionConstructor.parameters.isEmpty()) {
-                "No support for parameter generation yet"
+            val solutionConstructor = pair.solution.solutionConstructors.toList().shuffled().take(1).first()
+            val parameters = if (solutionConstructor.parameters.isEmpty()) {
+                EmptyParameters
+            } else {
+                methodGenerators[solutionConstructor]!!.generate()
             }
             val solutionThrew = try {
-                solution = solutionConstructor.newInstance()
+                solution = solutionConstructor.newInstance(*parameters.solution)
                 null
             } catch (e: Throwable) {
                 e
@@ -152,7 +165,7 @@ class PairRunner(val pair: TestPair) {
                 "Answerable couldn't find a submission constructor that should exist"
             )
             val submissionThrew = try {
-                submission = submissionConstructor.newInstance()
+                submission = submissionConstructor.newInstance(*parameters.submission)
                 null
             } catch (e: Throwable) {
                 e
@@ -164,7 +177,7 @@ class PairRunner(val pair: TestPair) {
         return ready
     }
 
-    val methodIterator = pair.answerable.solutionMethods.cycle()
+    val methodIterator = pair.solution.solutionMethods.cycle()
 
     data class MethodResult(val solution: Result, val submission: Result) {
         data class Result(val returned: Any?, val threw: Throwable?)
@@ -184,8 +197,10 @@ class PairRunner(val pair: TestPair) {
         check(ready) { "Receiver object is not ready to invoke another method" }
 
         val solutionMethod = methodIterator.first()
-        check(solutionMethod.parameterTypes.isEmpty()) {
-            "No support for parameter generation yet"
+        val parameters = if (solutionMethod.parameters.isEmpty()) {
+            EmptyParameters
+        } else {
+            methodGenerators[solutionMethod]!!.generate()
         }
         val submissionMethod = pair.submissionMethods[solutionMethod] ?: error(
             "Answerable couldn't find a submission method that should exist"
@@ -193,14 +208,14 @@ class PairRunner(val pair: TestPair) {
 
         @SuppressWarnings("TooGenericExceptionCaught")
         val solutionResult = try {
-            MethodResult.Result(solutionMethod.invoke(solution), null)
+            MethodResult.Result(solutionMethod.invoke(solution, *parameters.solution), null)
         } catch (e: Throwable) {
             MethodResult.Result(null, e)
         }
 
         @SuppressWarnings("TooGenericExceptionCaught")
         val submissionResult = try {
-            MethodResult.Result(submissionMethod.invoke(submission), null)
+            MethodResult.Result(submissionMethod.invoke(submission, *parameters.submission), null)
         } catch (e: Throwable) {
             MethodResult.Result(null, e)
         }
@@ -213,7 +228,7 @@ class PairRunner(val pair: TestPair) {
     }
 }
 
-fun Class<*>.answerable() = Answerable(this)
+fun solution(klass: Class<*>) = Solution(klass)
 
 fun Executable.isStatic() = Modifier.isStatic(modifiers)
 fun Executable.isPrivate() = Modifier.isPrivate(modifiers)

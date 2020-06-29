@@ -13,18 +13,18 @@ class TestExamples : StringSpec({
         "${it.testName()}" { it.test() }
     }
     examples.singlestaticmethodsingleintargument.Correct::class.java.also {
-        "f:${it.testName()}" { it.test() }
+        "${it.testName()}" { it.test() }
     }
 })
 
 fun Class<*>.test() {
-    answerable().also { answerable ->
-        answerable.test(this)
+    solution(this).apply {
+        submission(solution).test()
         ClassGraph().acceptPackages(packageName).scan().apply {
             allClasses
                 .filter { it.simpleName != "Correct" && it.simpleName.startsWith("Correct") }
                 .forEach { correct ->
-                    answerable.test(correct.loadClass())
+                    submission(correct.loadClass()).test()
                 }
             allClasses
                 .filter { it.simpleName.startsWith("Incorrect") }
@@ -32,7 +32,7 @@ fun Class<*>.test() {
                     check(isNotEmpty()) { "No incorrect examples for ${testName()}" }
                 }.forEach { incorrect ->
                     shouldThrow<Exception> {
-                        answerable.test(incorrect.loadClass())
+                        submission(incorrect.loadClass()).test()
                     }
                 }
         }
