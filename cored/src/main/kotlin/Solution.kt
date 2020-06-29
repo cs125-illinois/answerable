@@ -5,15 +5,24 @@ package edu.illinois.cs.cs125.answerable.core
 import edu.illinois.cs.cs125.answerable.core.generators.EmptyParameters
 import edu.illinois.cs.cs125.answerable.core.generators.MethodGenerators
 import edu.illinois.cs.cs125.answerable.core.generators.ParameterGeneratorFactory
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
+import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.random.Random
+import kotlin.concurrent.withLock
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.primaryConstructor
 
-class Solution(val solution: Class<*>, val settings: Settings = Settings()) {
+class Solution(
+    val solution: Class<*>,
+    val settings: Settings = Settings(),
+    val captureOutput: CaptureOutput = ::defaultCaptureOutput
+) {
     data class Settings(
         val receiverCount: Int = -1,
         val testCount: Int = -1,
@@ -132,66 +141,66 @@ class Pair(val solution: Solution, val submission: Class<*>) {
     }
 }
 
+data class Result(val returned: Any?, val threw: Throwable?, val stdout: String, val stderr: String)
+
 class PairRunner(val index: Int, val pair: Pair, val methodGenerators: MethodGenerators) {
-    var ready = false
+    var ready = pair.solution.onlyStatic
 
     var solution: Any? = null
     var submission: Any? = null
 
-    data class ConstructorResult(val solution: Throwable?, val submission: Throwable?, val method: String? = null) {
-        val same = (solution == null && submission == null) || (solution?.equals(submission) ?: false)
-    }
+    val steps: MutableList<Step> = mutableListOf()
 
-    lateinit var constructorResult: ConstructorResult
+    data class Step(val solution: Result, val submission: Result, val type: Type) {
+        enum class Type { CONSTRUCTOR, METHOD }
+
+        val sameOutput =
+            (solution.stdout.isBlank() || solution.stdout == submission.stdout) &&
+                (solution.stderr.isBlank() || solution.stderr == submission.stderr)
+        val sameReturn = type == Type.CONSTRUCTOR ||
+            (solution.returned == null && submission.returned == null) ||
+            (solution.returned?.equals(submission.returned) ?: false)
+        val sameThrew = (solution.threw == null && submission.threw == null) ||
+            (solution.threw?.equals(submission.threw) ?: false)
+
+        val same = sameReturn && sameOutput && sameThrew
+    }
 
     @Suppress("TooGenericExceptionCaught")
     fun create(): Boolean {
-        constructorResult = if (pair.solution.onlyStatic) {
-            ConstructorResult(null, null)
+        if (pair.solution.onlyStatic) {
+            return true
+        }
+        val solutionConstructor = pair.solution.solutionConstructors.toList().shuffled().take(1).first()
+        val parameters = if (solutionConstructor.parameters.isEmpty()) {
+            EmptyParameters
         } else {
-            val solutionConstructor = pair.solution.solutionConstructors.toList().shuffled().take(1).first()
-            val parameters = if (solutionConstructor.parameters.isEmpty()) {
-                EmptyParameters
-            } else {
-                methodGenerators[solutionConstructor]!!.generate()
+            methodGenerators[solutionConstructor]!!.generate()
+        }
+        val solutionResult = pair.solution.captureOutput {
+            unwrapMethodInvocationException {
+                solutionConstructor.newInstance(*parameters.solution)
             }
-            val solutionThrew = try {
-                solution = solutionConstructor.newInstance(*parameters.solution)
-                null
-            } catch (e: Throwable) {
-                e
+        }
+        val submissionConstructor = pair.submissionConstructors[solutionConstructor] ?: error(
+            "Answerable couldn't find a submission constructor that should exist"
+        )
+        val submissionResult = pair.solution.captureOutput {
+            unwrapMethodInvocationException {
+                submissionConstructor.newInstance(*parameters.submission)
             }
-            val submissionConstructor = pair.submissionConstructors[solutionConstructor] ?: error(
-                "Answerable couldn't find a submission constructor that should exist"
-            )
-            val submissionThrew = try {
-                submission = submissionConstructor.newInstance(*parameters.submission)
-                null
-            } catch (e: Throwable) {
-                e
+        }
+        Step(solutionResult, submissionResult, Step.Type.CONSTRUCTOR).also {
+            if (it.same) {
+                solution = it.solution.returned
+                submission = it.submission.returned
             }
-            ConstructorResult(solutionThrew, submissionThrew)
-        }.also {
             ready = it.same
         }
         return ready
     }
 
     val methodIterator = pair.solution.solutionMethods.cycle()
-
-    data class MethodResult(val solution: Result, val submission: Result) {
-        data class Result(val returned: Any?, val threw: Throwable?)
-
-        val sameReturn =
-            (solution.returned == null && submission.returned == null) ||
-                (solution.returned?.equals(submission.returned) ?: false)
-        val sameThrew = (solution.threw == null && submission.threw == null) ||
-            (solution.threw?.equals(submission.threw) ?: false)
-
-        val same = sameReturn && sameThrew
-    }
-
-    val methodResults: MutableList<MethodResult> = mutableListOf()
 
     fun next(): Boolean {
         check(ready) { "Receiver object is not ready to invoke another method" }
@@ -206,25 +215,22 @@ class PairRunner(val index: Int, val pair: Pair, val methodGenerators: MethodGen
             "Answerable couldn't find a submission method that should exist"
         )
 
-        @SuppressWarnings("TooGenericExceptionCaught")
-        val solutionResult = try {
-            MethodResult.Result(solutionMethod.invoke(solution, *parameters.solution), null)
-        } catch (e: Throwable) {
-            MethodResult.Result(null, e)
+        val solutionResult = pair.solution.captureOutput {
+            unwrapMethodInvocationException {
+                solutionMethod.invoke(solution, *parameters.solution)
+            }
         }
+        println(solutionResult)
 
-        @SuppressWarnings("TooGenericExceptionCaught")
-        val submissionResult = try {
-            MethodResult.Result(submissionMethod.invoke(submission, *parameters.submission), null)
-        } catch (e: Throwable) {
-            MethodResult.Result(null, e)
+        val submissionResult = pair.solution.captureOutput {
+            unwrapMethodInvocationException {
+                submissionMethod.invoke(submission, *parameters.submission)
+            }
         }
+        println(submissionResult)
 
-        MethodResult(solutionResult, submissionResult).also {
-            methodResults.add(it)
-            ready = it.same
-            return it.same
-        }
+        Step(solutionResult, submissionResult, Step.Type.METHOD).also { ready = it.same }
+        return ready
     }
 }
 
@@ -255,4 +261,31 @@ inline infix fun <reified T : Any> T.merge(other: T): T {
         value
     }
     return primaryConstructor.callBy(args)
+}
+
+typealias CaptureOutput = (run: () -> Any?) -> Result
+
+private val outputLock = ReentrantLock()
+fun defaultCaptureOutput(run: () -> Any?): Result = outputLock.withLock {
+    val original = Pair(System.out, System.err)
+    val diverted = Pair(ByteArrayOutputStream(), ByteArrayOutputStream()).also {
+        System.setOut(PrintStream(it.first))
+        System.setErr(PrintStream(it.second))
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    val result: kotlin.Pair<Any?, Throwable?> = try {
+        Pair(run(), null)
+    } catch (e: Throwable) {
+        Pair(null, e)
+    }
+    System.setOut(original.first)
+    System.setErr(original.second)
+    return Result(result.first, result.second, diverted.first.toString(), diverted.second.toString())
+}
+
+fun unwrapMethodInvocationException(run: () -> Any?): Any? = try {
+    run()
+} catch (e: InvocationTargetException) {
+    throw e.cause ?: error("InvocationTargetException should have a cause")
 }
