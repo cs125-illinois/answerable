@@ -1,9 +1,9 @@
 package edu.illinois.cs.cs125.answerable.core
 
-import java.util.Random
-import java.lang.reflect.Array as ReflectArray
 import java.lang.reflect.Parameter
 import java.lang.reflect.Type
+import java.util.Random
+import java.lang.reflect.Array as ReflectArray
 
 sealed class Generator<T>(internal val random: Random) {
     abstract val simple: Set<Value<T>>
@@ -63,6 +63,7 @@ object Defaults {
     fun create(klass: Class<*>, random: Random = Random()): Generator<*> = get(klass)(random)
 }
 
+
 class ParameterGenerator(
     parameters: Array<out Parameter>,
     generators: Map<Type, GeneratorFactory> = mapOf(),
@@ -80,7 +81,7 @@ class ParameterGenerator(
         )
     }
 
-    fun List<Set<Generator.Value<*>>>.combine() = product().map {
+    private fun List<Set<Generator.Value<*>>>.combine() = product().map {
         it.map {
             check(it is Generator.Value<*>) { "Didn't find the right type in our parameter list" }
             Pair(it.solution, it.submission)
