@@ -1,6 +1,8 @@
 package edu.illinois.cs.cs125.answerable.core.generators
 
+import edu.illinois.cs.cs125.answerable.core.RandomPair
 import java.lang.reflect.Array
+import java.lang.reflect.Method
 import kotlin.math.pow
 import kotlin.random.Random
 
@@ -52,21 +54,37 @@ interface TypeGenerator<T> {
 
 @Suppress("UNCHECKED_CAST")
 class OverrideTypeGenerator(
-    klass: Class<*>,
+    val klass: Class<*>,
     simple: Set<Any>? = null,
     edge: Set<Any?>? = null,
+    val rand: Method? = null,
     random: Random = Random
 ) : TypeGenerator<Any> {
     val default = Defaults[klass](random)
     private val simpleOverride: Set<TypeGenerator.Value<Any>>? = simple?.values()
     private val edgeOverride: Set<TypeGenerator.Value<Any?>>? = edge?.values()
+    private val pairedRandom: RandomPair = RandomPair(random.nextLong())
 
     override val simple: Set<TypeGenerator.Value<Any>> =
         simpleOverride ?: default.simple as Set<TypeGenerator.Value<Any>>
     override val edge: Set<TypeGenerator.Value<Any?>> =
         edgeOverride ?: default.edge as Set<TypeGenerator.Value<Any?>>
 
-    override fun random(complexity: TypeGenerator.Complexity) = default.random(complexity) as TypeGenerator.Value<Any>
+    override fun random(complexity: TypeGenerator.Complexity): TypeGenerator.Value<Any> {
+        if (rand == null) {
+            return default.random(complexity) as TypeGenerator.Value<Any>
+        }
+        check(pairedRandom.synced) {
+            "Paired random number generator out of sync before call to @Rand method for ${klass.name}"
+        }
+        val solution = rand.invoke(null, complexity.level, pairedRandom.solution)
+        val submission = rand.invoke(null, complexity.level, pairedRandom.submission)
+        check(pairedRandom.synced) {
+            "Paired random number generator out of sync after call to @Rand method for ${klass.name}"
+        }
+        check(solution == submission) { "@Rand method for ${klass.name} did not return equal values" }
+        return TypeGenerator.Value(solution, submission)
+    }
 }
 
 sealed class TypeGenerators<T>(internal val random: Random) : TypeGenerator<T>

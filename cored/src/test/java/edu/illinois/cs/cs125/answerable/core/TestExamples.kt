@@ -30,6 +30,9 @@ class TestExamples : StringSpec({
     examples.noreceiver.single.simplecaseoverride.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.noreceiver.single.randomcaseoverride.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
     examples.noreceiver.single.returnsarray.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }

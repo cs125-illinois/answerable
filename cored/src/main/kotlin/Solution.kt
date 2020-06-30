@@ -2,7 +2,6 @@
 
 package edu.illinois.cs.cs125.answerable.core
 
-import edu.illinois.cs.cs125.answerable.core.generators.EmptyParameters
 import edu.illinois.cs.cs125.answerable.core.generators.MethodGenerators
 import edu.illinois.cs.cs125.answerable.core.generators.ParameterGeneratorFactory
 import java.io.ByteArrayOutputStream
@@ -48,7 +47,7 @@ class Solution(
 
     val publicMethods = (solution.declaredMethods.toList() + solution.declaredConstructors.toList()).map {
         it as Executable
-    }.filter { !it.isPrivate() }
+    }.filter { !it.isPrivate() && !it.isAnswerable() }
     val parameterGeneratorFactory: ParameterGeneratorFactory = ParameterGeneratorFactory(publicMethods, solution)
 
     val solutionMethods = publicMethods.filterIsInstance<Method>().also {
@@ -190,11 +189,9 @@ class PairRunner(val index: Int, val pair: Pair, val methodGenerators: MethodGen
             return true
         }
         val solutionConstructor = pair.solution.solutionConstructors.toList().shuffled().take(1).first()
-        val parameters = if (solutionConstructor.parameters.isEmpty()) {
-            EmptyParameters
-        } else {
-            methodGenerators[solutionConstructor]!!.generate()
-        }
+        val generator = methodGenerators[solutionConstructor]
+            ?: error("Couldn't find a parameter generator that should exist")
+        val parameters = generator.generate()
         val solutionResult = pair.solution.captureOutput {
             unwrapMethodInvocationException {
                 solutionConstructor.newInstance(*parameters.solution)
@@ -213,6 +210,9 @@ class PairRunner(val index: Int, val pair: Pair, val methodGenerators: MethodGen
             if (step.same) {
                 solution = step.solution.returned
                 submission = step.submission.returned
+                generator.next()
+            } else {
+                generator.prev()
             }
             ready = step.same
         }
@@ -225,11 +225,9 @@ class PairRunner(val index: Int, val pair: Pair, val methodGenerators: MethodGen
         check(ready) { "Receiver object is not ready to invoke another method" }
 
         val solutionMethod = methodIterator.first()
-        val parameters = if (solutionMethod.parameters.isEmpty()) {
-            EmptyParameters
-        } else {
-            methodGenerators[solutionMethod]!!.generate()
-        }
+        val generator = methodGenerators[solutionMethod]
+            ?: error("Couldn't find a parameter generator that should exist")
+        val parameters = generator.generate()
         val submissionMethod = pair.submissionMethods[solutionMethod] ?: error(
             "Answerable couldn't find a submission method that should exist"
         )
@@ -248,6 +246,11 @@ class PairRunner(val index: Int, val pair: Pair, val methodGenerators: MethodGen
 
         Step(solutionResult, submissionResult, Step.Type.METHOD).also { step ->
             pair.solution.compare(step)
+            if (step.same) {
+                generator.next()
+            } else {
+                generator.prev()
+            }
             ready = step.same
         }
         return ready

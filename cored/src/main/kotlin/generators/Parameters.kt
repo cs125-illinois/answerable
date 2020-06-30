@@ -1,10 +1,12 @@
 package edu.illinois.cs.cs125.answerable.core.generators
 
 import edu.illinois.cs.cs125.answerable.core.Edge
+import edu.illinois.cs.cs125.answerable.core.Rand
 import edu.illinois.cs.cs125.answerable.core.Simple
 import edu.illinois.cs.cs125.answerable.core.Solution
 import edu.illinois.cs.cs125.answerable.core.asArray
 import java.lang.reflect.Executable
+import java.lang.reflect.Method
 import java.lang.reflect.Parameter
 import java.lang.reflect.Type
 import kotlin.random.Random
@@ -15,31 +17,58 @@ class ParameterGeneratorFactory(executables: List<Executable>, solution: Class<*
     val typeGenerators: Map<Type, TypeGeneratorGenerator>
 
     init {
-        val simple: MutableMap<Class<*>, Set<*>> = mutableMapOf()
-        val edge: MutableMap<Class<*>, Set<*>> = mutableMapOf()
+        val simple: MutableMap<Class<*>, Set<Any>> = mutableMapOf()
+        val edge: MutableMap<Class<*>, Set<Any?>> = mutableMapOf()
         solution.declaredFields
             .filter { it.isAnnotationPresent(Edge::class.java) || it.isAnnotationPresent(Simple::class.java) }
             .forEach { field ->
                 check(!(field.isAnnotationPresent(Edge::class.java) && field.isAnnotationPresent(Simple::class.java))) {
                     "Cannot use both @Simple and @Edge annotations on same field"
                 }
-                Simple.validate(field).also {
-                    check(it !in simple) { "Duplicate @Simple annotation for class ${it.name}" }
-                    check(it in neededTypes) {
-                        "@Simple annotation for type ${it.name} that is not used by the solution"
+                if (field.isAnnotationPresent(Simple::class.java)) {
+                    Simple.validate(field).also {
+                        check(it !in simple) { "Duplicate @Simple annotation for type ${it.name}" }
+                        check(it in neededTypes) {
+                            "@Simple annotation for type ${it.name} that is not used by the solution"
+                        }
+                        @Suppress("UNCHECKED_CAST")
+                        simple[it] = field.get(null).asArray().toSet().also {
+                            check(it.none { it == null }) { "@Simple cases should not include null" }
+                        } as Set<Any>
                     }
-                    simple[it] = field.get(null).asArray().toSet()
                 }
-                Edge.validate(field).also {
-                    check(it !in edge) { "Duplicate @Edge annotation for class ${it.name}" }
-                    check(it in neededTypes) {
-                        "@Simple annotation for type ${it.name} that is not used by the solution"
+                if (field.isAnnotationPresent(Edge::class.java)) {
+                    Edge.validate(field).also {
+                        check(it !in edge) { "Duplicate @Edge annotation for type ${it.name}" }
+                        check(it in neededTypes) {
+                            "@Simple annotation for type ${it.name} that is not used by the solution"
+                        }
+                        edge[it] = field.get(null).asArray().toSet()
                     }
-                    edge[it] = field.get(null).asArray().toSet()
                 }
             }
-        typeGenerators = setOf<Class<*>>().union(edge.keys.toSet()).map { klass ->
-            klass to { random: Random -> OverrideTypeGenerator(klass, edge = edge[klass], random = random) }
+        val rand: MutableMap<Class<*>, Method> = mutableMapOf()
+        solution.declaredMethods
+            .filter { it.isAnnotationPresent(Rand::class.java) }
+            .forEach { method ->
+                Rand.validate(method).also {
+                    check(it !in rand) { "Duplicate @Rand method for class ${it.name}" }
+                    check(it in neededTypes) {
+                        "@Rand annotation for type ${it.name} that is not used by the solution"
+                    }
+                    rand[it] = method
+                }
+            }
+        typeGenerators = (simple.keys + edge.keys + rand.keys).toSet().map { klass ->
+            klass to { random: Random ->
+                OverrideTypeGenerator(
+                    klass,
+                    simple[klass],
+                    edge[klass],
+                    rand[klass],
+                    random
+                )
+            }
         }.toMap()
     }
 
@@ -61,7 +90,11 @@ class ParameterGeneratorFactory(executables: List<Executable>, solution: Class<*
 
     fun get(random: Random = Random, settings: Solution.Settings) = parameterGenerators
         .map { (executable, generatorGenerator) ->
-            executable to ConfiguredParametersGenerator(generatorGenerator, settings, random)
+            if (executable.parameters.isEmpty()) {
+                executable to EmptyParameterMethodGenerator()
+            } else {
+                executable to ConfiguredParametersGenerator(generatorGenerator, settings, random)
+            }
         }
         .toMap()
         .let {
@@ -69,15 +102,19 @@ class ParameterGeneratorFactory(executables: List<Executable>, solution: Class<*
         }
 }
 
-class MethodGenerators(
-    private val map: Map<Executable, ConfiguredParametersGenerator>
-) : Map<Executable, ConfiguredParametersGenerator> by map
+class MethodGenerators(private val map: Map<Executable, MethodGenerator>) : Map<Executable, MethodGenerator> by map
+
+interface MethodGenerator {
+    fun generate(): ParametersGenerator.Value
+    fun next()
+    fun prev()
+}
 
 class ConfiguredParametersGenerator(
     parametersGenerator: ParametersGeneratorGenerator,
     val settings: Solution.Settings,
     val random: Random = Random
-) {
+) : MethodGenerator {
     private val generator = parametersGenerator(random)
 
     fun List<ParametersGenerator.Value>.trim(count: Int) = if (this.size <= count) {
@@ -93,28 +130,44 @@ class ConfiguredParametersGenerator(
     private var index = 0
     private var bound: TypeGenerator.Complexity? = null
     private val complexity = TypeGenerator.Complexity()
+    private var randomStarted = false
 
-    fun generate(): ParametersGenerator.Value {
+    override fun generate(): ParametersGenerator.Value {
         return if (index in fixed.indices) {
             fixed[index]
         } else {
-            generator.random(bound ?: complexity)
+            generator.random(bound ?: complexity).also {
+                randomStarted = true
+            }
         }.also {
             index++
         }
     }
 
-    fun next() {
-        complexity.next()
-    }
-
-    fun prev() {
-        if (bound == null) {
-            bound = complexity
-        } else {
-            bound!!.prev()
+    override fun next() {
+        if (randomStarted) {
+            complexity.next()
         }
     }
+
+    override fun prev() {
+        if (randomStarted) {
+            if (bound == null) {
+                bound = complexity
+            } else {
+                bound!!.prev()
+            }
+        }
+    }
+}
+
+@Suppress("EmptyFunctionBlock")
+class EmptyParameterMethodGenerator : MethodGenerator {
+    private val empty = ParametersGenerator.Value(arrayOf(), arrayOf(), ParametersGenerator.Type.EMPTY)
+
+    override fun prev() {}
+    override fun next() {}
+    override fun generate(): ParametersGenerator.Value = empty
 }
 
 typealias ParametersGeneratorGenerator = (random: Random) -> ParametersGenerator
@@ -147,8 +200,6 @@ interface ParametersGenerator {
         }
     }
 }
-
-val EmptyParameters = ParametersGenerator.Value(arrayOf(), arrayOf(), ParametersGenerator.Type.EMPTY)
 
 class TypeParameterGenerator(
     parameters: Array<out Parameter>,

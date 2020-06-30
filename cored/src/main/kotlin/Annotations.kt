@@ -2,8 +2,11 @@
 
 package edu.illinois.cs.cs125.answerable.core
 
+import java.lang.reflect.Executable
 import java.lang.reflect.Field
+import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import java.util.Random
 
 @Target(AnnotationTarget.FIELD)
 @Retention(AnnotationRetention.RUNTIME)
@@ -12,6 +15,7 @@ annotation class Edge {
         fun validate(field: Field): Class<*> {
             check(field.isStatic()) { "@Edge fields must be static" }
             check(field.type.isArray) { "@Edge fields must annotate arrays" }
+            field.isAccessible = true
             return field.type.componentType
         }
     }
@@ -24,7 +28,27 @@ annotation class Simple {
         fun validate(field: Field): Class<*> {
             check(field.isStatic()) { "@Simple fields must be static" }
             check(field.type.isArray) { "@Simple fields must annotate arrays" }
+            field.isAccessible = true
             return field.type.componentType
+        }
+    }
+}
+
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Rand {
+    companion object {
+        fun validate(method: Method): Class<*> {
+            check(method.isStatic()) { "@Random methods must be static" }
+            check(
+                method.parameterTypes.size == 2 &&
+                    method.parameterTypes[0] == Int::class.java &&
+                    method.parameterTypes[1] == Random::class.java
+            ) {
+                "@Random methods must accept parameters (int complexity, Random random)"
+            }
+            method.isAccessible = true
+            return method.returnType
         }
     }
 }
@@ -43,3 +67,5 @@ fun Any.asArray(): Array<*> {
         else -> this as Array<*>
     }
 }
+
+fun Executable.isAnswerable() = isAnnotationPresent(Rand::class.java)
