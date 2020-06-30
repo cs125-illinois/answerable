@@ -8,6 +8,8 @@ public class TestGenerators {
 
   public static void testInt(int value) {}
 
+  public static void testInteger(Integer value) {}
+
   public static void testTwoInts(int first, int second) {}
 
   public static void testLong(long value) {}

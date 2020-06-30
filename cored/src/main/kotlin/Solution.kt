@@ -54,16 +54,22 @@ class Solution(
     val publicMethods = (solution.declaredMethods.toList() + solution.declaredConstructors.toList()).map {
         it as Executable
     }.filter { !it.isPrivate() && !it.isAnswerable() }
-    val parameterGeneratorFactory: ParameterGeneratorFactory = ParameterGeneratorFactory(publicMethods, solution)
 
     val solutionMethods = publicMethods.filterIsInstance<Method>().also {
         check(it.isNotEmpty()) { "Answerable found no methods to test in ${solution.name}" }
     }.toSet()
-    val solutionConstructors = publicMethods.filterIsInstance<Constructor<*>>().also {
-        check(it.isNotEmpty()) { "Answerable found no available constructors in ${solution.name}" }
-    }.toSet()
-
     val onlyStatic = solutionMethods.all { it.isStatic() }
+
+    val solutionConstructors = if (!onlyStatic) {
+        publicMethods.filterIsInstance<Constructor<*>>().also {
+            check(it.isNotEmpty()) { "Answerable found no available constructors in ${solution.name}" }
+        }.toSet()
+    } else {
+        setOf()
+    }
+
+    val parameterGeneratorFactory: ParameterGeneratorFactory =
+        ParameterGeneratorFactory(solutionMethods + solutionConstructors, solution)
 
     fun compare(step: PairRunner.Step) {
         val solution = step.solution

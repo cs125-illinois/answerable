@@ -5,13 +5,15 @@ import edu.illinois.cs.cs125.answerable.core.Rand
 import edu.illinois.cs.cs125.answerable.core.Simple
 import edu.illinois.cs.cs125.answerable.core.Solution
 import edu.illinois.cs.cs125.answerable.core.asArray
+import edu.illinois.cs.cs125.answerable.core.isEdgeOrSimpleParameters
+import edu.illinois.cs.cs125.answerable.core.isEdgeOrSimpleType
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
 import java.lang.reflect.Parameter
 import java.lang.reflect.Type
 import kotlin.random.Random
 
-class ParameterGeneratorFactory(executables: List<Executable>, solution: Class<*>) {
+class ParameterGeneratorFactory(executables: Set<Executable>, solution: Class<*>) {
     private val neededTypes = executables.map { it.parameterTypes }.toTypedArray().flatten().distinct().toSet()
 
     val typeGenerators: Map<Type, TypeGeneratorGenerator>
@@ -20,13 +22,13 @@ class ParameterGeneratorFactory(executables: List<Executable>, solution: Class<*
         val simple: MutableMap<Class<*>, Set<Any>> = mutableMapOf()
         val edge: MutableMap<Class<*>, Set<Any?>> = mutableMapOf()
         solution.declaredFields
-            .filter { it.isAnnotationPresent(Edge::class.java) || it.isAnnotationPresent(Simple::class.java) }
+            .filter { it.isEdgeOrSimpleType() }
             .forEach { field ->
                 check(!(field.isAnnotationPresent(Edge::class.java) && field.isAnnotationPresent(Simple::class.java))) {
                     "Cannot use both @Simple and @Edge annotations on same field"
                 }
                 if (field.isAnnotationPresent(Simple::class.java)) {
-                    Simple.validate(field).also {
+                    Simple.validateAsType(field).also {
                         check(it !in simple) { "Duplicate @Simple annotation for type ${it.name}" }
                         check(it in neededTypes) {
                             "@Simple annotation for type ${it.name} that is not used by the solution"
@@ -38,7 +40,7 @@ class ParameterGeneratorFactory(executables: List<Executable>, solution: Class<*
                     }
                 }
                 if (field.isAnnotationPresent(Edge::class.java)) {
-                    Edge.validate(field).also {
+                    Edge.validateAsType(field).also {
                         check(it !in edge) { "Duplicate @Edge annotation for type ${it.name}" }
                         check(it in neededTypes) {
                             "@Simple annotation for type ${it.name} that is not used by the solution"
@@ -51,7 +53,7 @@ class ParameterGeneratorFactory(executables: List<Executable>, solution: Class<*
         solution.declaredMethods
             .filter { it.isAnnotationPresent(Rand::class.java) }
             .forEach { method ->
-                Rand.validate(method).also {
+                Rand.validateAsType(method).also {
                     check(it !in rand) { "Duplicate @Rand method for class ${it.name}" }
                     check(it in neededTypes) {
                         "@Rand annotation for type ${it.name} that is not used by the solution"
@@ -72,7 +74,31 @@ class ParameterGeneratorFactory(executables: List<Executable>, solution: Class<*
         }.toMap()
     }
 
-    val parameterGenerators: Map<Executable, ParametersGeneratorGenerator> = executables
+    private val neededParameters =
+        executables.map { it.parameterTypes.map { it as Type }.toTypedArray() }.distinct().toSet()
+
+    init {
+        solution.declaredFields
+            .filter { it.isEdgeOrSimpleParameters() }
+            .forEach { field ->
+                check(!(field.isAnnotationPresent(Edge::class.java) && field.isAnnotationPresent(Simple::class.java))) {
+                    "Cannot use both @Simple and @Edge annotations on same field"
+                }
+                if (field.isAnnotationPresent(Simple::class.java)) {
+                    Simple.validateAsParameters(field).also { parameterTypes ->
+                        println(neededParameters.map { it.map { it.typeName } })
+                        check(parameterTypes in neededParameters) {
+                            "@Simple field contains parameters that do not match any method"
+                        }
+                        field.get(null).also {
+                            check(it is Collection<*>) { "@Simple field does not contain a collection" }
+                        }
+                    }
+                }
+            }
+    }
+
+    private val parameterGenerators: Map<Executable, ParametersGeneratorGenerator> = executables
         .map { executable ->
             // Generate one unnecessarily to make sure that we can
             TypeParameterGenerator(executable.parameters, typeGenerators)
@@ -268,8 +294,3 @@ fun List<*>.product() = fold(listOf(listOf<Any?>())) { acc, set ->
     require(set is Collection<*>) { "Error computing product" }
     acc.flatMap { list -> set.map { element -> list + element } }
 }.toSet()
-
-data class One<I>(val first: I)
-data class Two<I, J>(val first: I, val second: J)
-data class Three<I, J, K>(val first: I, val second: J, val third: K)
-data class Four<I, J, K, L>(val first: I, val second: J, val third: K, val fourth: L)

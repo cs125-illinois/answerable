@@ -36,6 +36,9 @@ class TestExamples : StringSpec({
     examples.noreceiver.single.returnsarray.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.noreceiver.single.parameterfield.Correct::class.java.also {
+        "f:${it.testName()}" { it.test() }
+    }
 })
 
 fun Class<*>.test() {

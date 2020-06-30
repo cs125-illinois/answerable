@@ -62,6 +62,14 @@ class TestGenerators : StringSpec({
             method.testGenerator(generator)
         }
     }
+    "f:it should generate boxed types properly" {
+        methodNamed("testInteger").also { method ->
+            val generator = Defaults.create(method.parameterTypes[0])
+            method.invoke(null, null)
+            method.invoke(null, 0)
+            method.testGenerator(generator)
+        }
+    }
     "it should generate arrays properly" {
         methodNamed("testIntArray").also { method ->
             val generator = Defaults.create(method.parameterTypes[0])

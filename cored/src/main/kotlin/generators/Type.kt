@@ -99,6 +99,7 @@ object Defaults {
         map[Byte::class.java] = ByteGenerator.Companion::create
         map[Short::class.java] = ShortGenerator.Companion::create
         map[Int::class.java] = IntGenerator.Companion::create
+        map[Integer::class.java] = BoxedGenerator.create(Int::class.java)
         map[Long::class.java] = LongGenerator.Companion::create
         map[Boolean::class.java] = BooleanGenerator.Companion::create
         map[String::class.java] = StringGenerator.Companion::create
@@ -123,7 +124,6 @@ object Defaults {
 @Suppress("UNCHECKED_CAST")
 class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerators<Any>(random) {
     private val componentGenerator = Defaults.create(klass, random)
-    private val isNested = klass.isArray
 
     override val simple: Set<TypeGenerator.Value<Any>>
         get() {
@@ -139,7 +139,7 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
         }
     override val edge = setOf<Any?>(null).values()
     override fun random(complexity: TypeGenerator.Complexity): TypeGenerator.Value<Any> {
-        val innerComplexity = if (isNested) {
+        val innerComplexity = if (klass.isArray) {
             TypeGenerator.Complexity(complexity.level - 2)
         } else {
             complexity
@@ -155,6 +155,21 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
                 }
             }
             ).value()
+    }
+}
+
+@Suppress("UNCHECKED_CAST")
+class BoxedGenerator(random: Random, klass: Class<*>) : TypeGenerators<Any>(random) {
+    private val primitiveGenerator = Defaults.create(klass, random)
+    override val simple = primitiveGenerator.simple as Set<TypeGenerator.Value<Any>>
+    override val edge = (primitiveGenerator.edge + setOf(TypeGenerator.Value(null, null)))
+        as Set<TypeGenerator.Value<Any?>>
+
+    override fun random(complexity: TypeGenerator.Complexity) =
+        primitiveGenerator.random(complexity) as TypeGenerator.Value<Any>
+
+    companion object {
+        fun create(klass: Class<*>) = { random: Random -> BoxedGenerator(random, klass) }
     }
 }
 
