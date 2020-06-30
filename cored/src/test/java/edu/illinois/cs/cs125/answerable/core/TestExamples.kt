@@ -15,10 +15,19 @@ class TestExamples : StringSpec({
     examples.noreceiver.single.intargument.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.noreceiver.single.twointarguments.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
     examples.noreceiver.single.prints.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
     examples.noreceiver.single.submissionprints.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
+    examples.noreceiver.single.edgecaseoverride.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
+    examples.noreceiver.single.simplecaseoverride.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
 })

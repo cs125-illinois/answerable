@@ -1,4 +1,4 @@
 rootProject.name = "answerable"
 
-include(":cored", ":core")
+include(":cored")
 //include(":core", ":demo", ":jeedrunner", ":cli")

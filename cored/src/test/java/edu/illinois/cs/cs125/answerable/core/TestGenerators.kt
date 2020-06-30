@@ -10,6 +10,7 @@ import io.kotlintest.matchers.collections.shouldHaveSize
 import io.kotlintest.shouldBe
 import io.kotlintest.specs.StringSpec
 import java.lang.reflect.Method
+import kotlin.math.pow
 
 class TestGenerators : StringSpec({
     "it should determine array enclosed types correctly" {
@@ -102,14 +103,14 @@ class TestGenerators : StringSpec({
 private fun methodNamed(name: String) = examples.generatortesting.TestGenerators::class.java.declaredMethods
     .find { it.name == name } ?: error("Couldn't find method $name")
 
-private fun <T> Method.testGenerator(typeGenerator: TypeGenerator<T>) {
-    typeGenerator.simple.forEach { invoke(null, it.either) }
-    typeGenerator.edge.forEach { invoke(null, it.either) }
-    repeat(8) { invoke(null, typeGenerator.random(TypeGenerator.Complexity()).either) }
-    repeat(8) { invoke(null, typeGenerator.random(TypeGenerator.Complexity().max()).either) }
+private fun <T> Method.testGenerator(typeGenerators: TypeGenerator<T>) {
+    typeGenerators.simple.forEach { invoke(null, it.either) }
+    typeGenerators.edge.forEach { invoke(null, it.either) }
+    repeat(8) { invoke(null, typeGenerators.random(TypeGenerator.Complexity()).either) }
+    repeat(8) { invoke(null, typeGenerators.random(TypeGenerator.Complexity().max()).either) }
 }
 
-private fun Int.pow(exponent: Int) = Math.pow(toDouble(), exponent.toDouble()).toInt()
+private fun Int.pow(exponent: Int) = toDouble().pow(exponent.toDouble()).toInt()
 
 private fun Method.testParameterGenerator(simpleSize: Int, edgeSize: Int, dimensionality: Int = 1) {
     val parameterGenerator =

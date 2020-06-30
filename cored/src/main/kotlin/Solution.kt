@@ -49,8 +49,7 @@ class Solution(
     val publicMethods = (solution.declaredMethods.toList() + solution.declaredConstructors.toList()).map {
         it as Executable
     }.filter { !it.isPrivate() }
-    val parameterGeneratorFactory: ParameterGeneratorFactory =
-        ParameterGeneratorFactory(publicMethods)
+    val parameterGeneratorFactory: ParameterGeneratorFactory = ParameterGeneratorFactory(publicMethods, solution)
 
     val solutionMethods = publicMethods.filterIsInstance<Method>().also {
         check(it.isNotEmpty()) { "Answerable found no methods to test in ${solution.name}" }

@@ -1,19 +1,52 @@
 package edu.illinois.cs.cs125.answerable.core.generators
 
+import edu.illinois.cs.cs125.answerable.core.Edge
+import edu.illinois.cs.cs125.answerable.core.Simple
 import edu.illinois.cs.cs125.answerable.core.Solution
+import edu.illinois.cs.cs125.answerable.core.asArray
 import java.lang.reflect.Executable
 import java.lang.reflect.Parameter
 import java.lang.reflect.Type
 import kotlin.random.Random
 
-class ParameterGeneratorFactory(executables: List<Executable>) {
-    val typeGenerators: MutableMap<Type, TypeGeneratorGenerator> = mutableMapOf()
+class ParameterGeneratorFactory(executables: List<Executable>, solution: Class<*>) {
+    private val neededTypes = executables.map { it.parameterTypes }.toTypedArray().flatten().distinct().toSet()
+
+    val typeGenerators: Map<Type, TypeGeneratorGenerator>
+
+    init {
+        val simple: MutableMap<Class<*>, Set<*>> = mutableMapOf()
+        val edge: MutableMap<Class<*>, Set<*>> = mutableMapOf()
+        solution.declaredFields
+            .filter { it.isAnnotationPresent(Edge::class.java) || it.isAnnotationPresent(Simple::class.java) }
+            .forEach { field ->
+                check(!(field.isAnnotationPresent(Edge::class.java) && field.isAnnotationPresent(Simple::class.java))) {
+                    "Cannot use both @Simple and @Edge annotations on same field"
+                }
+                Simple.validate(field).also {
+                    check(it !in simple) { "Duplicate @Simple annotation for class ${it.name}" }
+                    check(it in neededTypes) {
+                        "@Simple annotation for type ${it.name} that is not used by the solution"
+                    }
+                    simple[it] = field.get(null).asArray().toSet()
+                }
+                Edge.validate(field).also {
+                    check(it !in edge) { "Duplicate @Edge annotation for class ${it.name}" }
+                    check(it in neededTypes) {
+                        "@Simple annotation for type ${it.name} that is not used by the solution"
+                    }
+                    edge[it] = field.get(null).asArray().toSet()
+                }
+            }
+        typeGenerators = setOf<Class<*>>().union(edge.keys.toSet()).map { klass ->
+            klass to { random: Random -> OverrideTypeGenerator(klass, edge = edge[klass], random = random) }
+        }.toMap()
+    }
+
     val parameterGenerators: Map<Executable, ParametersGeneratorGenerator> = executables
         .map { executable ->
-            TypeParameterGenerator(
-                executable.parameters,
-                typeGenerators
-            )
+            // Generate one unnecessarily to make sure that we can
+            TypeParameterGenerator(executable.parameters, typeGenerators)
             Pair<Executable, ParametersGeneratorGenerator>(
                 executable,
                 { random ->
@@ -183,3 +216,9 @@ fun List<*>.product() = fold(listOf(listOf<Any?>())) { acc, set ->
     require(set is Collection<*>) { "Error computing product" }
     acc.flatMap { list -> set.map { element -> list + element } }
 }.toSet()
+
+data class One<I>(val first: I)
+data class Two<I, J>(val first: I, val second: J)
+data class Three<I, J, K>(val first: I, val second: J, val third: K)
+data class Four<I, J, K, L>(val first: I, val second: J, val third: K, val fourth: L)
+
