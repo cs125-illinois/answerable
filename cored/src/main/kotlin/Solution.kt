@@ -60,6 +60,31 @@ class Solution(
 
     val onlyStatic = solutionMethods.all { it.isStatic() }
 
+    fun compare(step: PairRunner.Step) {
+        val solution = step.solution
+        val submission = step.submission
+
+        if (solution.stdout.isNotBlank() && solution.stdout != submission.stdout) {
+            step.differs.add(PairRunner.Step.Differs.STDOUT)
+        }
+        if (solution.stderr.isNotBlank() && solution.stderr != submission.stderr) {
+            step.differs.add(PairRunner.Step.Differs.STDERR)
+        }
+
+        if (step.type == PairRunner.Step.Type.METHOD) {
+            if (solution.returned != null && submission.returned != null && solution.returned::class.java.isArray) {
+                if (!solution.returned.asArray().contentDeepEquals(submission.returned.asArray())) {
+                    step.differs.add(PairRunner.Step.Differs.RETURN)
+                }
+            } else if (solution.returned != submission.returned) {
+                step.differs.add(PairRunner.Step.Differs.RETURN)
+            }
+        }
+        if (solution.threw != submission.threw) {
+            step.differs.add(PairRunner.Step.Differs.THREW)
+        }
+    }
+
     fun submission(submission: Class<*>) = Pair(this, submission)
 }
 
@@ -152,17 +177,11 @@ class PairRunner(val index: Int, val pair: Pair, val methodGenerators: MethodGen
 
     data class Step(val solution: Result, val submission: Result, val type: Type) {
         enum class Type { CONSTRUCTOR, METHOD }
+        enum class Differs { STDOUT, STDERR, RETURN, THREW }
 
-        val sameOutput =
-            (solution.stdout.isBlank() || solution.stdout == submission.stdout) &&
-                (solution.stderr.isBlank() || solution.stderr == submission.stderr)
-        val sameReturn = type == Type.CONSTRUCTOR ||
-            (solution.returned == null && submission.returned == null) ||
-            (solution.returned?.equals(submission.returned) ?: false)
-        val sameThrew = (solution.threw == null && submission.threw == null) ||
-            (solution.threw?.equals(submission.threw) ?: false)
-
-        val same = sameReturn && sameOutput && sameThrew
+        val differs: MutableSet<Differs> = mutableSetOf()
+        val same: Boolean
+            get() = differs.isEmpty()
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -189,12 +208,13 @@ class PairRunner(val index: Int, val pair: Pair, val methodGenerators: MethodGen
                 submissionConstructor.newInstance(*parameters.submission)
             }
         }
-        Step(solutionResult, submissionResult, Step.Type.CONSTRUCTOR).also {
-            if (it.same) {
-                solution = it.solution.returned
-                submission = it.submission.returned
+        Step(solutionResult, submissionResult, Step.Type.CONSTRUCTOR).also { step ->
+            pair.solution.compare(step)
+            if (step.same) {
+                solution = step.solution.returned
+                submission = step.submission.returned
             }
-            ready = it.same
+            ready = step.same
         }
         return ready
     }
@@ -226,7 +246,10 @@ class PairRunner(val index: Int, val pair: Pair, val methodGenerators: MethodGen
             }
         }
 
-        Step(solutionResult, submissionResult, Step.Type.METHOD).also { ready = it.same }
+        Step(solutionResult, submissionResult, Step.Type.METHOD).also { step ->
+            pair.solution.compare(step)
+            ready = step.same
+        }
         return ready
     }
 }

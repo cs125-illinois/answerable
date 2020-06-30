@@ -30,11 +30,19 @@ class TestExamples : StringSpec({
     examples.noreceiver.single.simplecaseoverride.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.noreceiver.single.returnsarray.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
 })
 
 fun Class<*>.test() {
     solution(this).apply {
-        submission(solution).test()
+        try {
+            submission(solution).test()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            error("Solution did not pass testing: ${e}")
+        }
         ClassGraph().acceptPackages(packageName).scan().apply {
             allClasses
                 .filter { it.simpleName != "Correct" && it.simpleName.startsWith("Correct") }
