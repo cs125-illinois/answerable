@@ -1,8 +1,7 @@
 package examples.submissiondesign.differentnames.reference;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.List;
+import org.jetbrains.annotations.NotNull;
 
 public class TypeNameEverywhere implements Comparable<TypeNameEverywhere> {
 

@@ -12,8 +12,8 @@ import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.random.Random
 import kotlin.concurrent.withLock
+import kotlin.random.Random
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.primaryConstructor
 
@@ -42,6 +42,12 @@ class Solution(
                 mixedCount = Int.MAX_VALUE,
                 fixedCount = Int.MAX_VALUE
             )
+        }
+    }
+
+    init {
+        solution.declaredFields.filter { it.isStatic() && !it.isAnswerable() }.also {
+            check(it.isEmpty()) { "No support for testing classes with static fields yet" }
         }
     }
 
@@ -115,7 +121,8 @@ class Pair(val solution: Solution, val submission: Class<*>) {
     }.toMap()
 
     fun createReceivers(
-        settings: Solution.Settings, methodParameterGenerators: MethodGenerators
+        settings: Solution.Settings,
+        methodParameterGenerators: MethodGenerators
     ): List<PairRunner> {
         return if (solution.onlyStatic) {
             listOf(PairRunner(0, this, methodParameterGenerators).also { it.create() })

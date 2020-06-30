@@ -19,6 +19,20 @@ class TestGenerators : StringSpec({
         Array<Array<IntArray>>::class.java.getArrayType() shouldBe Int::class.java
         Array<Array<Array<String>>>::class.java.getArrayType() shouldBe String::class.java
     }
+    "it should generate bytes properly" {
+        methodNamed("testByte").also { method ->
+            val generator = Defaults.create(method.parameterTypes[0])
+            method.invoke(null, 0.toByte())
+            method.testGenerator(generator)
+        }
+    }
+    "it should generate shorts properly" {
+        methodNamed("testShort").also { method ->
+            val generator = Defaults.create(method.parameterTypes[0])
+            method.invoke(null, 0.toShort())
+            method.testGenerator(generator)
+        }
+    }
     "it should generate ints properly" {
         methodNamed("testInt").also { method ->
             val generator = Defaults.create(method.parameterTypes[0])

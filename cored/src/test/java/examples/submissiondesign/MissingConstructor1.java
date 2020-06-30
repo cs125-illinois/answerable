@@ -4,6 +4,5 @@ package examples.submissiondesign;
 public class MissingConstructor1 {
   private int value;
 
-  public void example() {
-  }
+  public void example() {}
 }

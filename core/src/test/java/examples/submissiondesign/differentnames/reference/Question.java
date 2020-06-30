@@ -2,7 +2,6 @@ package examples.submissiondesign.differentnames.reference;
 
 import edu.illinois.cs.cs125.answerable.annotations.Generator;
 import edu.illinois.cs.cs125.answerable.annotations.Solution;
-
 import java.util.Random;
 
 public class Question {

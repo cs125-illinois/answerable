@@ -44,7 +44,7 @@ fun Class<*>.test() {
             submission(solution).test()
         } catch (e: Exception) {
             e.printStackTrace()
-            error("Solution did not pass testing: ${e}")
+            error("Solution did not pass testing: $e")
         }
         ClassGraph().acceptPackages(packageName).scan().apply {
             allClasses

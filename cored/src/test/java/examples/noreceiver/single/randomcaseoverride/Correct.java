@@ -1,7 +1,6 @@
 package examples.noreceiver.single.randomcaseoverride;
 
 import edu.illinois.cs.cs125.answerable.core.Rand;
-
 import java.util.Random;
 
 public class Correct {

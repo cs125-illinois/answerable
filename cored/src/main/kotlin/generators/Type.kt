@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package edu.illinois.cs.cs125.answerable.core.generators
 
 import edu.illinois.cs.cs125.answerable.core.RandomPair
@@ -54,13 +56,13 @@ interface TypeGenerator<T> {
 
 @Suppress("UNCHECKED_CAST")
 class OverrideTypeGenerator(
-    val klass: Class<*>,
+    private val klass: Class<*>,
     simple: Set<Any>? = null,
     edge: Set<Any?>? = null,
-    val rand: Method? = null,
+    private val rand: Method? = null,
     random: Random = Random
 ) : TypeGenerator<Any> {
-    val default = Defaults[klass](random)
+    private val default = Defaults[klass](random)
     private val simpleOverride: Set<TypeGenerator.Value<Any>>? = simple?.values()
     private val edgeOverride: Set<TypeGenerator.Value<Any?>>? = edge?.values()
     private val pairedRandom: RandomPair = RandomPair(random.nextLong())
@@ -94,6 +96,8 @@ object Defaults {
     private val map = mutableMapOf<Class<*>, TypeGeneratorGenerator>()
 
     init {
+        map[Byte::class.java] = ByteGenerator.Companion::create
+        map[Short::class.java] = ShortGenerator.Companion::create
         map[Int::class.java] = IntGenerator.Companion::create
         map[Long::class.java] = LongGenerator.Companion::create
         map[Boolean::class.java] = BooleanGenerator.Companion::create
@@ -140,15 +144,57 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
         } else {
             complexity
         }
-        return (Array.newInstance(klass, complexity.power()).also { array ->
-            (0 until complexity.power()).forEach { index ->
-                Array.set(
-                    array,
-                    index,
-                    componentGenerator.random(innerComplexity).either
-                )
+        return (
+            Array.newInstance(klass, complexity.power()).also { array ->
+                (0 until complexity.power()).forEach { index ->
+                    Array.set(
+                        array,
+                        index,
+                        componentGenerator.random(innerComplexity).either
+                    )
+                }
             }
-        }).value()
+            ).value()
+    }
+}
+
+class ByteGenerator(random: Random) : TypeGenerators<Byte>(random) {
+
+    override val simple = byteArrayOf(-1, 0, 1).toSet().values()
+
+    @Suppress("UNCHECKED_CAST")
+    override val edge =
+        byteArrayOf(Byte.MIN_VALUE, Byte.MAX_VALUE).toSet().values() as Set<TypeGenerator.Value<Byte?>>
+
+    override fun random(complexity: TypeGenerator.Complexity) = random(complexity, random).value()
+
+    companion object {
+        fun random(complexity: TypeGenerator.Complexity, random: Random = Random) = complexity.power().let { bound ->
+            bound / 2
+        }.let { bound ->
+            random.nextInt(2 * bound) - bound
+        }.toByte()
+
+        fun create(random: Random = Random) = ByteGenerator(random)
+    }
+}
+
+class ShortGenerator(random: Random) : TypeGenerators<Short>(random) {
+
+    override val simple = shortArrayOf(-1, 0, 1).toSet().values()
+
+    @Suppress("UNCHECKED_CAST")
+    override val edge =
+        shortArrayOf(Short.MIN_VALUE, Short.MAX_VALUE).toSet().values() as Set<TypeGenerator.Value<Short?>>
+
+    override fun random(complexity: TypeGenerator.Complexity) = random(complexity, random).value()
+
+    companion object {
+        fun random(complexity: TypeGenerator.Complexity, random: Random = Random) = complexity.power().let { bound ->
+            random.nextInt(2 * bound) - bound
+        }.toShort()
+
+        fun create(random: Random = Random) = ShortGenerator(random)
     }
 }
 
@@ -156,16 +202,14 @@ class IntGenerator(random: Random) : TypeGenerators<Int>(random) {
 
     override val simple = (-1..1).toSet().values()
     override val edge = setOf<Int?>(Int.MIN_VALUE, Int.MAX_VALUE).values()
-    override fun random(complexity: TypeGenerator.Complexity): TypeGenerator.Value<Int> =
-        random(complexity, random).value()
+    override fun random(complexity: TypeGenerator.Complexity) = random(complexity, random).value()
 
     companion object {
-        fun random(complexity: TypeGenerator.Complexity, random: Random = Random) = complexity.power().let { bound ->
+        fun random(complexity: TypeGenerator.Complexity, random: Random = Random) = complexity.power(4).let { bound ->
             random.nextInt(2 * bound) - bound
         }
 
-        fun create(random: Random = Random) =
-            IntGenerator(random)
+        fun create(random: Random = Random) = IntGenerator(random)
     }
 }
 
@@ -176,14 +220,12 @@ class LongGenerator(random: Random) : TypeGenerators<Long>(random) {
     override fun random(complexity: TypeGenerator.Complexity) = random(complexity, random).value()
 
     companion object {
-        @Suppress("MagicNumber")
         fun random(complexity: TypeGenerator.Complexity, random: Random = Random) =
             complexity.power(8).toLong().let { bound ->
                 Math.floorMod(random.nextLong(), 2 * bound) - bound
             }
 
-        fun create(random: Random = Random) =
-            LongGenerator(random)
+        fun create(random: Random = Random) = LongGenerator(random)
     }
 }
 
@@ -214,8 +256,7 @@ class StringGenerator(random: Random) : TypeGenerators<String>(random) {
                 .joinToString("")
         }
 
-        fun create(random: Random = Random) =
-            StringGenerator(random)
+        fun create(random: Random = Random) = StringGenerator(random)
     }
 }
 

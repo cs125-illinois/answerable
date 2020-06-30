@@ -2,14 +2,12 @@ package examples.oo.reference;
 
 import edu.illinois.cs.cs125.answerable.annotations.Generator;
 import edu.illinois.cs.cs125.answerable.annotations.Solution;
-import edu.illinois.cs.cs125.answerable.annotations.Verify;
 import edu.illinois.cs.cs125.answerable.api.Generators;
-import edu.illinois.cs.cs125.answerable.api.TestOutput;
-
 import java.util.Random;
 
 public class Equals {
   private int value;
+
   public Equals(int setValue) {
     value = setValue;
   }
@@ -24,7 +22,7 @@ public class Equals {
     return value == other.value;
   }
 
-/*  @Verify(standalone = true)
+  /*  @Verify(standalone = true)
   private static void verify(TestOutput<Equals> ours, TestOutput<Equals> theirs) {
     return;
   }*/

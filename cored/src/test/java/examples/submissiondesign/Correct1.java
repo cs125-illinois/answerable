@@ -8,6 +8,5 @@ public class Correct1 {
     value = setValue;
   }
 
-  public void example() {
-  }
+  public void example() {}
 }

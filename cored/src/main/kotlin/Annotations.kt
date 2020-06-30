@@ -69,3 +69,4 @@ fun Any.asArray(): Array<*> {
 }
 
 fun Executable.isAnswerable() = isAnnotationPresent(Rand::class.java)
+fun Field.isAnswerable() = isAnnotationPresent(Simple::class.java) || isAnnotationPresent(Edge::class.java)

@@ -8,8 +8,7 @@ public class Correct {
     value = setValue;
   }
 
-  public void example() {
-  }
+  public void example() {}
 
   private double ignored() {
     return 0.0;

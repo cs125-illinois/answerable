@@ -84,7 +84,8 @@ class ParameterGeneratorFactory(executables: List<Executable>, solution: Class<*
                         typeGenerators,
                         random
                     )
-                })
+                }
+            )
         }
         .toMap()
 
@@ -272,4 +273,3 @@ data class One<I>(val first: I)
 data class Two<I, J>(val first: I, val second: J)
 data class Three<I, J, K>(val first: I, val second: J, val third: K)
 data class Four<I, J, K, L>(val first: I, val second: J, val third: K, val fourth: L)
-

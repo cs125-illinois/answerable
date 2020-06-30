@@ -55,7 +55,7 @@ tasks.dependencyUpdates {
 }
 detekt {
     input = files(
-        "cli/src/main/kotlin", "core/src/main/kotlin", "jeedrunner/src/main/kotlin"
+        "cored/src/main/kotlin"
     )
     buildUponDefaultConfig = true
 }
