@@ -11,6 +11,7 @@ import edu.illinois.cs.cs125.answerable.annotations.Precondition
 import edu.illinois.cs.cs125.answerable.annotations.SimpleCase
 import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.Verify
+import edu.illinois.cs.cs125.answerable.publicConstructors
 import edu.illinois.cs.cs125.answerable.publicFields
 import edu.illinois.cs.cs125.answerable.publicInnerClasses
 import edu.illinois.cs.cs125.answerable.publicMethods
@@ -586,15 +587,6 @@ class OssifiedExecutable private constructor(
         return result
     }
 }
-
-fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
-    this.publicFields.filter(filter)
-
-fun Class<*>.publicMethods(filter: (executable: Executable) -> Boolean = { true }) =
-    this.publicMethods.filter(filter)
-
-fun Class<*>.publicConstructors(filter: (executable: Executable) -> Boolean = { true }) =
-    this.constructors.filter(filter)
 
 fun Type.simpleName() = this.typeName.split(".").last()
 fun Executable.simpleName() = this.name.split(".").last()

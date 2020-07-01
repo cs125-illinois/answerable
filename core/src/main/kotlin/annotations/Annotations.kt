@@ -129,18 +129,6 @@ internal fun Field.ifHasAnnotation(
     }
 }
 
-// TODO:
-// How I envision this looking from the perspective of an annotation is that it can call either
-// `validateReferenceAnnotation` or `validateControlAnnotation`. But then they need access to a TypePool.
-// Note that everything is a control annotation except @Solution, and that @DefaultTestRunArguments and @Timeout
-// can be either or even both.
-//
-// I feel like the right way to do this is to make the validation methods take a context instead of just a reference
-// class, and the context, created in `Class<*>.validateAnnotations` above, holds onto the reference class
-// and the control class. This is also easier to extend in the future.
-//
-// Under this, `validateReferenceAnnotation` and `validateControlAnnotation` become methods of the context.
-
 internal fun ValidateContext.validateReferenceAnnotation(
     annotationClass: Class<out Annotation>,
     methodValidator: ((method: Method) -> AnnotationError?)? = null,
@@ -201,9 +189,23 @@ internal fun Class<*>.validateMembers(
     }
 }
 
+// TODO: We probably no longer need this after removing support for multi-problem references.
 const val DEFAULT_EMPTY_NAME = "(empty)"
 
-private val namedAnnotations = listOf(Solution::class.java, Precondition::class.java, Verify::class.java)
+internal val namedAnnotations = setOf(Solution::class.java, Precondition::class.java, Verify::class.java)
+internal val testableAnnotations = setOf(
+    Solution::class.java,
+    Verify::class.java /* only with standalone = true */
+)
+internal val controlAnnotations = setOf(
+    Generator::class.java,
+    Helper::class.java,
+    Ignore::class.java,
+    Next::class.java,
+    Precondition::class.java,
+    Verify::class.java
+)
+internal fun Method.isControlMethod() = this.hasAnyAnnotation(controlAnnotations)
 
 // TODO: `require` throws IllegalArgumentExceptions... do we want AnswerableMisuseExceptions? I think so.
 // note that the last `require` is actually a panic condition and should be an IllegalStateException.

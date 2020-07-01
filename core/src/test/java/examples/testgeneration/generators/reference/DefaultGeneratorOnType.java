@@ -1,7 +1,7 @@
 package examples.testgeneration.generators.reference;
 
 import edu.illinois.cs.cs125.answerable.annotations.Solution;
-import examples.testgeneration.generators.common.Location;
+import edu.illinois.cs.cs125.answerable.testing.library.Location;
 
 public class DefaultGeneratorOnType {
   @Solution

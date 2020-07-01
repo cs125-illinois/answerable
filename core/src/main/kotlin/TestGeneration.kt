@@ -153,7 +153,7 @@ class TestGenerator(
 
     internal val isStatic = referenceMethod?.let { Modifier.isStatic(it.modifiers) } ?: false
 
-    internal val params = usableReferenceMethod?.getAnswerableParams() ?: arrayOf()
+    internal val params = usableReferenceMethod?.answerableParams ?: arrayOf()
     internal val paramsWithReceiver = arrayOf(GeneratorRequest(usableReferenceClass), *params)
 
     internal val random: Random = Random(0)

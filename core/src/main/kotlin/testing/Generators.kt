@@ -6,6 +6,7 @@ import edu.illinois.cs.cs125.answerable.LanguageMode
 import edu.illinois.cs.cs125.answerable.annotations.Pair
 import edu.illinois.cs.cs125.answerable.annotations.getAllGenerators
 import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
+import edu.illinois.cs.cs125.answerable.simpleSourceName
 import edu.illinois.cs.cs125.answerable.sourceName
 import java.lang.reflect.Array
 import java.lang.reflect.Method
@@ -41,9 +42,9 @@ internal class GeneratorMapBuilder(
 
     init {
         defaultGenerators.forEach { (k, v) -> addKnownGenerator(k, v) }
-        knownGenerators[String::class.java.asGeneratorType()] = lazy {
+        knownGenerators[String::class.java.asGeneratorRequest()] = lazy {
             DefaultStringGen(
-                knownGenerators[Char::class.java.asGeneratorType()]!!.value
+                knownGenerators[Char::class.java.asGeneratorRequest()]!!.value
             )
         }
     }
@@ -82,11 +83,11 @@ internal class GeneratorMapBuilder(
         when (type) {
             is Class<*> -> if (type.isArray) {
                 requestArrayGenerator(type.componentType)
-                knownGenerators[type.asGeneratorType()] =
+                knownGenerators[type.asGeneratorRequest()] =
                     // see [Note: Lazy closures in knownGenerators]
                     lazy {
                         DefaultArrayGen(
-                            knownGenerators[type.componentType.asGeneratorType()]?.value
+                            knownGenerators[type.componentType.asGeneratorRequest()]?.value
                                 ?: throw lazyArrayError(type.componentType),
                             type.componentType
                         )
@@ -157,7 +158,7 @@ internal class GeneratorMapBuilder(
         .toMap().toMutableMap()
         .also { discovered ->
             if (receiverType != null) {
-                val receiverAsGeneratorType = receiverType.asGeneratorType()
+                val receiverAsGeneratorType = receiverType.asGeneratorRequest()
                 if (receiverAsGeneratorType !in discovered) {
                     knownGenerators[receiverAsGeneratorType]?.value?.also {
                         discovered[receiverAsGeneratorType] = GenWrapper(it, random)
@@ -363,6 +364,16 @@ internal val primitiveGenerators: Map<Class<*>, Gen<*>> = mapOf(
     Boolean::class.java to defaultBooleanGen
 )
 
-data class GeneratorRequest(val type: Type, val name: String? = null)
+data class GeneratorRequest(val type: Type, val name: String? = null) {
+    override fun toString(): String {
+        val useGeneratorPart = if (name != null) {
+            "@UseGenerator(\"$name\") "
+        } else {
+            ""
+        }
 
-fun Class<*>.asGeneratorType() = GeneratorRequest(this, null)
+        return "$useGeneratorPart${type.simpleSourceName}"
+    }
+}
+
+fun Class<*>.asGeneratorRequest() = GeneratorRequest(this, null)

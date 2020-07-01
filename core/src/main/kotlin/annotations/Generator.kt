@@ -68,6 +68,13 @@ annotation class Generator(
     }
 }
 
+internal val Generator.usableName: String?
+    get() = if (this.name == "") {
+        null
+    } else {
+        this.name
+    }
+
 /**
  * Marks that a method parameter should use a particular generator.
  *
@@ -80,6 +87,8 @@ annotation class UseGenerator(
 )
 
 internal fun Method.isGenerator() = isAnnotationPresent(Generator::class.java)
+// TODO: this is always true, if the method is a generator, because Generator.name cannot be null
+// This function is most likely no longer necessary following the refactor.
 internal fun Method.isNamedGenerator() =
     isAnnotationPresent(Generator::class.java) && getAnnotation(Generator::class.java)?.name != null ?: false
 

@@ -9,6 +9,7 @@ import edu.illinois.cs.cs125.answerable.annotations.Solution
 import edu.illinois.cs.cs125.answerable.annotations.UseGenerator
 import edu.illinois.cs.cs125.answerable.testing.GeneratorRequest
 import java.lang.IllegalStateException
+import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.GenericArrayType
 import java.lang.reflect.Member
@@ -63,12 +64,25 @@ internal val Class<*>.publicFields: List<Field>
 internal val Class<*>.publicMethods: List<Method>
     get() = declaredMethods.filter { Modifier.isPublic(it.modifiers) }
 
+fun Class<*>.publicFields(filter: (field: Field) -> Boolean = { true }) =
+    this.publicFields.filter(filter)
+
+fun Class<*>.publicMethods(filter: (method: Method) -> Boolean = { true }) =
+    this.publicMethods.filter(filter)
+
+fun Class<*>.publicConstructors(filter: (ctor: Constructor<*>) -> Boolean = { true }) =
+    this.constructors.filter(filter)
+
 internal val Class<*>.publicInnerClasses: List<Class<*>>
     get() = declaredClasses.filter { Modifier.isPublic(it.modifiers) }
 
-internal fun Method.getAnswerableParams() =
-    this.parameters.map { GeneratorRequest(it.parameterizedType, it.getAnnotation(UseGenerator::class.java)?.name) }
-        .toTypedArray()
+internal val Method.answerableParams
+    get() = this.parameters.map {
+        GeneratorRequest(
+            it.parameterizedType,
+            it.getAnnotation(UseGenerator::class.java)?.name
+        )
+    }.toTypedArray()
 
 internal fun Class<*>.getDefaultAtNext(): Method? =
     this.declaredMethods
