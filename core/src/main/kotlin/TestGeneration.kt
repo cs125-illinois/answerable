@@ -158,9 +158,9 @@ class TestGenerator(
 
     internal val random: Random = Random(0)
     internal val generators: GeneratorMap = buildGeneratorMap(random)
-    internal val edgeCases: Map<Type, ArrayWrapper?> =
+    internal val edgeCases: Map<Type, WrappedArray?> =
         getEdgeCases(usableControlClass, paramsWithReceiver.map { it.type }.toTypedArray())
-    internal val simpleCases: Map<Type, ArrayWrapper?> =
+    internal val simpleCases: Map<Type, WrappedArray?> =
         getSimpleCases(usableControlClass, paramsWithReceiver.map { it.type }.toTypedArray())
 
     internal val timeout = referenceMethod?.getTimeout() ?: customVerifier?.getTimeout() ?: 0
@@ -226,12 +226,12 @@ class TestGenerator(
         }
     }
 
-    private fun getEdgeCases(clazz: Class<*>, types: Array<Type>): Map<Type, ArrayWrapper?> {
+    private fun getEdgeCases(clazz: Class<*>, types: Array<Type>): Map<Type, WrappedArray?> {
         val all = languageMode.defaultEdgeCases + clazz.getEnabledEdgeCases(enabledNames)
         return mapOf(*types.map { it to all[it] }.toTypedArray())
     }
 
-    private fun getSimpleCases(clazz: Class<*>, types: Array<Type>): Map<Type, ArrayWrapper?> {
+    private fun getSimpleCases(clazz: Class<*>, types: Array<Type>): Map<Type, WrappedArray?> {
         val all = languageMode.defaultSimpleCases + clazz.getEnabledSimpleCases(enabledNames)
         return mapOf(*types.map { it to all[it] }.toTypedArray())
     }
@@ -467,7 +467,7 @@ internal class TestRunWorker internal constructor(
 
     private val referenceEdgeCases = testGenerator.edgeCases
     private val referenceSimpleCases = testGenerator.simpleCases
-    private val submissionEdgeCases: Map<Type, ArrayWrapper?> = referenceEdgeCases
+    private val submissionEdgeCases: Map<Type, WrappedArray?> = referenceEdgeCases
         // replace reference class cases with mirrored cases
         // the idea is that each map takes `params` to the correct generator/cases
         .toMutableMap().apply {
@@ -476,7 +476,7 @@ internal class TestRunWorker internal constructor(
                 generatorMirrorToStudentClass.getEnabledEdgeCases(testGenerator.enabledNames)[usableSubmissionClass]
             )
         }
-    private val submissionSimpleCases: Map<Type, ArrayWrapper?> = referenceSimpleCases
+    private val submissionSimpleCases: Map<Type, WrappedArray?> = referenceSimpleCases
         // replace reference class cases with mirrored cases
         .toMutableMap().apply {
             replace(
@@ -495,9 +495,9 @@ internal class TestRunWorker internal constructor(
     private val capturePrint = usableReferenceMethod?.isPrinter() ?: false
     private val isStatic = testGenerator.isStatic
 
-    private fun calculateNumCases(cases: Map<Type, ArrayWrapper?>): Int =
+    private fun calculateNumCases(cases: Map<Type, WrappedArray?>): Int =
         paramsWithReceiver.foldIndexed(1) { idx, acc, param ->
-            cases[param.type]?.let { cases: ArrayWrapper ->
+            cases[param.type]?.let { cases: WrappedArray ->
                 (if (idx == 0) ((cases.array as? Array<*>)?.filterNotNull()?.size ?: 1) else cases.size).let {
                     return@foldIndexed acc * it
                 }
@@ -507,7 +507,7 @@ internal class TestRunWorker internal constructor(
     private fun calculateCase(
         index: Int,
         total: Int,
-        cases: Map<Type, ArrayWrapper?>,
+        cases: Map<Type, WrappedArray?>,
         backups: Map<GeneratorRequest, GenWrapper<*>>
     ): Array<Any?> {
         var segmentSize = total
@@ -556,8 +556,8 @@ internal class TestRunWorker internal constructor(
     }
 
     private fun mkSimpleEdgeMixedCase(
-        edges: Map<Type, ArrayWrapper?>,
-        simples: Map<Type, ArrayWrapper?>,
+        edges: Map<Type, WrappedArray?>,
+        simples: Map<Type, WrappedArray?>,
         backups: Map<GeneratorRequest, GenWrapper<*>>,
         random: Random
     ): Array<Any?> {
@@ -588,8 +588,8 @@ internal class TestRunWorker internal constructor(
     }
 
     private fun mkGeneratedMixedCase(
-        edges: Map<Type, ArrayWrapper?>,
-        simples: Map<Type, ArrayWrapper?>,
+        edges: Map<Type, WrappedArray?>,
+        simples: Map<Type, WrappedArray?>,
         gens: Map<GeneratorRequest, GenWrapper<*>>,
         complexity: Int,
         random: Random
@@ -1039,7 +1039,18 @@ class FailedClassDesignTestRunner(
         runTests(seed, environment)
 }
 
-internal class ArrayWrapper(val array: Any) {
+/**
+ * A Levity-polymorphic array class.
+ *
+ * Specifically, typical Java arrays require distinguishing between boxed and unboxed component types.
+ * "Levity" polymorphism is polymorphism over such "boxities." A [WrappedArray] may wrap an array of primitive
+ * types and it will be treated like a regular array of boxed component type.
+ *
+ * It's also possible to instead transform the captured array to an array of boxed component type.
+ * If messing around with performance in the future, feel free to give that a shot. It leads to more complex code, though.
+ * 7/2/2020
+ */
+internal class WrappedArray(val array: Any) {
     val size = ReflectArray.getLength(array)
     operator fun get(index: Int): Any? {
         return ReflectArray.get(array, index)
@@ -1052,6 +1063,20 @@ internal class ArrayWrapper(val array: Any) {
     fun random(random: Random): Any? {
         return get(random.nextInt(size))
     }
+
+    fun unwrap(): Array<out Any?> =
+        when (array) {
+            is ByteArray -> array.toTypedArray()
+            is ShortArray -> array.toTypedArray()
+            is IntArray -> array.toTypedArray()
+            is LongArray -> array.toTypedArray()
+            is DoubleArray -> array.toTypedArray()
+            is FloatArray -> array.toTypedArray()
+            is CharArray -> array.toTypedArray()
+            is BooleanArray -> array.toTypedArray()
+            is Array<*> -> array
+            else -> throw IllegalStateException("WrappedArray doesn't contain an array!")
+        }
 }
 
-internal fun ArrayWrapper?.isNullOrEmpty() = this == null || this.size == 0
+internal fun WrappedArray?.isNullOrEmpty() = this == null || this.size == 0

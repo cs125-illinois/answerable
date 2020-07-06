@@ -5,6 +5,13 @@ import examples.binarytree.reference.YourBinaryTree
 import examples.binarytree.size.ClassicBinaryTreeSizeTest
 import examples.sorting.ClassicSortTest
 import examples.sorting.reference.ArraySorter
+import org.junit.jupiter.api.Test
+
+class AdHoc {
+    @Test
+    fun `ad hoc`() {
+    }
+}
 
 fun main() {
     val testFunc = ::testSortingAnswerable

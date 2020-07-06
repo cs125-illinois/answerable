@@ -112,7 +112,7 @@ internal fun Class<*>.getAtNext(enabledNames: Array<String>): Method? =
         ?: this.getDefaultAtNext()
 
 // We use this class so that we can manipulate Fields and Methods at the same time,
-// as it is an erroneous conflict to provide both a field and a method for the same type's edge or corner cases.
+// as it is an error to provide both a field and a method for the same type's edge or corner cases.
 private class FieldOrMethod(val member: Member) {
     init {
         when (member) {
@@ -127,7 +127,7 @@ private class FieldOrMethod(val member: Member) {
         else -> throw IllegalStateException()
     }
 
-    fun <T : Annotation> isAnnotationPresent(annotationClass: Class<T>): Boolean = when (member) {
+    fun isAnnotationPresent(annotationClass: Class<out Annotation>): Boolean = when (member) {
         is Field -> member.isAnnotationPresent(annotationClass)
         is Method -> member.isAnnotationPresent(annotationClass)
         else -> throw IllegalStateException()
@@ -139,19 +139,19 @@ private class FieldOrMethod(val member: Member) {
         else -> throw IllegalStateException()
     }
 
-    fun get(): ArrayWrapper {
+    fun get(): WrappedArray {
         val value = when (member) {
             is Field -> member[null]
             is Method -> member.invoke(null)
             else -> throw IllegalStateException()
         } ?: throw IllegalStateException()
 
-        return ArrayWrapper(value)
+        return WrappedArray(value)
     }
 }
 
 @Suppress("ComplexMethod", "LongMethod", "ThrowsCount")
-private fun Class<*>.getEnabledCases(edgeIfElseSimple: Boolean, enabledNames: Array<String>): Map<Type, ArrayWrapper> {
+private fun Class<*>.getEnabledCases(edgeIfElseSimple: Boolean, enabledNames: Array<String>): Map<Type, WrappedArray> {
     val annotationClass = if (edgeIfElseSimple) EdgeCase::class.java else SimpleCase::class.java
 
     val caseName = if (edgeIfElseSimple) "edge" else "simple"
@@ -221,8 +221,8 @@ private fun Class<*>.getEnabledCases(edgeIfElseSimple: Boolean, enabledNames: Ar
     }
 }
 
-internal fun Class<*>.getEnabledEdgeCases(enabledNames: Array<String>): Map<Type, ArrayWrapper> =
+internal fun Class<*>.getEnabledEdgeCases(enabledNames: Array<String>): Map<Type, WrappedArray> =
     getEnabledCases(true, enabledNames)
 
-internal fun Class<*>.getEnabledSimpleCases(enabledNames: Array<String>): Map<Type, ArrayWrapper> =
+internal fun Class<*>.getEnabledSimpleCases(enabledNames: Array<String>): Map<Type, WrappedArray> =
     getEnabledCases(false, enabledNames)

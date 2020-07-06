@@ -1,7 +1,7 @@
 package edu.illinois.cs.cs125.answerable.testing
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
-import edu.illinois.cs.cs125.answerable.ArrayWrapper
+import edu.illinois.cs.cs125.answerable.WrappedArray
 import edu.illinois.cs.cs125.answerable.LanguageMode
 import edu.illinois.cs.cs125.answerable.annotations.Pair
 import edu.illinois.cs.cs125.answerable.annotations.getAllGenerators
@@ -236,7 +236,7 @@ internal class DefaultArrayGen<T>(private val tGen: Gen<T>, private val tClass: 
     Gen<Any> {
     override fun generate(complexity: Int, random: Random): Any {
         return Array.newInstance(tClass, random.nextInt(complexity + 1)).also {
-            val wrapper = ArrayWrapper(it)
+            val wrapper = WrappedArray(it)
             (0 until wrapper.size).forEach { idx -> wrapper[idx] = tGen(random.nextInt(complexity + 1), random) }
         }
     }

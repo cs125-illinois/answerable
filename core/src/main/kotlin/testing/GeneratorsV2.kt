@@ -1,10 +1,58 @@
 package edu.illinois.cs.cs125.answerable.testing
 
 import edu.illinois.cs.cs125.answerable.annotations.getAllGenerators
+import edu.illinois.cs.cs125.answerable.answerableParams
+import edu.illinois.cs.cs125.answerable.api.BytecodeProvider
+import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
 import edu.illinois.cs.cs125.answerable.getDefaultAtNext
 import java.lang.reflect.Constructor
 import java.lang.reflect.Method
 import java.util.Random
+
+/**
+ * A generator that produces arguments for a single method.
+ *
+ * Currently restricted to public methods which are not
+ * Answerable control methods. This may change in the future.
+ */
+class MethodArgumentGenerator internal constructor(
+    private val generatorMap: GeneratorMapV2,
+    val method: Method
+) {
+    /**
+     * A constructor intended for users who don't want Answerable's other testing features,
+     * but want to generate random arguments for a method. A bytecode provider is necessary
+     * only for methods defined in Kotlin classes with top-level generators.
+     */
+    constructor(method: Method, bytecodeProvider: BytecodeProvider? = null) : this(
+        method.declaringClass.generatorMap(pool = TypePool(bytecodeProvider = bytecodeProvider)),
+        method
+    )
+
+    private val params: Array<GeneratorRequest> = method.answerableParams
+    init {
+        if (!generatorMap.canGenerate(params)) {
+            // This is a hacky way of getting the generator map to throw the "can't satisfy requests" error
+            // without just copying it here.
+            generatorMap.generateParams(params, 0, Random())
+        }
+    }
+
+    /**
+     * Generate an array of parameters suitable to be passed to [method].
+     */
+    fun generateParams(complexity: Int, random: Random) =
+        generatorMap.generateParams(params, complexity, random)
+
+    /**
+     * Generate a receiver object that can be used for calling [Method.invoke] on [method].
+     *
+     * [previous] and [iteration] are used if receiver objects are generated with an @Next method.
+     * [complexity] and [random] are used if they are generated with an @Generator method.
+     */
+    fun generateReceiver(previous: Any?, iteration: Int, complexity: Int, random: Random) =
+        generatorMap.generateReceiver(previous, iteration, complexity, random)
+}
 
 internal class ReceiverGenerator private constructor(private val strategy: ReceiverGenStrategy) {
     /**

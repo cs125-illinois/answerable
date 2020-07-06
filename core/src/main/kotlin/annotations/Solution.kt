@@ -2,9 +2,10 @@ package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.api.TestOutput
 import java.lang.reflect.Method
+import java.lang.reflect.Modifier
 
 /**
- * Annotation to mark a method as the reference solution for Answerable.
+ * Annotation to mark a public method as the reference solution for Answerable.
  *
  * If your class provides references to multiple different problems, you may annotate multiple methods
  * as a @[Solution]. You may provide a name using the [name] parameter on the @[Solution] annotation.
@@ -54,10 +55,10 @@ annotation class Solution(
             }
 
         private fun validateMethod(method: Method): AnnotationError? {
-            val message = if (method.solutionName().isEmpty()) {
-                "@Solution name should not be empty"
-            } else {
-                null
+            val message = when {
+                !Modifier.isPublic(method.modifiers) -> "@Solution methods must be public"
+                method.solutionName().isEmpty() -> "@Solution name should not be empty"
+                else -> null
             }
             return if (message != null) {
                 AnnotationError(

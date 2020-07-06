@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertDoesNotThrow
 import java.util.Random
 
 private fun String.test(): Class<*> =
@@ -27,18 +28,18 @@ class GeneratorMapTest {
 
     @Test
     fun `all related generators for an empty class is an empty map`() {
-        assertTrue("EmptyClass".test().allRelatedGenerators().isEmpty())
+        assertTrue("EmptyClass".test().generatorMap().isEmpty())
     }
 
     @Test
     fun `all related generators for an empty class can generate receiver objects`() {
-        assertTrue("EmptyClass".test().allRelatedGenerators().receiverGenerator?.canMakeInstances ?: false)
+        assertTrue("EmptyClass".test().generatorMap().receiverGenerator?.canMakeInstances ?: false)
     }
 
     @Test
     fun `all related generators properly selects and uses a 0 argument constructor`() {
-        val countsInstancesMap = "CountsInstances".test().allRelatedGenerators()
-        val internalGeneratorMap = "CountsGenerators".test().allRelatedGenerators()
+        val countsInstancesMap = "CountsInstances".test().generatorMap()
+        val internalGeneratorMap = "CountsGenerators".test().generatorMap()
 
         assertTrue(countsInstancesMap.receiverGenerator?.canMakeInstances ?: false)
         assertTrue(internalGeneratorMap.receiverGenerator?.canMakeInstances ?: false)
@@ -50,8 +51,8 @@ class GeneratorMapTest {
 
     @Test
     fun `all related generators properly selects and uses an internal generator over a constructor`() {
-        val countsInstancesMap = "CountsInstances".test().allRelatedGenerators()
-        val internalGeneratorMap = "CountsGenerators".test().allRelatedGenerators()
+        val countsInstancesMap = "CountsInstances".test().generatorMap()
+        val internalGeneratorMap = "CountsGenerators".test().generatorMap()
 
         assertTrue(countsInstancesMap.receiverGenerator?.canMakeInstances ?: false)
         assertTrue(internalGeneratorMap.receiverGenerator?.canMakeInstances ?: false)
@@ -63,7 +64,7 @@ class GeneratorMapTest {
 
     @Test
     fun `all related generators correctly uses default external generators`() {
-        val usesExternalGeneratorMap = "UsesExternalGenerator".test().allRelatedGenerators()
+        val usesExternalGeneratorMap = "UsesExternalGenerator".test().generatorMap()
         val generatedLoc = usesExternalGeneratorMap.generateParams(
             arrayOf(Location::class.java.asGeneratorRequest()),
             0,
@@ -71,7 +72,7 @@ class GeneratorMapTest {
         )[0] as Location
         assertTrue(UsesExternalGenerator.isOrigin(generatedLoc))
 
-        val overridesExternalGeneratorMap = "OverridesExternalGenerator".test().allRelatedGenerators()
+        val overridesExternalGeneratorMap = "OverridesExternalGenerator".test().generatorMap()
         val otherGeneratedLoc = overridesExternalGeneratorMap.generateParams(
             arrayOf(Location::class.java.asGeneratorRequest()),
             0,
@@ -82,7 +83,7 @@ class GeneratorMapTest {
 
     @Test
     fun `labeled parameter generators work correctly`() {
-        val map = LabeledParamGens::class.java.allRelatedGenerators()
+        val map = LabeledParamGens::class.java.generatorMap()
         val method = LabeledParamGens::class.java.getDeclaredMethod("testMethod", Int::class.java, Int::class.java)
 
         val args = map.generateParams(method.answerableParams, 10, random)
@@ -92,11 +93,27 @@ class GeneratorMapTest {
     @Test
     fun `all related generators map can make arguments for all public functions`() {
         val klass = "MultipleFunctions".test()
-        val map = klass.allRelatedGenerators()
+        val map = klass.generatorMap()
 
         assertEquals(3, klass.publicMethods.size)
         klass.publicMethods.forEach {
             assertTrue(map.canGenerate(it.answerableParams))
+        }
+    }
+
+    @Test
+    fun `arguments generated for a method can actually be passed to that method`() {
+        val klass = "MultipleFunctions".test()
+        val map = klass.generatorMap()
+
+        assertEquals(3, klass.publicMethods.size)
+        klass.publicMethods.forEach {
+            val generator = map.generatorForMethod(it)
+            for (i in 0..9) {
+                val args = generator.generateParams(i * 5, random)
+                // would throw an InvocationTargetException
+                assertDoesNotThrow { it.invoke(null, *args) }
+            }
         }
     }
 }

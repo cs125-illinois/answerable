@@ -124,7 +124,7 @@ internal class TestGeneratorTest {
 
         assertEquals(
             "\nA generator for an array with component type `java.lang.StringBuilder' was requested, " +
-                "but no generator for that type was found.",
+                "but no generator for that component type was found.",
             errMsg
         )
     }

@@ -12,6 +12,7 @@ import edu.illinois.cs.cs125.answerable.languageMode
 import edu.illinois.cs.cs125.answerable.publicMethods
 import edu.illinois.cs.cs125.answerable.simpleSourceName
 import edu.illinois.cs.cs125.answerable.sourceName
+import java.lang.reflect.Method
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import java.lang.reflect.WildcardType
@@ -34,20 +35,19 @@ internal data class GeneratorMapV2(
 
     fun generateReceiver(previous: Any?, iteration: Int, complexity: Int, random: Random): Any? =
         receiverGenerator?.generate(previous, iteration, complexity, random)
+
+    fun generatorForMethod(method: Method): MethodArgumentGenerator =
+        MethodArgumentGenerator(this, method)
 }
 
 /**
- * Gets all generators related to the given class, as a GeneratorMapV2.
- *
- * A generator for G is "related" to a class C if:
- *   (1) It generates C, or
- *   (2) C exposes a public, non-Answerable method which has a parameter of type G.
+ * Constructs a [GeneratorMapV2] that can be used to call all of the public functions in the class.
  *
  * Generating receivers is different from generating parameters. Receivers can be generated via other strategies,
  * such as @Next methods or default constructors. The returned GeneratorMapV2 has a separate function,
  * [GeneratorMapV2.generateReceiver], for generating receiver objects of type [this].
  */
-internal fun Class<*>.allRelatedGenerators(
+internal fun Class<*>.generatorMap(
     pool: TypePool = TypePool(),
     controlClass: Class<*>? = null
 ): GeneratorMapV2 {

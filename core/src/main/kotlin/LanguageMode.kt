@@ -10,20 +10,20 @@ import edu.illinois.cs.cs125.answerable.testing.valueSimpleCases
 import java.lang.reflect.Array as ReflectArray
 
 internal interface LanguageMode {
-    val defaultSimpleCases: Map<Class<*>, ArrayWrapper>
-    val defaultEdgeCases: Map<Class<*>, ArrayWrapper>
+    val defaultSimpleCases: Map<Class<*>, WrappedArray>
+    val defaultEdgeCases: Map<Class<*>, WrappedArray>
     val defaultGenerators: Map<Class<*>, Gen<*>>
     fun findControlClass(clazz: Class<*>, typePool: TypePool): Class<*>?
 }
 
 internal object JavaMode : LanguageMode {
-    override val defaultSimpleCases: Map<Class<*>, ArrayWrapper>
+    override val defaultSimpleCases: Map<Class<*>, WrappedArray>
         get() = valueSimpleCases + arraySimpleCases
-    override val defaultEdgeCases: Map<Class<*>, ArrayWrapper>
-        get() = (defaultPrimitiveEdgeCases + mapOf(String::class.java to ArrayWrapper(arrayOf(null, "")))).let {
+    override val defaultEdgeCases: Map<Class<*>, WrappedArray>
+        get() = (defaultPrimitiveEdgeCases + mapOf(String::class.java to WrappedArray(arrayOf(null, "")))).let {
             it + it.map { (clazz, _) ->
                 val emptyArray = ReflectArray.newInstance(clazz, 0)
-                emptyArray.javaClass to ArrayWrapper(arrayOf(emptyArray, null))
+                emptyArray.javaClass to WrappedArray(arrayOf(emptyArray, null))
             }
         }
     override val defaultGenerators: Map<Class<*>, Gen<*>>
@@ -34,13 +34,13 @@ internal object JavaMode : LanguageMode {
 }
 
 internal object KotlinMode : LanguageMode {
-    override val defaultSimpleCases: Map<Class<*>, ArrayWrapper>
+    override val defaultSimpleCases: Map<Class<*>, WrappedArray>
         get() = valueSimpleCases + arraySimpleCases
-    override val defaultEdgeCases: Map<Class<*>, ArrayWrapper>
-        get() = (defaultPrimitiveEdgeCases + mapOf(String::class.java to ArrayWrapper(arrayOf("")))).let {
+    override val defaultEdgeCases: Map<Class<*>, WrappedArray>
+        get() = (defaultPrimitiveEdgeCases + mapOf(String::class.java to WrappedArray(arrayOf("")))).let {
             it + it.map { (clazz, _) ->
                 val emptyArray = ReflectArray.newInstance(clazz, 0)
-                emptyArray.javaClass to ArrayWrapper(arrayOf(emptyArray))
+                emptyArray.javaClass to WrappedArray(arrayOf(emptyArray))
             }
         }
     override val defaultGenerators: Map<Class<*>, Gen<*>>

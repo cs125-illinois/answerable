@@ -8,6 +8,7 @@ public class MultipleFunctions {
   }
 
   public static boolean usesArray(boolean[] arr) {
+    if (arr.length == 0) return true;
     return arr[0];
   }
 

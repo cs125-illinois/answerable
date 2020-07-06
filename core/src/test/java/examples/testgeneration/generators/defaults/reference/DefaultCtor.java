@@ -11,7 +11,7 @@ public class DefaultCtor {
   }
 
   @Solution
-  int accumulate(int n) {
+  public int accumulate(int n) {
     count += n;
     return count;
   }
