@@ -6,23 +6,25 @@ plugins {
     kotlin("jvm")
     java
     kotlin("plugin.serialization")
+    kotlin("kapt")
     id("org.jetbrains.dokka")
     id("org.jmailen.kotlinter")
     `maven-publish`
 }
 dependencies {
     implementation(kotlin("reflect"))
-
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.javassist:javassist:3.27.0-GA")
     implementation("org.apache.bcel:bcel:6.5.0")
     implementation("org.junit.jupiter:junit-jupiter:5.6.2")
     implementation("org.objenesis:objenesis:3.1")
     implementation("com.google.code.gson:gson:2.8.6")
+    implementation("com.squareup:javapoet:1.13.0")
     implementation("com.squareup.moshi:moshi-kotlin:1.9.3")
     implementation("com.squareup.moshi:moshi-adapters:1.9.3")
     implementation("io.github.classgraph:classgraph:4.8.86")
 
+    kaptTest(project(":core"))
     testImplementation("com.marcinmoskala:DiscreteMathToolkit:1.0.3")
     testImplementation("com.github.cs125-illinois.jeed:core:${findProperty("jeed_version")}")
 }

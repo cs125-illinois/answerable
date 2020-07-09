@@ -3,6 +3,8 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
 import edu.illinois.cs.cs125.answerable.AnswerableMisuseException
+import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
+import edu.illinois.cs.cs125.answerable.languageMode
 import io.github.classgraph.ClassGraph
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -19,7 +21,8 @@ data class AnnotationError(val kind: Kind, val location: SourceLocation, val mes
 
 internal fun Class<*>.validateAnnotations(): Unit = TODO("Currently mid-refactor!")
 
-internal fun Class<*>.validateAnnotations(controlClass: Class<*>) {
+internal fun Class<*>.validateAnnotations(overrideControlClass: Class<*>? = null, pool: TypePool = TypePool()) {
+    val controlClass = overrideControlClass ?: this.languageMode().findControlClass(this, pool) ?: this
     val context = ValidateContext(this, controlClass)
     val annotationErrors = mutableListOf<AnnotationError>()
 
@@ -203,7 +206,9 @@ internal val controlAnnotations = setOf(
     Ignore::class.java,
     Next::class.java,
     Precondition::class.java,
-    Verify::class.java
+    Verify::class.java,
+    EdgeCase::class.java,
+    SimpleCase::class.java
 )
 internal fun Method.isControlMethod() = this.hasAnyAnnotation(controlAnnotations)
 

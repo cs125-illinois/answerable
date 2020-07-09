@@ -13,6 +13,7 @@
             <option value="$PROJECT_DIR$/core" />
             <option value="$PROJECT_DIR$/demo" />
             <option value="$PROJECT_DIR$/jeedrunner" />
+            <option value="$PROJECT_DIR$/processor" />
           </set>
         </option>
         <option name="useQualifiedModuleNames" value="true" />
