@@ -76,10 +76,12 @@ internal fun Class<*>.generatorMap(
 // Consider if the component is Int. We need to be sure we use the same Int generator that is being used for testing.
 // To achieve this, the Gen<*>s held in the knownGenerators map are lazy. When the lazy closure is forced, by build(),
 // it will grab the actual generator for the component type.
-// In the case of default generators, lazy closures are also used to throw an error if there are duplicate external defaults.
+// In the case of default generators, lazy closures are also used to throw an error if there are duplicate external
+// defaults.
 //
 // Even after parametric generation becomes exposed, arrays will have to be special-cased, because the array generators
 // require access to a Class<*> instance so that they can use java.lang.reflect.Array.newInstance.
+@Suppress("TooManyFunctions")
 internal class GeneratorMapBuilderV2(
     goalTypes: Array<GeneratorRequest>,
     private val receiverClass: Class<*>?,
@@ -121,6 +123,7 @@ internal class GeneratorMapBuilderV2(
      * This error will _not_ be thrown if the default is not needed.
      * If the generator is forced, it will be forced in [build].
      */
+    @Suppress("ReturnCount")
     private fun findExternalDefaultGenerator(request: GeneratorRequest): Lazy<Gen<*>>? {
         if (request.type is Class<*> && request.name == null) {
             val generatorMethods = request.type.getAllGenerators()

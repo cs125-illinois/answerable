@@ -226,7 +226,7 @@ fun Class<*>.fieldsMatch(other: Class<*>, cdaNameEnv: CDANameEnv? = null): CDAMa
 fun Class<*>.methodsMatch(
     other: Class<*>,
     solutionName: String = DEFAULT_EMPTY_NAME,
-    cdaNameEnv: CDANameEnv? = null
+    nameEnv: CDANameEnv? = null
 ): CDAMatcher<List<OssifiedExecutable>> {
     fun methodFilter(method: Executable) = referenceAnnotations.none { method.isAnnotationPresent(it) } &&
         !(method.getAnnotation(Solution::class.java)?.name?.let { it != solutionName } ?: false)
@@ -234,7 +234,7 @@ fun Class<*>.methodsMatch(
     return CDAMatcher(
         AnalysisType.METHODS,
         this.publicMethods(::methodFilter)
-            .map { OssifiedExecutable(it).changeTypeName(this, cdaNameEnv) }
+            .map { OssifiedExecutable(it).changeTypeName(this, nameEnv) }
             .sortedBy { it.answerableName },
         other.publicMethods(::methodFilter).map(::OssifiedExecutable).sortedBy { it.answerableName }
     )
@@ -341,9 +341,10 @@ enum class AnalysisType {
 data class CDAMatcher<T>(
     val type: AnalysisType,
     val reference: T,
-    val submission: T,
-    val match: Boolean = reference == submission
+    val submission: T
 ) {
+    val match: Boolean by lazy { reference == submission }
+
     override fun toString(): String = this.message
 }
 
@@ -504,7 +505,7 @@ class OssifiedField private constructor(
 }
 
 @Suppress("MemberVisibilityCanBePrivate", "LongParameterList")
-class OssifiedExecutable private constructor(
+data class OssifiedExecutable(
     val isConstructor: Boolean,
     val isDefault: Boolean,
     val modifiers: List<String>,
@@ -557,10 +558,7 @@ class OssifiedExecutable private constructor(
             return parts.joinToString(separator = " ")
         }
 
-    internal fun changeTypeName(from: String, to: String): OssifiedExecutable = OssifiedExecutable(
-        isConstructor = isConstructor,
-        isDefault = isDefault,
-        modifiers = modifiers,
+    internal fun changeTypeName(from: String, to: String): OssifiedExecutable = this.copy(
         typeParams = typeParams.map { it.changeTypeName(from, to) },
         returnType = returnType?.changeTypeName(from, to),
         name = if (isConstructor) name.changeTypeName(from, to) else name,

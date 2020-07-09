@@ -10,7 +10,6 @@ import com.squareup.javapoet.TypeSpec
 import com.squareup.javapoet.TypeVariableName
 import com.squareup.javapoet.WildcardTypeName
 import javax.annotation.processing.AbstractProcessor
-import javax.annotation.processing.Messager
 import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
 import javax.annotation.processing.SupportedOptions
@@ -29,8 +28,6 @@ import javax.lang.model.type.TypeMirror
 @SupportedAnnotationTypes("edu.illinois.cs.cs125.answerable.annotations.Solution")
 class AnswerableInterfaceProcessor : AbstractProcessor() {
     override fun process(annotations: MutableSet<out TypeElement>, roundEnv: RoundEnvironment): Boolean {
-        val messager: Messager = processingEnv.messager
-
         for (annotation: TypeElement in annotations) {
             if (!annotation.simpleName.contentEquals("Solution")) continue
 
@@ -72,37 +69,11 @@ class AnswerableInterfaceProcessor : AbstractProcessor() {
             ClassName.get(packageName, interfaceName),
             implementedInterfaces,
             interfaceMethods
-        )
+        ).addOriginatingElement(clazz)
+            .build()
 
         val file = JavaFile.builder(packageName, iface).build()
-        file.writeTo(System.out)
-    }
-
-    private fun fixTypeName(
-        className: TypeName,
-        interfaceName: TypeName,
-        typeName: TypeName
-    ): TypeName = when (typeName) {
-        is ClassName -> if (typeName == className) interfaceName else typeName
-        is ArrayTypeName -> if (typeName.componentType == className) ArrayTypeName.of(interfaceName) else typeName
-        is ParameterizedTypeName -> ParameterizedTypeName.get(
-            fixTypeName(className, interfaceName, typeName.rawType) as ClassName,
-            *typeName.typeArguments.map { fixTypeName(className, interfaceName, it) }.toTypedArray()
-        )
-        is TypeVariableName -> TypeVariableName.get(
-            typeName.name,
-            *typeName.bounds.map { fixTypeName(className, interfaceName, it) }.toTypedArray()
-        )
-        // JavaPoet doesn't support multiple bounds, which means generated interfaces won't either.
-        is WildcardTypeName -> when {
-            typeName.upperBounds.isNotEmpty() ->
-                WildcardTypeName.subtypeOf(fixTypeName(className, interfaceName, typeName.upperBounds[0]))
-            typeName.lowerBounds.isNotEmpty() ->
-                WildcardTypeName.supertypeOf(fixTypeName(className, interfaceName, typeName.lowerBounds[0]))
-            else ->
-                typeName
-        }
-        else -> typeName
+        file.writeTo(processingEnv.filer)
     }
 
     private fun makeJavaInterface(
@@ -111,7 +82,7 @@ class AnswerableInterfaceProcessor : AbstractProcessor() {
         interfaceName: TypeName,
         implementedInterfaces: List<TypeMirror>,
         interfaceMethods: List<ExecutableElement>
-    ): TypeSpec {
+    ): TypeSpec.Builder {
         fun fixTypeName(name: TypeName): TypeName = fixTypeName(className, interfaceName, name)
         fun makeJavaMethodSpec(method: ExecutableElement): MethodSpec {
             val methodType = method.asType() as ExecutableType
@@ -131,14 +102,14 @@ class AnswerableInterfaceProcessor : AbstractProcessor() {
             return builder.build()
         }
 
-        return TypeSpec.interfaceBuilder(interfaceName.toString())
+        return TypeSpec.interfaceBuilder((interfaceName as ClassName).simpleName())
             .addModifiers(Modifier.PUBLIC)
             .addSuperinterfaces(implementedInterfaces.map { fixTypeName(TypeName.get(it)) })
             .addMethods(interfaceMethods.map(::makeJavaMethodSpec))
-            .build()
     }
 
     private val annotationsThatIgnore = controlAnnotations
+    @Suppress("ReturnCount")
     private fun methodShouldBeUsed(element: Element): Boolean {
         if (Modifier.PUBLIC !in element.modifiers) {
             return false
@@ -150,4 +121,31 @@ class AnswerableInterfaceProcessor : AbstractProcessor() {
         }
         return true
     }
+}
+
+private fun fixTypeName(
+    className: TypeName,
+    interfaceName: TypeName,
+    typeName: TypeName
+): TypeName = when (typeName) {
+    is ClassName -> if (typeName == className) interfaceName else typeName
+    is ArrayTypeName -> if (typeName.componentType == className) ArrayTypeName.of(interfaceName) else typeName
+    is ParameterizedTypeName -> ParameterizedTypeName.get(
+        fixTypeName(className, interfaceName, typeName.rawType) as ClassName,
+        *typeName.typeArguments.map { fixTypeName(className, interfaceName, it) }.toTypedArray()
+    )
+    is TypeVariableName -> TypeVariableName.get(
+        typeName.name,
+        *typeName.bounds.map { fixTypeName(className, interfaceName, it) }.toTypedArray()
+    )
+    // JavaPoet doesn't support multiple bounds, which means generated interfaces won't either.
+    is WildcardTypeName -> when {
+        typeName.upperBounds.isNotEmpty() ->
+            WildcardTypeName.subtypeOf(fixTypeName(className, interfaceName, typeName.upperBounds[0]))
+        typeName.lowerBounds.isNotEmpty() ->
+            WildcardTypeName.supertypeOf(fixTypeName(className, interfaceName, typeName.lowerBounds[0]))
+        else ->
+            typeName
+    }
+    else -> typeName
 }

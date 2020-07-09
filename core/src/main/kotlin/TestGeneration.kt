@@ -647,9 +647,8 @@ internal class TestRunWorker internal constructor(
         when (receiverGenStrategy) {
             TestGenerator.ReceiverGenStrategy.NONE -> null
             TestGenerator.ReceiverGenStrategy.DEFAULTCONSTRUCTOR -> referenceDefaultCtor?.newInstance()
-            TestGenerator.ReceiverGenStrategy.GENERATOR -> referenceGens[GeneratorRequest(usableReferenceClass)]?.generate(
-                complexity
-            )
+            TestGenerator.ReceiverGenStrategy.GENERATOR ->
+                referenceGens[GeneratorRequest(usableReferenceClass)]?.generate(complexity)
             TestGenerator.ReceiverGenStrategy.NEXT -> referenceAtNext?.invoke(
                 null,
                 prevRefReceiver,
@@ -1047,7 +1046,8 @@ class FailedClassDesignTestRunner(
  * types and it will be treated like a regular array of boxed component type.
  *
  * It's also possible to instead transform the captured array to an array of boxed component type.
- * If messing around with performance in the future, feel free to give that a shot. It leads to more complex code, though.
+ * If messing around with performance in the future, feel free to give that a shot. It leads to more complex code,
+ * though.
  * 7/2/2020
  */
 internal class WrappedArray(val array: Any) {

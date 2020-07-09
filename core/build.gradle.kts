@@ -28,6 +28,7 @@ dependencies {
     testImplementation("com.marcinmoskala:DiscreteMathToolkit:1.0.3")
     testImplementation("com.github.cs125-illinois.jeed:core:${findProperty("jeed_version")}")
 }
+kapt.includeCompileClasspath = false
 tasks.dokka {
     outputFormat = "html"
     outputDirectory = "$buildDir/javadoc"

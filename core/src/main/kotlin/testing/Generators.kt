@@ -49,7 +49,8 @@ internal class GeneratorMapBuilder(
         }
     }
 
-    private val requiredGenerators: Set<GeneratorRequest> = goalTypes.toSet().also { it.forEach(this::requestArrayGenerator) }
+    private val requiredGenerators: Set<GeneratorRequest> =
+        goalTypes.toSet().also { it.forEach(this::requestArrayGenerator) }
 
     private fun lazyGenError(type: Type) =
         AnswerableMisuseException(
