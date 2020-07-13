@@ -23,6 +23,19 @@ import javax.lang.model.element.TypeElement
 import javax.lang.model.type.ExecutableType
 import javax.lang.model.type.TypeMirror
 
+// these probably belong with the customization option once that's available.
+val Class<*>.answerableInterfaceName: String
+    get() = "I${this.simpleName}"
+
+val Class<*>.qualifiedAnswerableInterfaceName: String
+    get() = "${this.packageName}.${this.answerableInterfaceName}"
+
+/**
+ * Only well defined if the class represented by [this] is an answerable reference class.
+ */
+val Class<*>.answerableInterface: Class<*>
+    get() = Class.forName(this.qualifiedAnswerableInterfaceName, true, this.classLoader)
+
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 @SupportedOptions()
 @SupportedAnnotationTypes("edu.illinois.cs.cs125.answerable.annotations.Solution")
@@ -41,6 +54,8 @@ class AnswerableInterfaceProcessor : AbstractProcessor() {
     }
 
     private fun makeInterfaceName(clazz: TypeElement): String {
+        // this needs to change separately from the Class<*>.answerableInterfaceName
+        // vals, because we don't have access to Class<*> here.
         val className = clazz.simpleName
         return "I$className"
     }

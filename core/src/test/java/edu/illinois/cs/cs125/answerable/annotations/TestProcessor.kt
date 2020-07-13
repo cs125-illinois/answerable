@@ -1,10 +1,13 @@
 package edu.illinois.cs.cs125.answerable.annotations
 
+import edu.illinois.cs.cs125.answerable.annotations.fixtures.processor.ISimple
+import edu.illinois.cs.cs125.answerable.annotations.fixtures.processor.Simple
 import edu.illinois.cs.cs125.answerable.assertClassDesignPasses
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDAConfig
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.CDANameEnv
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.message
 import edu.illinois.cs.cs125.answerable.classdesignanalysis.methodsMatch
+import edu.illinois.cs.cs125.answerable.classmanipulation.makeJavaProxy
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -72,5 +75,12 @@ class TestProcessor {
     @Test
     fun `complex self-referential case`() {
         assertInterfaceShape("IsComparable")
+    }
+
+    @Test
+    fun `reference class can be proxied to its own interface`() {
+        val obj = Simple()
+        val proxy = Simple::class.java.makeJavaProxy(obj) as ISimple
+        proxy.intDouble(2, 3.0)
     }
 }

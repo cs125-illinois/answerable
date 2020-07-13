@@ -56,7 +56,7 @@ data class TestOutput<T>(
         return result
     }
 
-    internal fun ossify(pool: TypePool): OssifiedTestOutput {
+    internal fun ossify(pool: TypePool = TypePool()): OssifiedTestOutput {
         return OssifiedTestOutput(
             typeOfBehavior = typeOfBehavior,
             receiver = receiver.ossify(pool),
@@ -118,7 +118,7 @@ data class OssifiedValue internal constructor(
     override fun toString(): String = value
 }
 
-internal fun Any?.ossify(pool: TypePool): OssifiedValue? {
+internal fun Any?.ossify(pool: TypePool = TypePool()): OssifiedValue? {
     fun safeStringify(block: () -> String): String {
         @Suppress("TooGenericExceptionCaught")
         return try {

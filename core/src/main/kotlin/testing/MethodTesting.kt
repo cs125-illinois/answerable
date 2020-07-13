@@ -2,7 +2,10 @@ package edu.illinois.cs.cs125.answerable.testing
 
 import edu.illinois.cs.cs125.answerable.TestEnvironment
 import edu.illinois.cs.cs125.answerable.api.TestOutput
+import edu.illinois.cs.cs125.answerable.api.ossify
 import edu.illinois.cs.cs125.answerable.classmanipulation.TypePool
+import edu.illinois.cs.cs125.answerable.classmanipulation.makeJavaProxy
+import edu.illinois.cs.cs125.answerable.classmanipulation.makeValueProxy
 import edu.illinois.cs.cs125.answerable.isPrinter
 import org.junit.jupiter.api.Assertions.assertEquals
 import java.lang.reflect.InvocationTargetException
@@ -20,13 +23,16 @@ internal class MethodTester(
 ) {
     private val referenceMethod = referenceGenerator.method
     private val capturePrint = referenceMethod.isPrinter()
+    private val referenceClass = referenceMethod.declaringClass
+    private val submissionClass = submissionGenerator.method.declaringClass
 
     fun test(
+        testNumber: Int,
         kind: TestKind,
         referenceReceiver: Any?,
         submissionReceiver: Any?,
         environment: TestEnvironment
-    ): TestStep {
+    ): TestStepV2 {
         fun runOne(
             receiver: Any?,
             generator: MethodTestGenerator,
@@ -62,9 +68,9 @@ internal class MethodTester(
 
             return TestOutput(
                 typeOfBehavior = behavior!!,
-                receiver = receiver,
-                args = args,
-                output = output,
+                receiver = referenceClass.makeJavaProxy(receiver),
+                args = args.map { makeValueProxy(referenceClass, submissionClass, it) }.toTypedArray(),
+                output = makeValueProxy(referenceClass, submissionClass, output),
                 threw = threw,
                 stdOut = outText,
                 stdErr = errText
@@ -74,7 +80,7 @@ internal class MethodTester(
         val referenceBehavior = runOne(referenceReceiver, referenceGenerator, referenceRandom)
         val submissionBehavior = runOne(submissionReceiver, submissionGenerator, submissionRandom)
 
-        var assertErr: Throwable? = null
+        var assertErr: AssertionError? = null
         try {
             verifier(referenceBehavior, submissionBehavior)
             // AssertionError is from java.lang, and any reasonable testing library should extend it
@@ -82,7 +88,21 @@ internal class MethodTester(
             assertErr = e
         }
 
-        TODO("Finish implementing this once proxying is ready, should just need a return")
+        return TestStepV2(
+            testNumber = testNumber,
+            testKind = kind,
+            referenceReceiver = referenceReceiver.ossify(),
+            submissionReceiver = submissionReceiver.ossify(),
+            referenceOutput = referenceBehavior.ossify(),
+            submissionOutput = submissionBehavior.ossify(),
+            referenceLiveReceiver = referenceReceiver,
+            submissionDangerousLiveReceiver = submissionReceiver,
+            referenceLiveOutput = referenceBehavior,
+            submissionDangerousLiveOutput = submissionBehavior,
+
+            assertionError = assertErr,
+            succeeded = assertErr == null
+        )
     }
 }
 
