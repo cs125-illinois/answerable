@@ -178,7 +178,7 @@ internal class MethodTestGeneratorFactory(
 sealed class TestKind {
     object EdgeCase : TestKind()
     object SimpleCase : TestKind()
-    class Generated(val complexity: Int) : TestKind()
-    // complexity is expected to be between 0 and 4 inclusive
-    class Regression(val complexity: Int) : TestKind()
+    data class Generated(val complexity: Int) : TestKind()
+    // complexity is expected to vary with complexity of generated cases
+    data class Regression(val complexity: Int) : TestKind()
 }
